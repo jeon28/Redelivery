@@ -15,11 +15,11 @@ class QueryRequest(BaseModel):
 class ContainerResult(BaseModel):
     container_no: str
     available: bool
-    depot: Optional[str]
-    booking_ref: Optional[str]
-    over_caps: Optional[str]
-    close_date: Optional[str]
-    reason: Optional[str]
+    depot: Optional[str] = None
+    booking_ref: Optional[str] = None
+    over_caps: Optional[int] = None
+    close_date: Optional[str] = None
+    reason: Optional[str] = None
 
 
 class QueryResponse(BaseModel):
@@ -53,7 +53,7 @@ def _mock_results(containers: List[str]) -> List[ContainerResult]:
                 available=True,
                 depot="INC05 - SEUNG JIN ENTERPRISES",
                 booking_ref=f"TKE{i:04d}",
-                over_caps="NO",
+                over_caps=1,
                 close_date="2026-MAY-31",
                 reason=None,
             ))
