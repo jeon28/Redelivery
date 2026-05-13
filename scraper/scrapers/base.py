@@ -1,3 +1,4 @@
+import logging
 import os
 from abc import ABC, abstractmethod
 from typing import Optional
@@ -6,6 +7,8 @@ from dotenv import load_dotenv
 from playwright.async_api import async_playwright, Browser, Page, Playwright
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 class BaseScraper(ABC):
@@ -25,7 +28,15 @@ class BaseScraper(ABC):
             os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browsers_path
 
         self._playwright = await async_playwright().start()
-        self.browser = await self._playwright.chromium.launch(headless=headless)
+        # --no-sandbox / --disable-dev-shm-usage: required for Chromium in Docker
+        self.browser = await self._playwright.chromium.launch(
+            headless=headless,
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+            ],
+        )
         self.page = await self.browser.new_page()
 
     async def close(self):
