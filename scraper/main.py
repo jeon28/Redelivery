@@ -8,7 +8,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 
-from routers import query
+from routers import query, credentials
 
 app = FastAPI(title="반납컨테이너 스크래퍼 API")
 
@@ -20,6 +20,7 @@ app.add_middleware(
 )
 
 app.include_router(query.router)
+app.include_router(credentials.router)
 
 @app.get("/")
 def health():

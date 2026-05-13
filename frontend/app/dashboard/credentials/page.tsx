@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { verifySession } from '@/lib/session'
 import { logout } from '@/app/actions/auth'
-import SearchForm from '@/components/SearchForm'
+import CredentialsManager from '@/components/CredentialsManager'
 
-export default async function DashboardPage() {
+export default async function CredentialsPage() {
   await verifySession()
 
   return (
@@ -14,13 +14,13 @@ export default async function DashboardPage() {
           <nav className="flex items-center gap-4 text-sm">
             <Link
               href="/dashboard"
-              className="text-white font-medium border-b-2 border-white pb-0.5"
+              className="text-slate-300 hover:text-white transition-colors"
             >
               조회
             </Link>
             <Link
               href="/dashboard/credentials"
-              className="text-slate-300 hover:text-white transition-colors"
+              className="text-white font-medium border-b-2 border-white pb-0.5"
             >
               비밀번호 관리
             </Link>
@@ -36,7 +36,14 @@ export default async function DashboardPage() {
         </form>
       </header>
       <main className="max-w-5xl mx-auto px-6 py-8">
-        <SearchForm />
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold text-gray-800">비밀번호 관리</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            임대사 계정의 아이디/비밀번호를 변경하면 즉시 시스템 전체에
+            반영됩니다.
+          </p>
+        </div>
+        <CredentialsManager />
       </main>
     </div>
   )

@@ -1,0 +1,3305 @@
+{
+  "url": "https://tools.tritoncontainer.com/tritoncontainer/redeliverySession/create",
+  "title": "Triton International - Request Redelivery",
+  "forms": [
+    {
+      "id": "validateForm",
+      "name": "validateForm",
+      "action": "https://tools.tritoncontainer.com/tritoncontainer/redeliverySession/validate",
+      "method": "post"
+    },
+    {
+      "id": "subForm",
+      "name": "",
+      "action": "https://campaigns.tritoncontainersales.com/t/subscribeerror?description=",
+      "method": "post"
+    },
+    {
+      "id": "dnsModal-form",
+      "name": "dnsModal-form",
+      "action": "https://tools.tritoncontainer.com/tritoncontainer/doNotSellContact/save",
+      "method": "post"
+    }
+  ],
+  "labels": [
+    {
+      "for": "CybotCookiebotDialogBodyLevelButtonNecessary",
+      "text": "Necessary"
+    },
+    {
+      "for": "CybotCookiebotDialogBodyLevelButtonPreferences",
+      "text": "Preferences"
+    },
+    {
+      "for": "CybotCookiebotDialogBodyLevelButtonStatistics",
+      "text": "Statistics"
+    },
+    {
+      "for": "CybotCookiebotDialogBodyLevelButtonMarketing",
+      "text": "Marketing"
+    },
+    {
+      "for": "CybotCookiebotDialogBodyContentCheckboxPersonalInformation",
+      "text": "Do not sell or share my personal information"
+    },
+    {
+      "for": "location",
+      "text": "Location"
+    },
+    {
+      "for": "unitNumbers",
+      "text": "Unit Numbers"
+    },
+    {
+      "for": "dns_fullName",
+      "text": "Name"
+    },
+    {
+      "for": "dns_companyName",
+      "text": "Company name"
+    },
+    {
+      "for": "dns_email",
+      "text": "Email address"
+    },
+    {
+      "for": "dns_phoneNumber",
+      "text": "Phone"
+    },
+    {
+      "for": "dns_country",
+      "text": "Country"
+    }
+  ],
+  "inputs": [
+    {
+      "tag": "INPUT",
+      "type": "checkbox",
+      "id": "CybotCookiebotDialogBodyLevelButtonNecessary",
+      "name": null,
+      "class": "CybotCookiebotDialogBodyLevelButton CybotCookiebotDialogBodyLevelButtonDisabled",
+      "placeholder": null,
+      "text": "on"
+    },
+    {
+      "tag": "INPUT",
+      "type": "checkbox",
+      "id": "CybotCookiebotDialogBodyLevelButtonPreferences",
+      "name": null,
+      "class": "CybotCookiebotDialogBodyLevelButton CybotCookiebotDialogBodyLevelConsentCheckbox",
+      "placeholder": null,
+      "text": "on"
+    },
+    {
+      "tag": "INPUT",
+      "type": "checkbox",
+      "id": "CybotCookiebotDialogBodyLevelButtonStatistics",
+      "name": null,
+      "class": "CybotCookiebotDialogBodyLevelButton CybotCookiebotDialogBodyLevelConsentCheckbox",
+      "placeholder": null,
+      "text": "on"
+    },
+    {
+      "tag": "INPUT",
+      "type": "checkbox",
+      "id": "CybotCookiebotDialogBodyLevelButtonMarketing",
+      "name": null,
+      "class": "CybotCookiebotDialogBodyLevelButton CybotCookiebotDialogBodyLevelConsentCheckbox",
+      "placeholder": null,
+      "text": "on"
+    },
+    {
+      "tag": "INPUT",
+      "type": "checkbox",
+      "id": "CybotCookiebotDialogBodyLevelButtonNecessaryInline",
+      "name": null,
+      "class": "CybotCookiebotDialogBodyLevelButton CybotCookiebotDialogBodyLevelButtonDisabled",
+      "placeholder": null,
+      "text": "on"
+    },
+    {
+      "tag": "INPUT",
+      "type": "checkbox",
+      "id": "CybotCookiebotDialogBodyLevelButtonPreferencesInline",
+      "name": null,
+      "class": "CybotCookiebotDialogBodyLevelButton CybotCookiebotDialogBodyLevelConsentCheckbox",
+      "placeholder": null,
+      "text": "on"
+    },
+    {
+      "tag": "INPUT",
+      "type": "checkbox",
+      "id": "CybotCookiebotDialogBodyLevelButtonStatisticsInline",
+      "name": null,
+      "class": "CybotCookiebotDialogBodyLevelButton CybotCookiebotDialogBodyLevelConsentCheckbox",
+      "placeholder": null,
+      "text": "on"
+    },
+    {
+      "tag": "INPUT",
+      "type": "checkbox",
+      "id": "CybotCookiebotDialogBodyLevelButtonMarketingInline",
+      "name": null,
+      "class": "CybotCookiebotDialogBodyLevelButton CybotCookiebotDialogBodyLevelConsentCheckbox",
+      "placeholder": null,
+      "text": "on"
+    },
+    {
+      "tag": "INPUT",
+      "type": "checkbox",
+      "id": "CybotCookiebotDialogBodyContentCheckboxPersonalInformation",
+      "name": null,
+      "class": "CybotCookiebotDialogBodyLevelButton",
+      "placeholder": null,
+      "text": "on"
+    },
+    {
+      "tag": "INPUT",
+      "type": "search",
+      "id": null,
+      "name": null,
+      "class": "select2-search__field",
+      "placeholder": "-Depot-",
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "search",
+      "id": null,
+      "name": null,
+      "class": "select2-search__field",
+      "placeholder": "-Types-",
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "location_allowedDepotTypes_CUCY",
+      "name": "location._allowedDepotTypes",
+      "class": "location-input",
+      "placeholder": null,
+      "text": "CUCY"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "location_allowedDepotTypes_DEPO",
+      "name": "location._allowedDepotTypes",
+      "class": "location-input",
+      "placeholder": null,
+      "text": "DEPO"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "location_allowedDepotTypes_WHSL",
+      "name": "location._allowedDepotTypes",
+      "class": "location-input",
+      "placeholder": null,
+      "text": "WHSL"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "location_allowedDepotTypes_CONS",
+      "name": "location._allowedDepotTypes",
+      "class": "location-input",
+      "placeholder": null,
+      "text": "CONS"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "location_allowedDepotTypes_HAPG",
+      "name": "location._allowedDepotTypes",
+      "class": "location-input",
+      "placeholder": null,
+      "text": "HAPG"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "location_limitToInternet",
+      "name": "location._limitToInternet",
+      "class": "location-input",
+      "placeholder": null,
+      "text": "false"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "location_limitToStatus",
+      "name": "location._limitToStatus",
+      "class": "location-input",
+      "placeholder": null,
+      "text": "ACTV"
+    },
+    {
+      "tag": "INPUT",
+      "type": "search",
+      "id": null,
+      "name": null,
+      "class": "select2-search__field",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "submit",
+      "id": "Request Redelivery",
+      "name": "Request Redelivery",
+      "class": "btn btn-submit",
+      "placeholder": null,
+      "text": "Request Redelivery"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "SYNCHRONIZER_TOKEN",
+      "name": "SYNCHRONIZER_TOKEN",
+      "class": null,
+      "placeholder": null,
+      "text": "1b32e72a-d1b9-498f-a8e6-305adf7d0cf8"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "SYNCHRONIZER_URI",
+      "name": "SYNCHRONIZER_URI",
+      "class": null,
+      "placeholder": null,
+      "text": "SYNCHRONIZER_TOKEN"
+    },
+    {
+      "tag": "INPUT",
+      "type": "email",
+      "id": "fieldEmail",
+      "name": "cm-bthiuhj-bthiuhj",
+      "class": "js-cm-email-input qa-input-email",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "_dnsModal-form_tokenKey",
+      "name": "SYNCHRONIZER_TOKEN",
+      "class": null,
+      "placeholder": null,
+      "text": "2dbc3997-8d71-491e-abb5-4e5b21f8b339"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "_dnsModal-form_tokenUri",
+      "name": "SYNCHRONIZER_URI",
+      "class": null,
+      "placeholder": null,
+      "text": "/tritoncontainer/redeliverySession/create"
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": "dns_fullName",
+      "name": "fullName",
+      "class": "form-control",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": "dns_companyName",
+      "name": "companyName",
+      "class": "form-control",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": "dns_email",
+      "name": "email",
+      "class": "form-control text-lowercase",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": "dns_phoneNumber",
+      "name": "phoneNumber",
+      "class": "form-control",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "submit",
+      "id": "dnsModal_submit",
+      "name": "Submit",
+      "class": "btn btn-submit",
+      "placeholder": null,
+      "text": "Submit"
+    }
+  ],
+  "selects": [
+    {
+      "tag": "SELECT",
+      "type": "select-one",
+      "id": "location_country",
+      "name": "location.country",
+      "class": "location-input location-country form-control tf-select2 tf-single-select-group select2-hidden-accessible",
+      "placeholder": null,
+      "text": "-Country-\nAlgeria\nAmerican Samoa\nArgentina\nAruba\nAustralia\nAustria\nAzerbaijan\nBahrain\nBangladesh\nBarbados\nBelgium\nBelize",
+      "options": [
+        {
+          "value": "",
+          "text": "-Country-"
+        },
+        {
+          "value": "DZ",
+          "text": "Algeria"
+        },
+        {
+          "value": "AS",
+          "text": "American Samoa"
+        },
+        {
+          "value": "AR",
+          "text": "Argentina"
+        },
+        {
+          "value": "AW",
+          "text": "Aruba"
+        },
+        {
+          "value": "AU",
+          "text": "Australia"
+        },
+        {
+          "value": "AT",
+          "text": "Austria"
+        },
+        {
+          "value": "AZ",
+          "text": "Azerbaijan"
+        },
+        {
+          "value": "BH",
+          "text": "Bahrain"
+        },
+        {
+          "value": "BD",
+          "text": "Bangladesh"
+        },
+        {
+          "value": "BB",
+          "text": "Barbados"
+        },
+        {
+          "value": "BE",
+          "text": "Belgium"
+        },
+        {
+          "value": "BZ",
+          "text": "Belize"
+        },
+        {
+          "value": "BJ",
+          "text": "Benin"
+        },
+        {
+          "value": "BM",
+          "text": "Bermuda"
+        },
+        {
+          "value": "BO",
+          "text": "Bolivia"
+        },
+        {
+          "value": "BR",
+          "text": "Brazil"
+        },
+        {
+          "value": "BG",
+          "text": "Bulgaria"
+        },
+        {
+          "value": "KH",
+          "text": "Cambodia"
+        },
+        {
+          "value": "CM",
+          "text": "Cameroon"
+        },
+        {
+          "value": "CA",
+          "text": "Canada"
+        },
+        {
+          "value": "CL",
+          "text": "Chile"
+        },
+        {
+          "value": "CN",
+          "text": "China"
+        },
+        {
+          "value": "CO",
+          "text": "Colombia"
+        },
+        {
+          "value": "CR",
+          "text": "Costa Rica"
+        },
+        {
+          "value": "CI",
+          "text": "Cote D'Ivoire"
+        },
+        {
+          "value": "HR",
+          "text": "Croatia"
+        },
+        {
+          "value": "CY",
+          "text": "Cyprus"
+        },
+        {
+          "value": "CZ",
+          "text": "Czech Republic"
+        },
+        {
+          "value": "DK",
+          "text": "Denmark"
+        },
+        {
+          "value": "DO",
+          "text": "Dominican Republic"
+        },
+        {
+          "value": "EC",
+          "text": "Ecuador"
+        },
+        {
+          "value": "EG",
+          "text": "Egypt"
+        },
+        {
+          "value": "SV",
+          "text": "El Salvador"
+        },
+        {
+          "value": "EE",
+          "text": "Estonia"
+        },
+        {
+          "value": "FJ",
+          "text": "Fiji"
+        },
+        {
+          "value": "FI",
+          "text": "Finland"
+        },
+        {
+          "value": "FR",
+          "text": "France"
+        },
+        {
+          "value": "GA",
+          "text": "Gabon"
+        },
+        {
+          "value": "GE",
+          "text": "Georgia"
+        },
+        {
+          "value": "DE",
+          "text": "Germany"
+        },
+        {
+          "value": "GH",
+          "text": "Ghana"
+        },
+        {
+          "value": "GR",
+          "text": "Greece"
+        },
+        {
+          "value": "GU",
+          "text": "Guam"
+        },
+        {
+          "value": "GT",
+          "text": "Guatemala"
+        },
+        {
+          "value": "GY",
+          "text": "Guyana"
+        },
+        {
+          "value": "HT",
+          "text": "Haiti"
+        },
+        {
+          "value": "HN",
+          "text": "Honduras"
+        },
+        {
+          "value": "HU",
+          "text": "Hungary"
+        },
+        {
+          "value": "IS",
+          "text": "Iceland"
+        },
+        {
+          "value": "WS",
+          "text": "Independent State of Samoa"
+        },
+        {
+          "value": "IN",
+          "text": "India"
+        },
+        {
+          "value": "ID",
+          "text": "Indonesia"
+        },
+        {
+          "value": "IR",
+          "text": "Iran"
+        },
+        {
+          "value": "IE",
+          "text": "Ireland"
+        },
+        {
+          "value": "IL",
+          "text": "Israel"
+        },
+        {
+          "value": "IT",
+          "text": "Italy"
+        },
+        {
+          "value": "JM",
+          "text": "Jamaica"
+        },
+        {
+          "value": "JP",
+          "text": "Japan"
+        },
+        {
+          "value": "JO",
+          "text": "Jordan"
+        },
+        {
+          "value": "KZ",
+          "text": "Kazakhstan"
+        },
+        {
+          "value": "KE",
+          "text": "Kenya"
+        },
+        {
+          "value": "KR",
+          "text": "Korea"
+        },
+        {
+          "value": "KW",
+          "text": "Kuwait"
+        },
+        {
+          "value": "KG",
+          "text": "Kyrgyzstan"
+        },
+        {
+          "value": "LV",
+          "text": "Latvia"
+        },
+        {
+          "value": "LB",
+          "text": "Lebanon"
+        },
+        {
+          "value": "LT",
+          "text": "Lithuania"
+        },
+        {
+          "value": "MY",
+          "text": "Malaysia"
+        },
+        {
+          "value": "MT",
+          "text": "Malta"
+        },
+        {
+          "value": "MU",
+          "text": "Mauritius"
+        },
+        {
+          "value": "MX",
+          "text": "Mexico"
+        },
+        {
+          "value": "MD",
+          "text": "Moldova"
+        },
+        {
+          "value": "MA",
+          "text": "Morocco"
+        },
+        {
+          "value": "MZ",
+          "text": "Mozambique"
+        },
+        {
+          "value": "MM",
+          "text": "Myanmar"
+        },
+        {
+          "value": "NA",
+          "text": "Namibia"
+        },
+        {
+          "value": "NL",
+          "text": "Netherlands"
+        },
+        {
+          "value": "AN",
+          "text": "Netherlands Antilles"
+        },
+        {
+          "value": "NC",
+          "text": "New Caledonia"
+        },
+        {
+          "value": "NZ",
+          "text": "New Zealand"
+        },
+        {
+          "value": "NI",
+          "text": "Nicaragua"
+        },
+        {
+          "value": "NG",
+          "text": "Nigeria"
+        },
+        {
+          "value": "NO",
+          "text": "Norway"
+        },
+        {
+          "value": "OM",
+          "text": "Oman"
+        },
+        {
+          "value": "PK",
+          "text": "Pakistan"
+        },
+        {
+          "value": "PA",
+          "text": "Panama Republic"
+        },
+        {
+          "value": "PG",
+          "text": "Papua New Guinea"
+        },
+        {
+          "value": "PY",
+          "text": "Paraguay"
+        },
+        {
+          "value": "PE",
+          "text": "Peru"
+        },
+        {
+          "value": "PH",
+          "text": "Philippines"
+        },
+        {
+          "value": "PL",
+          "text": "Poland"
+        },
+        {
+          "value": "PT",
+          "text": "Portugal"
+        },
+        {
+          "value": "PR",
+          "text": "Puerto Rico"
+        },
+        {
+          "value": "QA",
+          "text": "Qatar"
+        },
+        {
+          "value": "RO",
+          "text": "Romania"
+        },
+        {
+          "value": "RU",
+          "text": "Russian Federation"
+        },
+        {
+          "value": "RW",
+          "text": "Rwanda"
+        },
+        {
+          "value": "LC",
+          "text": "Saint Lucia"
+        },
+        {
+          "value": "SA",
+          "text": "Saudi Arabia"
+        },
+        {
+          "value": "SN",
+          "text": "Senegal"
+        },
+        {
+          "value": "RS",
+          "text": "Serbia"
+        },
+        {
+          "value": "SC",
+          "text": "Seychelles"
+        },
+        {
+          "value": "SL",
+          "text": "Sierra Leone"
+        },
+        {
+          "value": "SG",
+          "text": "Singapore"
+        },
+        {
+          "value": "SK",
+          "text": "Slovakia"
+        },
+        {
+          "value": "SI",
+          "text": "Slovenia"
+        },
+        {
+          "value": "ZA",
+          "text": "South Africa"
+        },
+        {
+          "value": "ES",
+          "text": "Spain"
+        },
+        {
+          "value": "LK",
+          "text": "Sri Lanka"
+        },
+        {
+          "value": "SD",
+          "text": "Sudan"
+        },
+        {
+          "value": "SR",
+          "text": "Suriname"
+        },
+        {
+          "value": "SZ",
+          "text": "Swaziland"
+        },
+        {
+          "value": "SE",
+          "text": "Sweden"
+        },
+        {
+          "value": "CH",
+          "text": "Switzerland"
+        },
+        {
+          "value": "TW",
+          "text": "Taiwan, R.O.C."
+        },
+        {
+          "value": "TJ",
+          "text": "Tajikistan"
+        },
+        {
+          "value": "TZ",
+          "text": "Tanzania"
+        },
+        {
+          "value": "TH",
+          "text": "Thailand"
+        },
+        {
+          "value": "TL",
+          "text": "Timor-Leste"
+        },
+        {
+          "value": "TO",
+          "text": "Tonga"
+        },
+        {
+          "value": "TT",
+          "text": "Trinidad & Tobago"
+        },
+        {
+          "value": "TN",
+          "text": "Tunisia"
+        },
+        {
+          "value": "TR",
+          "text": "Turkey"
+        },
+        {
+          "value": "TM",
+          "text": "Turkmenistan"
+        },
+        {
+          "value": "UG",
+          "text": "Uganda"
+        },
+        {
+          "value": "UA",
+          "text": "Ukraine"
+        },
+        {
+          "value": "AE",
+          "text": "United Arab Emirates"
+        },
+        {
+          "value": "GB",
+          "text": "United Kingdom"
+        },
+        {
+          "value": "US",
+          "text": "United States"
+        },
+        {
+          "value": "UM",
+          "text": "United States Minor Outlying Islands"
+        },
+        {
+          "value": "UY",
+          "text": "Uruguay"
+        },
+        {
+          "value": "UZ",
+          "text": "Uzbekistan"
+        },
+        {
+          "value": "VE",
+          "text": "Venezuela"
+        },
+        {
+          "value": "VN",
+          "text": "Vietnam"
+        }
+      ]
+    },
+    {
+      "tag": "SELECT",
+      "type": "select-one",
+      "id": "location_port",
+      "name": "location.port",
+      "class": "location-input location-port form-control tf-select2 tf-single-select-group select2-hidden-accessible",
+      "placeholder": null,
+      "text": "-Port-\nAalborg\nAarhus\nAberdeen\nAbidjan\nAbu Dhabi\nAburatsu\nAcajutla\nAdelaide\nAhmedabad\nAkita\nAktau\nAlabaster\nAlberta\nAlbe",
+      "options": [
+        {
+          "value": "",
+          "text": "-Port-"
+        },
+        {
+          "value": "AAL",
+          "text": "Aalborg"
+        },
+        {
+          "value": "AAR",
+          "text": "Aarhus"
+        },
+        {
+          "value": "ABR",
+          "text": "Aberdeen"
+        },
+        {
+          "value": "ABJ",
+          "text": "Abidjan"
+        },
+        {
+          "value": "ADI",
+          "text": "Abu Dhabi"
+        },
+        {
+          "value": "ABU",
+          "text": "Aburatsu"
+        },
+        {
+          "value": "ACA",
+          "text": "Acajutla"
+        },
+        {
+          "value": "ADL",
+          "text": "Adelaide"
+        },
+        {
+          "value": "AMD",
+          "text": "Ahmedabad"
+        },
+        {
+          "value": "AXT",
+          "text": "Akita"
+        },
+        {
+          "value": "AKT",
+          "text": "Aktau"
+        },
+        {
+          "value": "LBA",
+          "text": "Alabaster"
+        },
+        {
+          "value": "ALB",
+          "text": "Alberta"
+        },
+        {
+          "value": "ALN",
+          "text": "Alberton"
+        },
+        {
+          "value": "ALQ",
+          "text": "Albuquerque"
+        },
+        {
+          "value": "AKX",
+          "text": "Alexander"
+        },
+        {
+          "value": "ALX",
+          "text": "Alexandria"
+        },
+        {
+          "value": "ALG",
+          "text": "Algeciras"
+        },
+        {
+          "value": "ALI",
+          "text": "Algiers"
+        },
+        {
+          "value": "ALA",
+          "text": "Aliaga"
+        },
+        {
+          "value": "ALC",
+          "text": "Alicante"
+        },
+        {
+          "value": "AMY",
+          "text": "Almaty"
+        },
+        {
+          "value": "ATM",
+          "text": "Altamira"
+        },
+        {
+          "value": "ALR",
+          "text": "Alverca"
+        },
+        {
+          "value": "AMA",
+          "text": "Amarillo"
+        },
+        {
+          "value": "AMM",
+          "text": "Amman"
+        },
+        {
+          "value": "AMS",
+          "text": "Amsterdam"
+        },
+        {
+          "value": "ANH",
+          "text": "Anchorage"
+        },
+        {
+          "value": "ANC",
+          "text": "Ancona"
+        },
+        {
+          "value": "ANB",
+          "text": "Anniston"
+        },
+        {
+          "value": "ANF",
+          "text": "Antofagasta"
+        },
+        {
+          "value": "ANR",
+          "text": "Antwerp"
+        },
+        {
+          "value": "APW",
+          "text": "Apia"
+        },
+        {
+          "value": "APH",
+          "text": "Apra Harbor"
+        },
+        {
+          "value": "AQA",
+          "text": "Aqaba"
+        },
+        {
+          "value": "ARW",
+          "text": "Arad"
+        },
+        {
+          "value": "ARI",
+          "text": "Arica"
+        },
+        {
+          "value": "CAJ",
+          "text": "Arifijan"
+        },
+        {
+          "value": "ARK",
+          "text": "Arkhangelsk"
+        },
+        {
+          "value": "ARL",
+          "text": "Arluno"
+        },
+        {
+          "value": "ARS",
+          "text": "Arquata"
+        },
+        {
+          "value": "ASH",
+          "text": "Ashdod"
+        },
+        {
+          "value": "ASG",
+          "text": "Ashgabad"
+        },
+        {
+          "value": "ASY",
+          "text": "Ashley"
+        },
+        {
+          "value": "ASU",
+          "text": "Asuncion"
+        },
+        {
+          "value": "ATH",
+          "text": "Athens"
+        },
+        {
+          "value": "ATU",
+          "text": "Athus"
+        },
+        {
+          "value": "ATL",
+          "text": "Atlanta"
+        },
+        {
+          "value": "ATC",
+          "text": "Attica"
+        },
+        {
+          "value": "ATY",
+          "text": "Atyrau"
+        },
+        {
+          "value": "AUO",
+          "text": "Auburn"
+        },
+        {
+          "value": "AKL",
+          "text": "Auckland"
+        },
+        {
+          "value": "AGB",
+          "text": "Augsburg"
+        },
+        {
+          "value": "AGS",
+          "text": "Augusta"
+        },
+        {
+          "value": "AUT",
+          "text": "Austin"
+        },
+        {
+          "value": "AVO",
+          "text": "Avonmouth"
+        },
+        {
+          "value": "BFN",
+          "text": "Bad Salzuflen"
+        },
+        {
+          "value": "BDH",
+          "text": "Badoeyenhausen"
+        },
+        {
+          "value": "BHI",
+          "text": "Bahia Blanca"
+        },
+        {
+          "value": "BFL",
+          "text": "Bakersfield"
+        },
+        {
+          "value": "BAK",
+          "text": "Baku"
+        },
+        {
+          "value": "BAL",
+          "text": "Baltimore"
+        },
+        {
+          "value": "BNG",
+          "text": "Bangalore"
+        },
+        {
+          "value": "BKK",
+          "text": "Bangkok"
+        },
+        {
+          "value": "BYA",
+          "text": "Bar"
+        },
+        {
+          "value": "BCN",
+          "text": "Barcelona"
+        },
+        {
+          "value": "BRI",
+          "text": "Bari"
+        },
+        {
+          "value": "BAQ",
+          "text": "Barranquilla"
+        },
+        {
+          "value": "BSL",
+          "text": "Basle"
+        },
+        {
+          "value": "BAT",
+          "text": "Baton Rouge"
+        },
+        {
+          "value": "BEW",
+          "text": "Beira"
+        },
+        {
+          "value": "BEI",
+          "text": "Beirut"
+        },
+        {
+          "value": "BLW",
+          "text": "Belawan"
+        },
+        {
+          "value": "BEF",
+          "text": "Belfast"
+        },
+        {
+          "value": "BGR",
+          "text": "Belgrade"
+        },
+        {
+          "value": "BLZ",
+          "text": "Belize"
+        },
+        {
+          "value": "FOU",
+          "text": "Belle Fourche"
+        },
+        {
+          "value": "BPP",
+          "text": "Bellport"
+        },
+        {
+          "value": "BZO",
+          "text": "Bend"
+        },
+        {
+          "value": "BEG",
+          "text": "Bergen"
+        },
+        {
+          "value": "BZN",
+          "text": "Bergen op Zoom"
+        },
+        {
+          "value": "BER",
+          "text": "Berlin"
+        },
+        {
+          "value": "BWK",
+          "text": "Berwick"
+        },
+        {
+          "value": "BVY",
+          "text": "Beverely"
+        },
+        {
+          "value": "BIC",
+          "text": "Bicester"
+        },
+        {
+          "value": "BIO",
+          "text": "Bilbao"
+        },
+        {
+          "value": "BIL",
+          "text": "Billingham"
+        },
+        {
+          "value": "BMN",
+          "text": "Birmingham"
+        },
+        {
+          "value": "BHM",
+          "text": "Birmingham (United Kingdom)"
+        },
+        {
+          "value": "BIS",
+          "text": "Bishkek"
+        },
+        {
+          "value": "BSI",
+          "text": "Bismarck"
+        },
+        {
+          "value": "BHE",
+          "text": "Blenheim"
+        },
+        {
+          "value": "BLG",
+          "text": "Blue Grass"
+        },
+        {
+          "value": "BLU",
+          "text": "Bluford"
+        },
+        {
+          "value": "BOG",
+          "text": "Bogota"
+        },
+        {
+          "value": "BOI",
+          "text": "Boise"
+        },
+        {
+          "value": "BOL",
+          "text": "Bologna"
+        },
+        {
+          "value": "BLT",
+          "text": "Bolton"
+        },
+        {
+          "value": "BGA",
+          "text": "Bonaire"
+        },
+        {
+          "value": "BBN",
+          "text": "Bonn"
+        },
+        {
+          "value": "BOD",
+          "text": "Bordeaux"
+        },
+        {
+          "value": "BNL",
+          "text": "Born"
+        },
+        {
+          "value": "BOS",
+          "text": "Boston"
+        },
+        {
+          "value": "BRA",
+          "text": "Brasov"
+        },
+        {
+          "value": "BRE",
+          "text": "Bremen"
+        },
+        {
+          "value": "BRV",
+          "text": "Bremerhaven"
+        },
+        {
+          "value": "BRG",
+          "text": "Bridgetown"
+        },
+        {
+          "value": "BDV",
+          "text": "Bridgeview"
+        },
+        {
+          "value": "BNE",
+          "text": "Brisbane"
+        },
+        {
+          "value": "BRS",
+          "text": "Bristol"
+        },
+        {
+          "value": "BRQ",
+          "text": "Brno"
+        },
+        {
+          "value": "VBJ",
+          "text": "Brooklyn"
+        },
+        {
+          "value": "BRO",
+          "text": "Brownsville"
+        },
+        {
+          "value": "BMH",
+          "text": "Bruchmuhlbach-Miesau"
+        },
+        {
+          "value": "BRU",
+          "text": "Bruck"
+        },
+        {
+          "value": "YNT",
+          "text": "Bryant"
+        },
+        {
+          "value": "BZD",
+          "text": "Brzeg Dolny"
+        },
+        {
+          "value": "BUH",
+          "text": "Bucharest"
+        },
+        {
+          "value": "BDU",
+          "text": "Buda"
+        },
+        {
+          "value": "BUD",
+          "text": "Budapest"
+        },
+        {
+          "value": "BUN",
+          "text": "Buenaventura"
+        },
+        {
+          "value": "BUE",
+          "text": "Buenos Aires"
+        },
+        {
+          "value": "BUF",
+          "text": "Buffalo"
+        },
+        {
+          "value": "BHH",
+          "text": "Bunker Hill"
+        },
+        {
+          "value": "BGS",
+          "text": "Burgas"
+        },
+        {
+          "value": "BRW",
+          "text": "Burgettstown"
+        },
+        {
+          "value": "BUR",
+          "text": "Burtonontrent"
+        },
+        {
+          "value": "BUS",
+          "text": "Busan"
+        },
+        {
+          "value": "UHN",
+          "text": "Bushnell"
+        },
+        {
+          "value": "ZBT",
+          "text": "Butner"
+        },
+        {
+          "value": "CDZ",
+          "text": "Cadiz"
+        },
+        {
+          "value": "CAG",
+          "text": "Cagliari"
+        },
+        {
+          "value": "CNS",
+          "text": "Cairns"
+        },
+        {
+          "value": "CDA",
+          "text": "Caldera"
+        },
+        {
+          "value": "CGA",
+          "text": "Calgary"
+        },
+        {
+          "value": "CLO",
+          "text": "Cali"
+        },
+        {
+          "value": "CAL",
+          "text": "Callao"
+        },
+        {
+          "value": "CMD",
+          "text": "Camden"
+        },
+        {
+          "value": "CPV",
+          "text": "Cape Canaveral"
+        },
+        {
+          "value": "CPT",
+          "text": "Cape Town"
+        },
+        {
+          "value": "CDF",
+          "text": "Cardiff"
+        },
+        {
+          "value": "CSO",
+          "text": "Carson"
+        },
+        {
+          "value": "CTG",
+          "text": "Cartagena"
+        },
+        {
+          "value": "CSB",
+          "text": "Casablanca (Morocco)"
+        },
+        {
+          "value": "CSG",
+          "text": "Casagrande"
+        },
+        {
+          "value": "CAT",
+          "text": "Castries"
+        },
+        {
+          "value": "CTA",
+          "text": "Catania"
+        },
+        {
+          "value": "CAO",
+          "text": "Catano"
+        },
+        {
+          "value": "CAU",
+          "text": "Caucedo"
+        },
+        {
+          "value": "CEB",
+          "text": "Cebu"
+        },
+        {
+          "value": "CDC",
+          "text": "Cedar City"
+        },
+        {
+          "value": "CTB",
+          "text": "Ceska Trebova"
+        },
+        {
+          "value": "CZX",
+          "text": "Changzhou"
+        },
+        {
+          "value": "CHS",
+          "text": "Charleston"
+        },
+        {
+          "value": "CLT",
+          "text": "Charlotte"
+        },
+        {
+          "value": "XDT",
+          "text": "Chatsworth"
+        },
+        {
+          "value": "CHA",
+          "text": "Chattanooga"
+        },
+        {
+          "value": "CLS",
+          "text": "Chehalis"
+        },
+        {
+          "value": "CHH",
+          "text": "Chenchon"
+        },
+        {
+          "value": "CDU",
+          "text": "Chengdu"
+        },
+        {
+          "value": "MAA",
+          "text": "Chennai"
+        },
+        {
+          "value": "CHR",
+          "text": "Cherry Hill"
+        },
+        {
+          "value": "UFG",
+          "text": "Chesapeake"
+        },
+        {
+          "value": "CTH",
+          "text": "Chester"
+        },
+        {
+          "value": "CHB",
+          "text": "Chiba"
+        },
+        {
+          "value": "CHI",
+          "text": "Chicago"
+        },
+        {
+          "value": "CWK",
+          "text": "Chilliwack"
+        },
+        {
+          "value": "CHL",
+          "text": "Chilton"
+        },
+        {
+          "value": "KIV",
+          "text": "Chisinau"
+        },
+        {
+          "value": "CHT",
+          "text": "Chittagong"
+        },
+        {
+          "value": "CHN",
+          "text": "Chonan"
+        },
+        {
+          "value": "CKG",
+          "text": "Chongqing"
+        },
+        {
+          "value": "CHC",
+          "text": "Christchurch"
+        },
+        {
+          "value": "CVG",
+          "text": "Cincinnati"
+        },
+        {
+          "value": "CLE",
+          "text": "Cleveland"
+        },
+        {
+          "value": "CBG",
+          "text": "Coatbridge"
+        },
+        {
+          "value": "CBB",
+          "text": "Cochabamba"
+        },
+        {
+          "value": "CNG",
+          "text": "Cognac"
+        },
+        {
+          "value": "CME",
+          "text": "Coimbatore"
+        },
+        {
+          "value": "COF",
+          "text": "Colfax"
+        },
+        {
+          "value": "CBO",
+          "text": "Colombo"
+        },
+        {
+          "value": "ONX",
+          "text": "Colon"
+        },
+        {
+          "value": "RTO",
+          "text": "Colton"
+        },
+        {
+          "value": "CMH",
+          "text": "Columbus"
+        },
+        {
+          "value": "COY",
+          "text": "Conley"
+        },
+        {
+          "value": "CND",
+          "text": "Constanta"
+        },
+        {
+          "value": "CON",
+          "text": "Conversi"
+        },
+        {
+          "value": "ACZ",
+          "text": "Conway"
+        },
+        {
+          "value": "XEG",
+          "text": "Coon Rapids"
+        },
+        {
+          "value": "CPH",
+          "text": "Copenhagen"
+        },
+        {
+          "value": "COD",
+          "text": "Cordoba"
+        },
+        {
+          "value": "COT",
+          "text": "Corinto"
+        },
+        {
+          "value": "ORK",
+          "text": "Cork"
+        },
+        {
+          "value": "CPR",
+          "text": "Corpus Christi"
+        },
+        {
+          "value": "CRU",
+          "text": "Corunna"
+        },
+        {
+          "value": "COO",
+          "text": "Cotonou"
+        },
+        {
+          "value": "CRA",
+          "text": "Crane"
+        },
+        {
+          "value": "EMV",
+          "text": "Creedmoor"
+        },
+        {
+          "value": "CRP",
+          "text": "Crescentsprings"
+        },
+        {
+          "value": "CTL",
+          "text": "Ct Loc"
+        },
+        {
+          "value": "DIL",
+          "text": "D/I Loc - Old TERMS code"
+        },
+        {
+          "value": "DAD",
+          "text": "Da Nang"
+        },
+        {
+          "value": "DCB",
+          "text": "DaChan Bay"
+        },
+        {
+          "value": "DRI",
+          "text": "Dadri"
+        },
+        {
+          "value": "DAG",
+          "text": "Dagenham"
+        },
+        {
+          "value": "DAI",
+          "text": "Daikoku"
+        },
+        {
+          "value": "DKR",
+          "text": "Dakar"
+        },
+        {
+          "value": "DLN",
+          "text": "Dalian"
+        },
+        {
+          "value": "DAL",
+          "text": "Dallas"
+        },
+        {
+          "value": "DAT",
+          "text": "Dalton"
+        },
+        {
+          "value": "DAM",
+          "text": "Dammam"
+        },
+        {
+          "value": "DAR",
+          "text": "Dar es Salaam"
+        },
+        {
+          "value": "DAO",
+          "text": "Dartmouth"
+        },
+        {
+          "value": "DRW",
+          "text": "Darwin"
+        },
+        {
+          "value": "DVO",
+          "text": "Davao"
+        },
+        {
+          "value": "DAV",
+          "text": "Davenport"
+        },
+        {
+          "value": "DSQ",
+          "text": "De Soto"
+        },
+        {
+          "value": "DEU",
+          "text": "Decatur"
+        },
+        {
+          "value": "DLT",
+          "text": "Delta"
+        },
+        {
+          "value": "DEN",
+          "text": "Denver"
+        },
+        {
+          "value": "DSM",
+          "text": "Des Moines"
+        },
+        {
+          "value": "DTT",
+          "text": "Detroit"
+        },
+        {
+          "value": "DPO",
+          "text": "Devonport"
+        },
+        {
+          "value": "DIK",
+          "text": "Dickinson"
+        },
+        {
+          "value": "DIJ",
+          "text": "Dijon"
+        },
+        {
+          "value": "DII",
+          "text": "Dili"
+        },
+        {
+          "value": "DLL",
+          "text": "Dillon"
+        },
+        {
+          "value": "DNK",
+          "text": "Dnipro"
+        },
+        {
+          "value": "DOH",
+          "text": "Doha"
+        },
+        {
+          "value": "DOL",
+          "text": "Doleport"
+        },
+        {
+          "value": "DOC",
+          "text": "Doncaster"
+        },
+        {
+          "value": "DTM",
+          "text": "Dortmund"
+        },
+        {
+          "value": "DHN",
+          "text": "Dothan"
+        },
+        {
+          "value": "DCD",
+          "text": "Douai-Cedex"
+        },
+        {
+          "value": "DLA",
+          "text": "Douala"
+        },
+        {
+          "value": "DGS",
+          "text": "Dourges"
+        },
+        {
+          "value": "DRM",
+          "text": "Drammen"
+        },
+        {
+          "value": "DBI",
+          "text": "Dubai"
+        },
+        {
+          "value": "DUB",
+          "text": "Dublin"
+        },
+        {
+          "value": "DSB",
+          "text": "Duisburg"
+        },
+        {
+          "value": "DLH",
+          "text": "Duluth"
+        },
+        {
+          "value": "DST",
+          "text": "Dunajska"
+        },
+        {
+          "value": "DJA",
+          "text": "Dunajska Streda"
+        },
+        {
+          "value": "DUN",
+          "text": "Dunedin"
+        },
+        {
+          "value": "DKK",
+          "text": "Dunkerque"
+        },
+        {
+          "value": "DNE",
+          "text": "Dunmore"
+        },
+        {
+          "value": "DIG",
+          "text": "Dunnigan"
+        },
+        {
+          "value": "DUR",
+          "text": "Durban"
+        },
+        {
+          "value": "DSC",
+          "text": "Duschanbe"
+        },
+        {
+          "value": "DUS",
+          "text": "Dusseldorf"
+        },
+        {
+          "value": "DUL",
+          "text": "Dülmen"
+        },
+        {
+          "value": "ELS",
+          "text": "East London"
+        },
+        {
+          "value": "EMN",
+          "text": "East Moline"
+        },
+        {
+          "value": "EDQ",
+          "text": "Edinburg"
+        },
+        {
+          "value": "EDM",
+          "text": "Edmonton"
+        },
+        {
+          "value": "EKT",
+          "text": "Ekaterinburg"
+        },
+        {
+          "value": "ELD",
+          "text": "El Dorado"
+        },
+        {
+          "value": "ELP",
+          "text": "El Paso"
+        },
+        {
+          "value": "ELB",
+          "text": "Elba"
+        },
+        {
+          "value": "EKI",
+          "text": "Elkhart"
+        },
+        {
+          "value": "ELZ",
+          "text": "Elze"
+        },
+        {
+          "value": "EMM",
+          "text": "Emmerich"
+        },
+        {
+          "value": "ENN",
+          "text": "Enns"
+        },
+        {
+          "value": "ENS",
+          "text": "Ensenada"
+        },
+        {
+          "value": "EBJ",
+          "text": "Esbjerg"
+        },
+        {
+          "value": "ETO",
+          "text": "Etowah"
+        },
+        {
+          "value": "EVN",
+          "text": "Evansville"
+        },
+        {
+          "value": "FVE",
+          "text": "Fairview"
+        },
+        {
+          "value": "FAY",
+          "text": "Fayetteville"
+        },
+        {
+          "value": "FLX",
+          "text": "Felixstowe"
+        },
+        {
+          "value": "FLP",
+          "text": "Fillmore"
+        },
+        {
+          "value": "FDY",
+          "text": "Findlay"
+        },
+        {
+          "value": "FMB",
+          "text": "Flemingsburg"
+        },
+        {
+          "value": "FHE",
+          "text": "Fletcher"
+        },
+        {
+          "value": "FLU",
+          "text": "Flushing"
+        },
+        {
+          "value": "FNT",
+          "text": "Fontana"
+        },
+        {
+          "value": "FSM",
+          "text": "Fort Smith"
+        },
+        {
+          "value": "FWT",
+          "text": "Fort Worth"
+        },
+        {
+          "value": "FDF",
+          "text": "Fort-de-France"
+        },
+        {
+          "value": "FTZ",
+          "text": "Fortaleza"
+        },
+        {
+          "value": "FOS",
+          "text": "Fos Sur Mer"
+        },
+        {
+          "value": "FUO",
+          "text": "Foshan"
+        },
+        {
+          "value": "FRK",
+          "text": "Frankfort Springs"
+        },
+        {
+          "value": "FRA",
+          "text": "Frankfurt"
+        },
+        {
+          "value": "FRD",
+          "text": "Fredericia"
+        },
+        {
+          "value": "FRS",
+          "text": "Fredrikstad"
+        },
+        {
+          "value": "FPO",
+          "text": "Freeport"
+        },
+        {
+          "value": "FNA",
+          "text": "Freetown"
+        },
+        {
+          "value": "FRE",
+          "text": "Fremantle"
+        },
+        {
+          "value": "FET",
+          "text": "Fremont"
+        },
+        {
+          "value": "FLL",
+          "text": "Ft Lauderdale"
+        },
+        {
+          "value": "FTM",
+          "text": "Ft Myers"
+        },
+        {
+          "value": "FWA",
+          "text": "Ft Wayne"
+        },
+        {
+          "value": "FUZ",
+          "text": "Fuzhou"
+        },
+        {
+          "value": "GXW",
+          "text": "Galloway Township"
+        },
+        {
+          "value": "GAC",
+          "text": "Gardena"
+        },
+        {
+          "value": "GAY",
+          "text": "Garyindi"
+        },
+        {
+          "value": "XFS",
+          "text": "Gastonia"
+        },
+        {
+          "value": "GTN",
+          "text": "Gauteng"
+        }
+      ]
+    },
+    {
+      "tag": "SELECT",
+      "type": "select-multiple",
+      "id": "location_depot",
+      "name": "location.depot",
+      "class": "location-input location-depot form-control tf-select2 tf-multiple-select-group autocomplete text-uppercase select2-hidden-accessible",
+      "placeholder": null,
+      "text": "\n",
+      "options": []
+    },
+    {
+      "tag": "SELECT",
+      "type": "select-multiple",
+      "id": "location_depotType",
+      "name": "location.depotType",
+      "class": "location-input location-depotTypes form-control tf-select2 tf-multiple-select-group select2-hidden-accessible",
+      "placeholder": null,
+      "text": "\n  \n    DEPO\n  \n  \n    WHSL\n  \n  \n    CONS\n  \n  \n    CUCY\n  \n",
+      "options": [
+        {
+          "value": "DEPO",
+          "text": "DEPO"
+        },
+        {
+          "value": "WHSL",
+          "text": "WHSL"
+        },
+        {
+          "value": "CONS",
+          "text": "CONS"
+        },
+        {
+          "value": "CUCY",
+          "text": "CUCY"
+        }
+      ]
+    },
+    {
+      "tag": "SELECT",
+      "type": "select-multiple",
+      "id": "unitNumbers",
+      "name": "unitNumbers",
+      "class": "form-control tf-select2 tf-multiple-select-group autocomplete text-uppercase select2-hidden-accessible",
+      "placeholder": null,
+      "text": "",
+      "options": []
+    },
+    {
+      "tag": "SELECT",
+      "type": "select-one",
+      "id": "dns_country",
+      "name": "country",
+      "class": "form-control tf-select2 tf-single-select-group select2-hidden-accessible",
+      "placeholder": null,
+      "text": "\n  \n  \n    Afghanistan\n  \n  \n    Albania\n  \n  \n    Algeria\n  \n  \n    American Samoa\n  \n  \n    Andorra\n  \n  \n    Angola\n ",
+      "options": [
+        {
+          "value": "",
+          "text": ""
+        },
+        {
+          "value": "Afghanistan",
+          "text": "Afghanistan"
+        },
+        {
+          "value": "Albania",
+          "text": "Albania"
+        },
+        {
+          "value": "Algeria",
+          "text": "Algeria"
+        },
+        {
+          "value": "American Samoa",
+          "text": "American Samoa"
+        },
+        {
+          "value": "Andorra",
+          "text": "Andorra"
+        },
+        {
+          "value": "Angola",
+          "text": "Angola"
+        },
+        {
+          "value": "Anguilla",
+          "text": "Anguilla"
+        },
+        {
+          "value": "Antarctica",
+          "text": "Antarctica"
+        },
+        {
+          "value": "Antigua and Barbuda",
+          "text": "Antigua and Barbuda"
+        },
+        {
+          "value": "Argentina",
+          "text": "Argentina"
+        },
+        {
+          "value": "Armenia",
+          "text": "Armenia"
+        },
+        {
+          "value": "Aruba",
+          "text": "Aruba"
+        },
+        {
+          "value": "Australia",
+          "text": "Australia"
+        },
+        {
+          "value": "Austria",
+          "text": "Austria"
+        },
+        {
+          "value": "Azerbaijan",
+          "text": "Azerbaijan"
+        },
+        {
+          "value": "Bahamas",
+          "text": "Bahamas"
+        },
+        {
+          "value": "Bahrain",
+          "text": "Bahrain"
+        },
+        {
+          "value": "Bangladesh",
+          "text": "Bangladesh"
+        },
+        {
+          "value": "Barbados",
+          "text": "Barbados"
+        },
+        {
+          "value": "Belarus",
+          "text": "Belarus"
+        },
+        {
+          "value": "Belgium",
+          "text": "Belgium"
+        },
+        {
+          "value": "Belize",
+          "text": "Belize"
+        },
+        {
+          "value": "Benin",
+          "text": "Benin"
+        },
+        {
+          "value": "Bermuda",
+          "text": "Bermuda"
+        },
+        {
+          "value": "Bhutan",
+          "text": "Bhutan"
+        },
+        {
+          "value": "Bolivia",
+          "text": "Bolivia"
+        },
+        {
+          "value": "Bosnia and Herzegovina",
+          "text": "Bosnia and Herzegovina"
+        },
+        {
+          "value": "Botswana",
+          "text": "Botswana"
+        },
+        {
+          "value": "Brazil",
+          "text": "Brazil"
+        },
+        {
+          "value": "British Indian Ocean Territory",
+          "text": "British Indian Ocean Territory"
+        },
+        {
+          "value": "Brunei",
+          "text": "Brunei"
+        },
+        {
+          "value": "Bulgaria",
+          "text": "Bulgaria"
+        },
+        {
+          "value": "Burkina Faso",
+          "text": "Burkina Faso"
+        },
+        {
+          "value": "Burundi",
+          "text": "Burundi"
+        },
+        {
+          "value": "Cambodia",
+          "text": "Cambodia"
+        },
+        {
+          "value": "Cameroon",
+          "text": "Cameroon"
+        },
+        {
+          "value": "Canada",
+          "text": "Canada"
+        },
+        {
+          "value": "Cape Verde",
+          "text": "Cape Verde"
+        },
+        {
+          "value": "Cayman Islands",
+          "text": "Cayman Islands"
+        },
+        {
+          "value": "Central African Republic",
+          "text": "Central African Republic"
+        },
+        {
+          "value": "Chad",
+          "text": "Chad"
+        },
+        {
+          "value": "Chile",
+          "text": "Chile"
+        },
+        {
+          "value": "China",
+          "text": "China"
+        },
+        {
+          "value": "Christmas Island",
+          "text": "Christmas Island"
+        },
+        {
+          "value": "Cocos (Keeling) Islands",
+          "text": "Cocos (Keeling) Islands"
+        },
+        {
+          "value": "Colombia",
+          "text": "Colombia"
+        },
+        {
+          "value": "Comoros",
+          "text": "Comoros"
+        },
+        {
+          "value": "Congo (Brazzaville)",
+          "text": "Congo (Brazzaville)"
+        },
+        {
+          "value": "Congo, Democratic Republic of the",
+          "text": "Congo, Democratic Republic of the"
+        },
+        {
+          "value": "Cook Islands",
+          "text": "Cook Islands"
+        },
+        {
+          "value": "Costa Rica",
+          "text": "Costa Rica"
+        },
+        {
+          "value": "Cote D'Ivoire",
+          "text": "Cote D'Ivoire"
+        },
+        {
+          "value": "Croatia",
+          "text": "Croatia"
+        },
+        {
+          "value": "Cuba",
+          "text": "Cuba"
+        },
+        {
+          "value": "Curacao",
+          "text": "Curacao"
+        },
+        {
+          "value": "Cyprus",
+          "text": "Cyprus"
+        },
+        {
+          "value": "Czech Republic",
+          "text": "Czech Republic"
+        },
+        {
+          "value": "Czechoslovakia",
+          "text": "Czechoslovakia"
+        },
+        {
+          "value": "Denmark",
+          "text": "Denmark"
+        },
+        {
+          "value": "Djibouti",
+          "text": "Djibouti"
+        },
+        {
+          "value": "Dominica",
+          "text": "Dominica"
+        },
+        {
+          "value": "Dominican Republic",
+          "text": "Dominican Republic"
+        },
+        {
+          "value": "Ecuador",
+          "text": "Ecuador"
+        },
+        {
+          "value": "Egypt",
+          "text": "Egypt"
+        },
+        {
+          "value": "El Salvador",
+          "text": "El Salvador"
+        },
+        {
+          "value": "Equatorial Guinea",
+          "text": "Equatorial Guinea"
+        },
+        {
+          "value": "Eritrea",
+          "text": "Eritrea"
+        },
+        {
+          "value": "Estonia",
+          "text": "Estonia"
+        },
+        {
+          "value": "Ethiopia",
+          "text": "Ethiopia"
+        },
+        {
+          "value": "Falkland Islands (Malvinas)",
+          "text": "Falkland Islands (Malvinas)"
+        },
+        {
+          "value": "Faroe Islands",
+          "text": "Faroe Islands"
+        },
+        {
+          "value": "Fiji",
+          "text": "Fiji"
+        },
+        {
+          "value": "Finland",
+          "text": "Finland"
+        },
+        {
+          "value": "France",
+          "text": "France"
+        },
+        {
+          "value": "French Guiana",
+          "text": "French Guiana"
+        },
+        {
+          "value": "French Polynesia",
+          "text": "French Polynesia"
+        },
+        {
+          "value": "French Southern Territories",
+          "text": "French Southern Territories"
+        },
+        {
+          "value": "Gabon",
+          "text": "Gabon"
+        },
+        {
+          "value": "Gambia",
+          "text": "Gambia"
+        },
+        {
+          "value": "Georgia",
+          "text": "Georgia"
+        },
+        {
+          "value": "Germany",
+          "text": "Germany"
+        },
+        {
+          "value": "Ghana",
+          "text": "Ghana"
+        },
+        {
+          "value": "Gibraltar",
+          "text": "Gibraltar"
+        },
+        {
+          "value": "Greece",
+          "text": "Greece"
+        },
+        {
+          "value": "Greenland",
+          "text": "Greenland"
+        },
+        {
+          "value": "Grenada",
+          "text": "Grenada"
+        },
+        {
+          "value": "Guadeloupe",
+          "text": "Guadeloupe"
+        },
+        {
+          "value": "Guam",
+          "text": "Guam"
+        },
+        {
+          "value": "Guatemala",
+          "text": "Guatemala"
+        },
+        {
+          "value": "Guernsey",
+          "text": "Guernsey"
+        },
+        {
+          "value": "Guinea",
+          "text": "Guinea"
+        },
+        {
+          "value": "Guinea-Bissau",
+          "text": "Guinea-Bissau"
+        },
+        {
+          "value": "Guyana",
+          "text": "Guyana"
+        },
+        {
+          "value": "Haiti",
+          "text": "Haiti"
+        },
+        {
+          "value": "Holy See (Vatican City State)",
+          "text": "Holy See (Vatican City State)"
+        },
+        {
+          "value": "Honduras",
+          "text": "Honduras"
+        },
+        {
+          "value": "Hong Kong",
+          "text": "Hong Kong"
+        },
+        {
+          "value": "Hungary",
+          "text": "Hungary"
+        },
+        {
+          "value": "Iceland",
+          "text": "Iceland"
+        },
+        {
+          "value": "Independent State of Samoa",
+          "text": "Independent State of Samoa"
+        },
+        {
+          "value": "India",
+          "text": "India"
+        },
+        {
+          "value": "Indonesia",
+          "text": "Indonesia"
+        },
+        {
+          "value": "Iran",
+          "text": "Iran"
+        },
+        {
+          "value": "Iraq",
+          "text": "Iraq"
+        },
+        {
+          "value": "Ireland",
+          "text": "Ireland"
+        },
+        {
+          "value": "Israel",
+          "text": "Israel"
+        },
+        {
+          "value": "Italy",
+          "text": "Italy"
+        },
+        {
+          "value": "Jamaica",
+          "text": "Jamaica"
+        },
+        {
+          "value": "Japan",
+          "text": "Japan"
+        },
+        {
+          "value": "Jordan",
+          "text": "Jordan"
+        },
+        {
+          "value": "Kazakhstan",
+          "text": "Kazakhstan"
+        },
+        {
+          "value": "Kenya",
+          "text": "Kenya"
+        },
+        {
+          "value": "Kiribati",
+          "text": "Kiribati"
+        },
+        {
+          "value": "Korea",
+          "text": "Korea"
+        },
+        {
+          "value": "Kuwait",
+          "text": "Kuwait"
+        },
+        {
+          "value": "Kyrgyzstan",
+          "text": "Kyrgyzstan"
+        },
+        {
+          "value": "Laos",
+          "text": "Laos"
+        },
+        {
+          "value": "Latvia",
+          "text": "Latvia"
+        },
+        {
+          "value": "Lebanon",
+          "text": "Lebanon"
+        },
+        {
+          "value": "Lesotho",
+          "text": "Lesotho"
+        },
+        {
+          "value": "Liberia",
+          "text": "Liberia"
+        },
+        {
+          "value": "Libya",
+          "text": "Libya"
+        },
+        {
+          "value": "Liechtenstein",
+          "text": "Liechtenstein"
+        },
+        {
+          "value": "Lithuania",
+          "text": "Lithuania"
+        },
+        {
+          "value": "Luxembourg",
+          "text": "Luxembourg"
+        },
+        {
+          "value": "Macao",
+          "text": "Macao"
+        },
+        {
+          "value": "Macedonia",
+          "text": "Macedonia"
+        },
+        {
+          "value": "Madagascar",
+          "text": "Madagascar"
+        },
+        {
+          "value": "Malawi",
+          "text": "Malawi"
+        },
+        {
+          "value": "Malaysia",
+          "text": "Malaysia"
+        },
+        {
+          "value": "Maldives",
+          "text": "Maldives"
+        },
+        {
+          "value": "Mali",
+          "text": "Mali"
+        },
+        {
+          "value": "Malta",
+          "text": "Malta"
+        },
+        {
+          "value": "Marshall Islands",
+          "text": "Marshall Islands"
+        },
+        {
+          "value": "Martinique",
+          "text": "Martinique"
+        },
+        {
+          "value": "Mauritania",
+          "text": "Mauritania"
+        },
+        {
+          "value": "Mauritius",
+          "text": "Mauritius"
+        },
+        {
+          "value": "Mayotte",
+          "text": "Mayotte"
+        },
+        {
+          "value": "Mexico",
+          "text": "Mexico"
+        },
+        {
+          "value": "Micronesia, Federated States of",
+          "text": "Micronesia, Federated States of"
+        },
+        {
+          "value": "Moldova",
+          "text": "Moldova"
+        },
+        {
+          "value": "Monaco",
+          "text": "Monaco"
+        },
+        {
+          "value": "Mongolia",
+          "text": "Mongolia"
+        },
+        {
+          "value": "Montenegro",
+          "text": "Montenegro"
+        },
+        {
+          "value": "Montserrat",
+          "text": "Montserrat"
+        },
+        {
+          "value": "Morocco",
+          "text": "Morocco"
+        },
+        {
+          "value": "Mozambique",
+          "text": "Mozambique"
+        },
+        {
+          "value": "Myanmar",
+          "text": "Myanmar"
+        },
+        {
+          "value": "Namibia",
+          "text": "Namibia"
+        },
+        {
+          "value": "Nauru",
+          "text": "Nauru"
+        },
+        {
+          "value": "Nepal",
+          "text": "Nepal"
+        },
+        {
+          "value": "Netherlands",
+          "text": "Netherlands"
+        },
+        {
+          "value": "Netherlands Antilles",
+          "text": "Netherlands Antilles"
+        },
+        {
+          "value": "New Caledonia",
+          "text": "New Caledonia"
+        },
+        {
+          "value": "New Zealand",
+          "text": "New Zealand"
+        },
+        {
+          "value": "Nicaragua",
+          "text": "Nicaragua"
+        },
+        {
+          "value": "Niger",
+          "text": "Niger"
+        },
+        {
+          "value": "Nigeria",
+          "text": "Nigeria"
+        },
+        {
+          "value": "Niue",
+          "text": "Niue"
+        },
+        {
+          "value": "Norfolk Island",
+          "text": "Norfolk Island"
+        },
+        {
+          "value": "North Korea",
+          "text": "North Korea"
+        },
+        {
+          "value": "Northern Mariana Islands",
+          "text": "Northern Mariana Islands"
+        },
+        {
+          "value": "Norway",
+          "text": "Norway"
+        },
+        {
+          "value": "Oman",
+          "text": "Oman"
+        },
+        {
+          "value": "Pakistan",
+          "text": "Pakistan"
+        },
+        {
+          "value": "Palau",
+          "text": "Palau"
+        },
+        {
+          "value": "Panama Republic",
+          "text": "Panama Republic"
+        },
+        {
+          "value": "Papua New Guinea",
+          "text": "Papua New Guinea"
+        },
+        {
+          "value": "Paraguay",
+          "text": "Paraguay"
+        },
+        {
+          "value": "Peru",
+          "text": "Peru"
+        },
+        {
+          "value": "Philippines",
+          "text": "Philippines"
+        },
+        {
+          "value": "Pitcairn",
+          "text": "Pitcairn"
+        },
+        {
+          "value": "Poland",
+          "text": "Poland"
+        },
+        {
+          "value": "Portugal",
+          "text": "Portugal"
+        },
+        {
+          "value": "Puerto Rico",
+          "text": "Puerto Rico"
+        },
+        {
+          "value": "Qatar",
+          "text": "Qatar"
+        },
+        {
+          "value": "Reunion",
+          "text": "Reunion"
+        },
+        {
+          "value": "Romania",
+          "text": "Romania"
+        },
+        {
+          "value": "Russian Federation",
+          "text": "Russian Federation"
+        },
+        {
+          "value": "Rwanda",
+          "text": "Rwanda"
+        },
+        {
+          "value": "Saint Helena",
+          "text": "Saint Helena"
+        },
+        {
+          "value": "Saint Kitts and Nevis",
+          "text": "Saint Kitts and Nevis"
+        },
+        {
+          "value": "Saint Lucia",
+          "text": "Saint Lucia"
+        },
+        {
+          "value": "Saint Pierre And Miquelon",
+          "text": "Saint Pierre And Miquelon"
+        },
+        {
+          "value": "San Marino",
+          "text": "San Marino"
+        },
+        {
+          "value": "Sao Tome And Principe",
+          "text": "Sao Tome And Principe"
+        },
+        {
+          "value": "Saudi Arabia",
+          "text": "Saudi Arabia"
+        },
+        {
+          "value": "Senegal",
+          "text": "Senegal"
+        },
+        {
+          "value": "Serbia",
+          "text": "Serbia"
+        },
+        {
+          "value": "Seychelles",
+          "text": "Seychelles"
+        },
+        {
+          "value": "Sierra Leone",
+          "text": "Sierra Leone"
+        },
+        {
+          "value": "Singapore",
+          "text": "Singapore"
+        },
+        {
+          "value": "Sint Maarten",
+          "text": "Sint Maarten"
+        },
+        {
+          "value": "Slovakia",
+          "text": "Slovakia"
+        },
+        {
+          "value": "Slovenia",
+          "text": "Slovenia"
+        },
+        {
+          "value": "Solomon Islands",
+          "text": "Solomon Islands"
+        },
+        {
+          "value": "Somalia",
+          "text": "Somalia"
+        },
+        {
+          "value": "South Africa",
+          "text": "South Africa"
+        },
+        {
+          "value": "South Georgia And The South Sandwich Isl",
+          "text": "South Georgia And The South Sandwich Isl"
+        },
+        {
+          "value": "Spain",
+          "text": "Spain"
+        },
+        {
+          "value": "Sri Lanka",
+          "text": "Sri Lanka"
+        },
+        {
+          "value": "St. Vincent and The Grenadines",
+          "text": "St. Vincent and The Grenadines"
+        },
+        {
+          "value": "Sudan",
+          "text": "Sudan"
+        },
+        {
+          "value": "Suriname",
+          "text": "Suriname"
+        },
+        {
+          "value": "Svalbard and Jan Mayen Islands",
+          "text": "Svalbard and Jan Mayen Islands"
+        },
+        {
+          "value": "Swaziland",
+          "text": "Swaziland"
+        },
+        {
+          "value": "Sweden",
+          "text": "Sweden"
+        },
+        {
+          "value": "Switzerland",
+          "text": "Switzerland"
+        },
+        {
+          "value": "Syria",
+          "text": "Syria"
+        },
+        {
+          "value": "Taiwan, R.O.C.",
+          "text": "Taiwan, R.O.C."
+        },
+        {
+          "value": "Tajikistan",
+          "text": "Tajikistan"
+        },
+        {
+          "value": "Tanzania",
+          "text": "Tanzania"
+        },
+        {
+          "value": "Thailand",
+          "text": "Thailand"
+        },
+        {
+          "value": "Timor-Leste",
+          "text": "Timor-Leste"
+        },
+        {
+          "value": "Togo",
+          "text": "Togo"
+        },
+        {
+          "value": "Tokelau",
+          "text": "Tokelau"
+        },
+        {
+          "value": "Tonga",
+          "text": "Tonga"
+        },
+        {
+          "value": "Trinidad & Tobago",
+          "text": "Trinidad & Tobago"
+        },
+        {
+          "value": "Tunisia",
+          "text": "Tunisia"
+        },
+        {
+          "value": "Turkey",
+          "text": "Turkey"
+        },
+        {
+          "value": "Turkmenistan",
+          "text": "Turkmenistan"
+        },
+        {
+          "value": "Turks And Caicos Islands",
+          "text": "Turks And Caicos Islands"
+        },
+        {
+          "value": "Tuvalu",
+          "text": "Tuvalu"
+        },
+        {
+          "value": "Uganda",
+          "text": "Uganda"
+        },
+        {
+          "value": "Ukraine",
+          "text": "Ukraine"
+        },
+        {
+          "value": "United Arab Emirates",
+          "text": "United Arab Emirates"
+        },
+        {
+          "value": "United Kingdom",
+          "text": "United Kingdom"
+        },
+        {
+          "value": "United States",
+          "text": "United States"
+        },
+        {
+          "value": "United States Minor Outlying Islands",
+          "text": "United States Minor Outlying Islands"
+        },
+        {
+          "value": "Uruguay",
+          "text": "Uruguay"
+        },
+        {
+          "value": "Uzbekistan",
+          "text": "Uzbekistan"
+        },
+        {
+          "value": "Vanuatu",
+          "text": "Vanuatu"
+        },
+        {
+          "value": "Venezuela",
+          "text": "Venezuela"
+        },
+        {
+          "value": "Vietnam",
+          "text": "Vietnam"
+        },
+        {
+          "value": "Virgin Islands, British",
+          "text": "Virgin Islands, British"
+        },
+        {
+          "value": "Virgin Islands, U.S.",
+          "text": "Virgin Islands, U.S."
+        },
+        {
+          "value": "Wallis and Futuna Islands",
+          "text": "Wallis and Futuna Islands"
+        },
+        {
+          "value": "Western Sahara",
+          "text": "Western Sahara"
+        },
+        {
+          "value": "Yemen",
+          "text": "Yemen"
+        },
+        {
+          "value": "Yugoslavia",
+          "text": "Yugoslavia"
+        },
+        {
+          "value": "Zambia",
+          "text": "Zambia"
+        },
+        {
+          "value": "Zimbabwe",
+          "text": "Zimbabwe"
+        }
+      ]
+    }
+  ],
+  "textareas": [],
+  "buttons": [
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "CybotCookiebotDialogDetailBodyContentCookieContainerNecessary",
+      "name": null,
+      "class": "CybotCookiebotDialogDetailBodyContentCookieContainerButton CybotCookiebotDialogCollapsed",
+      "placeholder": null,
+      "text": "Necessary  20"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "CybotCookiebotDialogDetailBodyContentCookieContainerPreference",
+      "name": null,
+      "class": "CybotCookiebotDialogDetailBodyContentCookieContainerButton CybotCookiebotDialogCollapsed",
+      "placeholder": null,
+      "text": "Preferences  8"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "CybotCookiebotDialogDetailBodyContentCookieContainerStatistics",
+      "name": null,
+      "class": "CybotCookiebotDialogDetailBodyContentCookieContainerButton CybotCookiebotDialogCollapsed",
+      "placeholder": null,
+      "text": "Statistics  12"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "CybotCookiebotDialogDetailBodyContentCookieContainerAdvertising",
+      "name": null,
+      "class": "CybotCookiebotDialogDetailBodyContentCookieContainerButton CybotCookiebotDialogCollapsed",
+      "placeholder": null,
+      "text": "Marketing  0"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "CybotCookiebotDialogDetailBodyContentCookieContainerUnclassified",
+      "name": null,
+      "class": "CybotCookiebotDialogDetailBodyContentCookieContainerButton CybotCookiebotDialogCollapsed",
+      "placeholder": null,
+      "text": "Unclassified  1"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "CybotCookiebotDialogDetailBodyContentIABv2Purposes",
+      "name": null,
+      "class": "CybotCookiebotDialogDetailBodyContentIABv2Tab CybotCookiebotDialogCollapsed",
+      "placeholder": null,
+      "text": "[#IABV2_LABEL_PURPOSES#]"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "CybotCookiebotDialogDetailBodyContentIABv2Features",
+      "name": null,
+      "class": "CybotCookiebotDialogDetailBodyContentIABv2Tab CybotCookiebotDialogCollapsed",
+      "placeholder": null,
+      "text": "[#IABV2_LABEL_FEATURES#]"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "CybotCookiebotDialogDetailBodyContentIABv2Partners",
+      "name": null,
+      "class": "CybotCookiebotDialogDetailBodyContentIABv2Tab CybotCookiebotDialogCollapsed",
+      "placeholder": null,
+      "text": "[#IABV2_LABEL_PARTNERS#]"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll",
+      "name": null,
+      "class": "CybotCookiebotDialogBodyButton",
+      "placeholder": null,
+      "text": "Accept"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "CybotCookiebotDialogBodyLevelButtonCustomize",
+      "name": null,
+      "class": "CybotCookiebotDialogBodyButton",
+      "placeholder": null,
+      "text": "Cookie Settings"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "CybotCookiebotDialogBodyLevelButtonLevelOptinAllowallSelection",
+      "name": null,
+      "class": "CybotCookiebotDialogBodyButton CybotCookiebotDialogHide",
+      "placeholder": null,
+      "text": "Allow selection"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "CybotCookiebotDialogBodyButtonDecline",
+      "name": null,
+      "class": "CybotCookiebotDialogBodyButton",
+      "placeholder": null,
+      "text": "Deny"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "navbar-toggler",
+      "placeholder": null,
+      "text": "\n            \n        "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "btn-close",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "submit",
+      "id": "Request Redelivery",
+      "name": "Request Redelivery",
+      "class": "btn btn-submit",
+      "placeholder": null,
+      "text": "Request Redelivery"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": null,
+      "name": null,
+      "class": "mt-2 btn btn-primary",
+      "placeholder": null,
+      "text": "Sign up"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "btn-close",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "submit",
+      "id": "dnsModal_submit",
+      "name": "Submit",
+      "class": "btn btn-submit",
+      "placeholder": null,
+      "text": "Submit"
+    }
+  ]
+}
