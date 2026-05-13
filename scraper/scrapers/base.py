@@ -70,4 +70,7 @@ def get_scraper(company: str, lessor: str) -> Optional[BaseScraper]:
     if lessor == "TRIT":
         from scrapers.trit import TritScraper
         return TritScraper(company, lessor)
+    if lessor == "GOLD":
+        from scrapers.gold import GoldScraper
+        return GoldScraper(company, lessor)
     return None

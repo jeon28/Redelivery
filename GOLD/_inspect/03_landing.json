@@ -1,0 +1,858 @@
+{
+  "url": "https://www.touax-container.com/",
+  "title": "Touax",
+  "forms": [],
+  "labels": [],
+  "inputs": [],
+  "selects": [],
+  "textareas": [],
+  "buttons": [
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "navbar-toggler offcanvas-nav-btn",
+      "placeholder": null,
+      "text": "\n            \n        "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "btn-close",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "navbar-toggler offcanvas-nav-btn",
+      "placeholder": null,
+      "text": "\n            \n        "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "btn-close",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": "tarteaucitronBack",
+      "name": null,
+      "class": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": "tarteaucitronClosePanel",
+      "name": null,
+      "class": null,
+      "placeholder": null,
+      "text": "       Close   "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": "tarteaucitronPrivacyUrlDialog",
+      "name": null,
+      "class": null,
+      "placeholder": null,
+      "text": "       Privacy policy   "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": "tarteaucitronAllAllowed",
+      "name": null,
+      "class": "tarteaucitronAllow",
+      "placeholder": null,
+      "text": "                Allow all cookies            "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": "tarteaucitronAllDenied",
+      "name": null,
+      "class": "tarteaucitronDeny",
+      "placeholder": null,
+      "text": "                Deny all cookies            "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": null,
+      "placeholder": null,
+      "text": " Mandatory cookies"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "tarteaucitronAllow",
+      "placeholder": null,
+      "text": "            Allow       "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "tarteaucitronDeny",
+      "placeholder": null,
+      "text": "            Deny       "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "catToggleBtn",
+      "placeholder": null,
+      "text": " APIs"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "catToggleBtn",
+      "placeholder": null,
+      "text": " Advertising network"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "catToggleBtn",
+      "placeholder": null,
+      "text": " Audience measurement"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": "gtagAllowed",
+      "name": null,
+      "class": "tarteaucitronAllow",
+      "placeholder": null,
+      "text": "            Allow       "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": "gtagDenied",
+      "name": null,
+      "class": "tarteaucitronDeny",
+      "placeholder": null,
+      "text": "            Deny       "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "catToggleBtn",
+      "placeholder": null,
+      "text": " Comments"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "catToggleBtn",
+      "placeholder": null,
+      "text": " Other"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "catToggleBtn",
+      "placeholder": null,
+      "text": " Social networks"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "catToggleBtn",
+      "placeholder": null,
+      "text": " Specific consent for Google services"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "catToggleBtn",
+      "placeholder": null,
+      "text": " Support"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "catToggleBtn",
+      "placeholder": null,
+      "text": " Videos"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": "vimeoAllowed",
+      "name": null,
+      "class": "tarteaucitronAllow",
+      "placeholder": null,
+      "text": "            Allow       "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": "vimeoDenied",
+      "name": null,
+      "class": "tarteaucitronDeny",
+      "placeholder": null,
+      "text": "            Deny       "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": "youtubeAllowed",
+      "name": null,
+      "class": "tarteaucitronAllow",
+      "placeholder": null,
+      "text": "            Allow       "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": "youtubeDenied",
+      "name": null,
+      "class": "tarteaucitronDeny",
+      "placeholder": null,
+      "text": "            Deny       "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "tarteaucitronSaveButton",
+      "name": null,
+      "class": "tarteaucitronAllow",
+      "placeholder": null,
+      "text": "Save"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": "tarteaucitronPersonalize2",
+      "name": null,
+      "class": "tarteaucitronCTAButton tarteaucitronAllow",
+      "placeholder": null,
+      "text": "OK, accept all"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": "tarteaucitronCloseAlert",
+      "name": null,
+      "class": null,
+      "placeholder": null,
+      "text": "Personalize"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": "tarteaucitronPrivacyUrl",
+      "name": null,
+      "class": null,
+      "placeholder": null,
+      "text": "Privacy policy"
+    }
+  ],
+  "anchors": [
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/",
+      "role": null
+    },
+    {
+      "text": "About us",
+      "href": "https://www.touax-container.com/#",
+      "role": "button"
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/who-we-are",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/touax-group",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/our-values",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/management",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/what-they-say",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/news-events",
+      "role": null
+    },
+    {
+      "text": "Services",
+      "href": "https://www.touax-container.com/services",
+      "role": null
+    },
+    {
+      "text": "Equipment",
+      "href": "https://www.touax-container.com/#",
+      "role": "button"
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/leasing-container",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/portable-storage-container",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/stock-for-sale",
+      "role": null
+    },
+    {
+      "text": "Contact us",
+      "href": "https://www.touax-container.com/#",
+      "role": "button"
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/contact",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/find-someone",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/depot",
+      "role": null
+    },
+    {
+      "text": "container@sinokor.co.kr",
+      "href": "https://www.touax-container.com/#",
+      "role": "button"
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/off-hire",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/off-hire/history",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/off-hire-ref-check",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/loss-declaration",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/technicalspecifications",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/profile",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/logout",
+      "role": null
+    },
+    {
+      "text": "Stock for sale",
+      "href": "https://www.touax-container.com/stock-for-sale",
+      "role": null
+    },
+    {
+      "text": "Unit inquiry",
+      "href": "https://www.touax-container.com/unit-inquiry",
+      "role": null
+    },
+    {
+      "text": "Stock for sale",
+      "href": "https://www.touax-container.com/stock-for-sale",
+      "role": null
+    },
+    {
+      "text": "Unit inquiry",
+      "href": "https://www.touax-container.com/unit-inquiry",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/",
+      "role": null
+    },
+    {
+      "text": "About us",
+      "href": "https://www.touax-container.com/#",
+      "role": "button"
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/who-we-are",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/touax-group",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/our-values",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/management",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/what-they-say",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/news-events",
+      "role": null
+    },
+    {
+      "text": "Services",
+      "href": "https://www.touax-container.com/services",
+      "role": null
+    },
+    {
+      "text": "Equipment",
+      "href": "https://www.touax-container.com/#",
+      "role": "button"
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/leasing-container",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/portable-storage-container",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/stock-for-sale",
+      "role": null
+    },
+    {
+      "text": "Contact us",
+      "href": "https://www.touax-container.com/#",
+      "role": "button"
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/contact",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/find-someone",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/depot",
+      "role": null
+    },
+    {
+      "text": "container@sinokor.co.kr",
+      "href": "https://www.touax-container.com/#",
+      "role": "button"
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/off-hire",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/off-hire/history",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/off-hire-ref-check",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/loss-declaration",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/technicalspecifications",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/profile",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/logout",
+      "role": null
+    },
+    {
+      "text": "Stock for sale",
+      "href": "https://www.touax-container.com/stock-for-sale",
+      "role": null
+    },
+    {
+      "text": "Unit inquiry",
+      "href": "https://www.touax-container.com/unit-inquiry",
+      "role": null
+    },
+    {
+      "text": "Stock for sale",
+      "href": "https://www.touax-container.com/stock-for-sale",
+      "role": null
+    },
+    {
+      "text": "Unit inquiry",
+      "href": "https://www.touax-container.com/unit-inquiry",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/leasing",
+      "role": null
+    },
+    {
+      "text": "Leasing",
+      "href": "https://www.touax-container.com/leasing",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/resale",
+      "role": null
+    },
+    {
+      "text": "Resale",
+      "href": "https://www.touax-container.com/resale",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/trading",
+      "role": null
+    },
+    {
+      "text": "Trading",
+      "href": "https://www.touax-container.com/trading",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/asset-management",
+      "role": null
+    },
+    {
+      "text": "Asset management",
+      "href": "https://www.touax-container.com/asset-management",
+      "role": null
+    },
+    {
+      "text": "See more",
+      "href": "https://www.touax-container.com/services",
+      "role": null
+    },
+    {
+      "text": "Touax Group",
+      "href": "https://www.touax.com/en",
+      "role": null
+    },
+    {
+      "text": "More about us",
+      "href": "https://www.touax-container.com/who-we-are",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/#!",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/#!",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/#!",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/april-shows",
+      "role": null
+    },
+    {
+      "text": "Touax / April Shows and Conferences",
+      "href": "https://www.touax-container.com/april-shows",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/newsletter16",
+      "role": null
+    },
+    {
+      "text": "Touax Newsletter: 1st Edition 2026!",
+      "href": "https://www.touax-container.com/newsletter16",
+      "role": null
+    },
+    {
+      "text": "Enjoy the reading",
+      "href": "https://www.touax.com/sites/touax/files/document/Touax_Biannual_Newsletter_EN_2025%2316.pdf",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/intermodal-europe-2025",
+      "role": null
+    },
+    {
+      "text": "Touax at Intermodal Europe",
+      "href": "https://www.touax-container.com/intermodal-europe-2025",
+      "role": null
+    },
+    {
+      "text": "Read more news",
+      "href": "https://www.touax-container.com/news-events",
+      "role": null
+    },
+    {
+      "text": "Explore Touax ESG approach here",
+      "href": "https://www.touax.com/en/our-responsibility/our-commitment",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/#!",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/#!",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/#!",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/#collapseLanding",
+      "role": "button"
+    },
+    {
+      "text": "Who we are",
+      "href": "https://www.touax-container.com/who-we-are",
+      "role": null
+    },
+    {
+      "text": "Touax Group",
+      "href": "https://www.touax-container.com/touax-group",
+      "role": null
+    },
+    {
+      "text": "Our values",
+      "href": "https://www.touax-container.com/our-values",
+      "role": null
+    },
+    {
+      "text": "Leadership",
+      "href": "https://www.touax-container.com/management",
+      "role": null
+    },
+    {
+      "text": "Testimonials",
+      "href": "https://www.touax-container.com/what-they-say",
+      "role": null
+    },
+    {
+      "text": "News & Events",
+      "href": "https://www.touax-container.com/news-events",
+      "role": null
+    },
+    {
+      "text": "Services",
+      "href": "https://www.touax-container.com/services",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/#collapseLanding",
+      "role": "button"
+    },
+    {
+      "text": "Leasing container",
+      "href": "https://www.touax-container.com/leasing-container",
+      "role": null
+    },
+    {
+      "text": "Portable storage container",
+      "href": "https://www.touax-container.com/portable-storage-container",
+      "role": null
+    },
+    {
+      "text": "Stock for sale",
+      "href": "https://www.touax-container.com/stock-for-sale",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/#collapseLanding",
+      "role": "button"
+    },
+    {
+      "text": "Send a message",
+      "href": "https://www.touax-container.com/contact",
+      "role": null
+    },
+    {
+      "text": "Find someone",
+      "href": "https://www.touax-container.com/find-someone",
+      "role": null
+    },
+    {
+      "text": "Depot network",
+      "href": "https://www.touax-container.com/depot",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.touax-container.com/",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.instagram.com/touax_container/",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.facebook.com/people/TOUAX-Container-Division/100075657774106/",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://www.linkedin.com/in/touax-global-container-solutions-3963ba86/",
+      "role": null
+    },
+    {
+      "text": "Read more",
+      "href": "https://tarteaucitron.io/service/gtag/",
+      "role": null
+    },
+    {
+      "text": "View the official website",
+      "href": "https://policies.google.com/privacy",
+      "role": null
+    },
+    {
+      "text": "Read more",
+      "href": "https://tarteaucitron.io/service/vimeo/",
+      "role": null
+    },
+    {
+      "text": "View the official website",
+      "href": "https://vimeo.com/privacy",
+      "role": null
+    },
+    {
+      "text": "Read more",
+      "href": "https://tarteaucitron.io/service/youtube/",
+      "role": null
+    },
+    {
+      "text": "View the official website",
+      "href": "https://policies.google.com/privacy",
+      "role": null
+    },
+    {
+      "text": "",
+      "href": "https://tarteaucitron.io/",
+      "role": null
+    }
+  ],
+  "body_text_preview": "About us\nServices\nEquipment\nContact us\ncontainer@sinokor.co.kr\nStock for sale\nUnit inquiry\nAbout us\nServices\nEquipment\nContact us\ncontainer@sinokor.co.kr\nStock for sale\nUnit inquiry\nDriven by the spirit of partnership\n\nWith over 40 years of expertise, we are your trusted global partner for leasing, resale and trading of new and used containers\n\nOur Services\n\nWe propose our extensive range of Operational and Financial Lease solutions, Resale & Trading services and Asset Management support for new and used containers. We serve the shipping, logistics and industrial sectors, as well as third party financial partners, through our dedicated professionals worldwide and global network of depots.\n\nLeasing\n\nResale\n\nTrading\n\nAsset management\n\nSee more\nWHO WE ARE\nWe offer a full set of services to support your business\n\nTouax Global Container Solutions is a leading global player in leasing and trading solutions with a fleet of nearly 350,000 teus standard dry and refrigerated containers at the end of 2025.\nWe are a division of Touax Group, a distinguished international company established over 170 years ago with an unmatched expertise in three key standardized sustainable transport assets: freight railcars, river barges, and containers, representing over €1.2 billion worth of assets under management.\n\nMore about us\nOver 40 years of\nleasing expertise\nMore than 15,000 new units\ntraded yearly\nTop 3 of third parties\nassets managers\nOur latest news\n\nEnjoy reading our latest info, Newsletter, News about the Group, the events we attended, …\nIf you wish to contact us regarding a News, an event or make a comment, please email to contact-container@touax.com\n\nTouax / April Shows and Conferences\n\nApril was a super intense month for our teams worldwide as they participated in 4 different shows & conferences on 3 continents!\n\nTouax Newsletter: 1st Edition 2026!\n\nEnjoy the reading\n \n\nTouax at Intermodal Europe\n\nGreat show, great energy, great meetings, the perfect combo!\n\nRead more news\nOur responsibility for a better future\n\nWith our 3 assets, freight railcars, river barges and intermodal containers, we are proud to support our customers by providing them sustainable means of transport.\nOur commitment to a more durable future goes also beyond our activities as conducting our business in an eco-friendly manner is at the heart of our corporate strategy.\nThe development of our CSR strategy is an integral part of our business, and it is embedded in Touax people mindset.\n\nExplore Touax ESG approach here\n\nMembers of industry’s associations\nAbout us\nWho we are\nTouax Group\nOur values\nLeadership\nTestimonials\nNews & Events\nServices\nEquipment\nLeasing container\nPortable storage container\nStock for sale\nContact us\nSend a message\nFind someone\nDepot network\n© 2025 Touax Container Services all right reserved\nCookies management panel\nWe use cookies to operate this website and to improve its usability. Full details of what cookie are, why we use them how you can manage them canbe found by reading our website OK, accept all Personalize Privacy policy"
+}

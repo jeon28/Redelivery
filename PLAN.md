@@ -85,7 +85,7 @@ redlivery/
     │   ├── base.py                  # 공통 Playwright 베이스 클래스
     │   ├── texa.py                  # TEXA (Textainer) — 1순위
     │   ├── trit.py                  # TRIT (Triton) — 2순위
-    │   ├── gold.py                  # GOLD/GLOD (Touax) — 3순위
+    │   ├── gold.py                  # GOLD (Touax) — 3순위
     │   ├── flor.py                  # FLOR (Florens) — 4순위
     │   └── gese.py                  # GESE (SeaCo) — 5순위 (보류)
     ├── mailers/

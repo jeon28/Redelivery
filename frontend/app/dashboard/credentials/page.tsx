@@ -25,6 +25,12 @@ export default async function CredentialsPage() {
               조회
             </Link>
             <Link
+              href="/dashboard/email-request"
+              className="text-slate-300 hover:text-white transition-colors"
+            >
+              메일 반납
+            </Link>
+            <Link
               href="/dashboard/credentials"
               className="text-white font-medium border-b-2 border-white pb-0.5"
             >
