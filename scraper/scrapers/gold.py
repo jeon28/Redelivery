@@ -165,15 +165,31 @@ class GoldScraper(BaseScraper):
             )
         except Exception:
             logger.warning("GOLD: 모달 콘텐츠 로딩 타임아웃")
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(1.5)
+        # 모달 전문 일부를 로그에 남겨 파싱 검증 보조
+        try:
+            modal_text = await self.page.evaluate(
+                """() => {
+                    const m = document.querySelector('.modal.show, .modal.in, .modal[style*="display: block"]');
+                    return m ? (m.innerText || '').slice(0, 500) : '(no modal)';
+                }"""
+            )
+            logger.info("GOLD modal text preview: %r", modal_text)
+        except Exception:
+            pass
 
         # 6) 모달 can/cannot 파싱
         cannot = await self._parse_modal_table("cannot be off hire")
         can = await self._parse_modal_table("can be off hire", exclude_substr="cannot")
+        logger.info("GOLD modal: can=%s cannot=%s", can, cannot)
 
         # 7) 결과 매핑
         if container in cannot:
             return self._error_row(container, cannot[container])
+        # 단일 행 + Container 셀 비어 있는 거부 케이스 (UNIDENTIFIED DEPOT 등)
+        # — 우리가 항상 1건씩 조회하므로 그 거부 사유는 입력 컨테이너에 해당
+        if "" in cannot and len(cannot) == 1 and not can:
+            return self._error_row(container, cannot[""])
 
         if container not in can:
             return self._error_row(container, "모달에서 컨테이너 정보를 찾을 수 없음")
@@ -280,15 +296,18 @@ class GoldScraper(BaseScraper):
 
     async def _parse_modal_table(self, heading_substr: str, exclude_substr: str | None = None) -> dict[str, str]:
         """모달 내 'can be off hire' / 'cannot be off hire' 다음 테이블 파싱.
-        반환: { container_upper: 다음 열 텍스트(depot 또는 reason) }"""
+        반환: { container_upper or '': 다음 열 텍스트(depot 또는 reason) }
+        Container 셀이 비어 있는 행도 빈 키('')로 포함."""
         result: dict[str, str] = {}
         try:
             data = await self.page.evaluate(
                 """(args) => {
                     const [needle, exclude] = args;
                     const root = document.querySelector('.modal.show, .modal.in, .modal[style*="display: block"]') || document;
-                    const headings = Array.from(root.querySelectorAll('div, p, h1, h2, h3, h4, h5, h6'));
-                    const match = headings.find(e => {
+                    // 리프 노드만 (자식 요소 없음) — 부모 div가 전체 모달 콘텐츠를 포함해서 매칭되는 것 방지
+                    const candidates = Array.from(root.querySelectorAll('div, p, h1, h2, h3, h4, h5, h6'))
+                        .filter(e => e.children.length === 0);
+                    const match = candidates.find(e => {
                         const t = (e.innerText || '').toLowerCase();
                         if (!t.includes(needle.toLowerCase())) return false;
                         if (exclude && t.includes(exclude.toLowerCase())) return false;
@@ -309,8 +328,8 @@ class GoldScraper(BaseScraper):
                     continue
                 cont = row[0].strip().upper()
                 value = " ".join(row[1].split())
-                if cont:
-                    result[cont] = value
+                # cont가 비어 있어도 저장 (빈 컨테이너 셀 케이스 처리)
+                result[cont] = value
         except Exception as exc:
             logger.warning("GOLD _parse_modal_table(%r): %s", heading_substr, exc)
         return result
