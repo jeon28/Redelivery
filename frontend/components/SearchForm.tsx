@@ -254,11 +254,15 @@ export default function SearchForm() {
     })
     const to = tpl.to.split(';').map((s) => s.trim()).filter(Boolean).join(',')
     const cc = tpl.cc.split(';').map((s) => s.trim()).filter(Boolean).join(',')
-    const params = new URLSearchParams()
-    if (cc) params.set('cc', cc)
-    params.set('subject', subject)
-    params.set('body', body)
-    return `mailto:${to}?${params.toString()}`
+    // mailto: 는 RFC 6068 에 따라 application/x-www-form-urlencoded 가 아닌
+    // 표준 percent-encoding 을 사용해야 한다. URLSearchParams 는 공백을 '+' 로
+    // 인코딩하여 Outlook 등에서 '+' 가 그대로 표시되는 문제가 있으므로
+    // encodeURIComponent 로 직접 인코딩.
+    const parts: string[] = []
+    if (cc) parts.push(`cc=${encodeURIComponent(cc)}`)
+    parts.push(`subject=${encodeURIComponent(subject)}`)
+    parts.push(`body=${encodeURIComponent(body)}`)
+    return `mailto:${to}?${parts.join('&')}`
   }, [tpl, containers, company, carrierInfo, office, regionInfo, dateStr])
 
   // 조회 처리

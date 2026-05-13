@@ -224,11 +224,13 @@ async def main():
             await page.screenshot(path=str(OUT_DIR / "apply_02_no_port.png"), full_page=True)
             await browser.close(); sys.exit(99)
 
-        # 옵션 클릭
+        # 옵션 클릭 (스크롤 먼저)
         opt = page.locator('li.el-select-dropdown__item').filter(
             has_text=TEST_PORT
         ).first
-        await opt.click()
+        await opt.scroll_into_view_if_needed()
+        await page.wait_for_timeout(300)
+        await opt.click(force=True)
         await page.wait_for_timeout(800)
         print(f"  Port 선택 완료: {TEST_PORT}")
         await page.wait_for_timeout(1000)
