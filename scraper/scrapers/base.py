@@ -63,14 +63,30 @@ class BaseScraper(ABC):
             await self.close()
 
 
+def _normalize_lessor(code: str) -> str:
+    """
+    카탈로그 변형 코드를 베이스 임대사 코드로 정규화.
+    예: TRIT+TRAM → TRIT, GLOD → GOLD, FLOR+DFIC → FLOR, GESE+CROS → GESE
+    """
+    if not code:
+        return code
+    # 장금만 GLOD, 흥아는 GOLD — 같은 Touax 사이트
+    if code == "GLOD":
+        return "GOLD"
+    # + 접미사 제거 (TRIT+TRAM, FLOR+DFIC, GESE+CROS 등)
+    return code.split("+")[0]
+
+
 def get_scraper(company: str, lessor: str) -> Optional[BaseScraper]:
-    if lessor == "TEXA":
+    key = _normalize_lessor(lessor)
+    # 자격증명 조회용으로도 정규화된 키 사용
+    if key == "TEXA":
         from scrapers.texa import TexaScraper
-        return TexaScraper(company, lessor)
-    if lessor == "TRIT":
+        return TexaScraper(company, key)
+    if key == "TRIT":
         from scrapers.trit import TritScraper
-        return TritScraper(company, lessor)
-    if lessor == "GOLD":
+        return TritScraper(company, key)
+    if key == "GOLD":
         from scrapers.gold import GoldScraper
-        return GoldScraper(company, lessor)
+        return GoldScraper(company, key)
     return None

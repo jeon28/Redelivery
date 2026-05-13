@@ -110,47 +110,40 @@ async def login(page: Page, user: str, pw: str) -> bool:
                 await page.wait_for_load_state("networkidle", timeout=20_000)
             except Exception:
                 pass
-    await page.wait_for_timeout(2500)
-    return "/login" not in page.url
+    # URL 전환 폴링 (최대 15초)
+    for _ in range(30):
+        if "/login" not in page.url:
+            return True
+        await asyncio.sleep(0.5)
+    return False
 
 
 async def el_select_pick(page: Page, input_selector: str, option_text: str | None) -> dict:
-    """Element UI el-select 헬퍼.
-    input_selector: 표시용 input의 셀렉터 (placeholder 등으로 지정)
-    option_text: 매칭할 옵션 텍스트 (None이면 첫 옵션 선택)
-    """
-    # 1) 입력 클릭 → 드롭다운 열기
+    """Element UI el-select 헬퍼 — JS 직접 클릭 (가시성 검사 우회 + scrollIntoView)."""
     el = page.locator(input_selector).first
     if await el.count() == 0:
         return {"ok": False, "error": "input not found: " + input_selector}
     await el.click()
     await page.wait_for_timeout(800)
 
-    # 2) 옵션 패널에서 선택
-    # 보이는 패널의 li.el-select-dropdown__item 중에서 매칭
-    if option_text:
-        opt = page.locator('.el-select-dropdown:not([style*="display: none"]) li.el-select-dropdown__item').filter(
-            has_text=option_text
-        ).first
-    else:
-        opt = page.locator('.el-select-dropdown:not([style*="display: none"]) li.el-select-dropdown__item').first
-    if await opt.count() == 0:
-        # 패널 스타일 필터 없이 시도
-        if option_text:
-            opt = page.locator('li.el-select-dropdown__item').filter(has_text=option_text).first
-        else:
-            opt = page.locator('li.el-select-dropdown__item').first
-    if await opt.count() == 0:
-        # 옵션 후보 디버깅용 dump
-        opts = await page.evaluate("""() => Array.from(document.querySelectorAll('li.el-select-dropdown__item'))
-            .filter(li => li.offsetParent !== null)
-            .map(li => (li.innerText || '').trim())""")
-        return {"ok": False, "error": "option not found", "looked_for": option_text, "visible_opts": opts[:30]}
-
-    selected_text = (await opt.inner_text()).strip()
-    await opt.click()
+    result = await page.evaluate("""(needle) => {
+        const items = Array.from(document.querySelectorAll('li.el-select-dropdown__item'))
+            .filter(li => li.offsetParent !== null);
+        if (items.length === 0) return { ok: false, error: 'no visible items' };
+        const target = needle
+            ? items.find(li => (li.innerText || '').toUpperCase().includes(String(needle).toUpperCase()))
+            : items[0];
+        if (!target) {
+            return { ok: false, error: 'option not found',
+                     looked_for: needle,
+                     visible_opts: items.slice(0, 30).map(li => (li.innerText || '').trim()) };
+        }
+        target.scrollIntoView({ block: 'center' });
+        target.click();
+        return { ok: true, selected: (target.innerText || '').trim() };
+    }""", option_text)
     await page.wait_for_timeout(600)
-    return {"ok": True, "selected": selected_text}
+    return result
 
 
 async def main():
@@ -224,15 +217,27 @@ async def main():
             await page.screenshot(path=str(OUT_DIR / "apply_02_no_port.png"), full_page=True)
             await browser.close(); sys.exit(99)
 
-        # 옵션 클릭 (스크롤 먼저)
-        opt = page.locator('li.el-select-dropdown__item').filter(
-            has_text=TEST_PORT
-        ).first
-        await opt.scroll_into_view_if_needed()
-        await page.wait_for_timeout(300)
-        await opt.click(force=True)
-        await page.wait_for_timeout(800)
-        print(f"  Port 선택 완료: {TEST_PORT}")
+        # 드롭다운 재오픈 (이전 dump 사이에 닫혔을 수 있음)
+        if await page.locator('.el-select-dropdown__item:visible').count() == 0:
+            await port_input.click()
+            await page.wait_for_timeout(600)
+
+        # JS 직접 클릭 (Playwright 가시성 검사 우회 + scrollIntoView)
+        clicked = await page.evaluate("""(needle) => {
+            const items = Array.from(document.querySelectorAll('li.el-select-dropdown__item'))
+                .filter(li => li.offsetParent !== null);
+            const target = items.find(li => (li.innerText || '').toUpperCase().includes(needle.toUpperCase()));
+            if (!target) return false;
+            target.scrollIntoView({ block: 'center' });
+            target.click();
+            return true;
+        }""", TEST_PORT)
+        if not clicked:
+            print(f"  ❌ Port JS 클릭 실패 ({TEST_PORT})")
+            await page.screenshot(path=str(OUT_DIR / "apply_port_click_fail.png"), full_page=True)
+            await browser.close(); sys.exit(3)
+        await page.wait_for_timeout(1000)
+        print(f"  Port 선택 완료 (JS): {TEST_PORT}")
         await page.wait_for_timeout(1000)
 
         # Depot (TEST_DEPOT=None이면 첫 옵션)

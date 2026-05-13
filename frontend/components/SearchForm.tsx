@@ -12,7 +12,7 @@ type LessorEntry = { code: string; mode: LessorMode; status?: 'ready' | 'wip' }
 const LESSOR_CATALOG: Record<string, LessorEntry[]> = {
   장금상선: [
     { code: 'TEXA',       mode: 'query', status: 'ready' },
-    { code: 'TRIT+TRAM',  mode: 'query', status: 'wip' },
+    { code: 'TRIT+TRAM',  mode: 'query', status: 'ready' },
     { code: 'GLOD',       mode: 'query', status: 'wip' },
     { code: 'FLOR+DFIC',  mode: 'query', status: 'wip' },
     { code: 'GESE+CROS',  mode: 'query', status: 'wip' },
@@ -24,7 +24,7 @@ const LESSOR_CATALOG: Record<string, LessorEntry[]> = {
   ],
   흥아라인: [
     { code: 'TEXA',       mode: 'query', status: 'ready' },
-    { code: 'TRIT',       mode: 'query', status: 'wip' },
+    { code: 'TRIT',       mode: 'query', status: 'ready' },
     { code: 'GOLD',       mode: 'query', status: 'wip' },
     { code: 'FLOR',       mode: 'query', status: 'wip' },
     { code: 'GESE+SGCN',  mode: 'query', status: 'wip' },
