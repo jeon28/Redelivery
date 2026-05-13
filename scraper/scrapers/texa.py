@@ -14,6 +14,19 @@ REGION_MAP = {
     "GWANGYANG": {"country": "KOREA", "city": "GWANGYANG"},
 }
 
+# TEXA depot code → 한글/영문 풀네임 매핑.
+# 신규 depot 발견 시 여기에 추가하면 결과 표시가 자동으로 풀네임으로 바뀜.
+DEPOT_NAMES = {
+    "INC05": "INC05 - SEUNG JIN ENTERPRISES",
+}
+
+
+def _depot_with_name(code: str) -> str:
+    """depot code에 풀네임이 매핑되어 있으면 'CODE - NAME'으로, 없으면 코드 그대로."""
+    if not code:
+        return code
+    return DEPOT_NAMES.get(code.strip(), code.strip())
+
 
 class TexaScraper(BaseScraper):
     def __init__(self, company: str, lessor: str):
@@ -281,6 +294,11 @@ class TexaScraper(BaseScraper):
         except Exception as exc:
             logger.error("TEXA query error: %s", exc)
 
+        # 불가(available=False)인데 사유가 비어 있으면 안전장치로 기본 사유 채움
+        for r in results.values():
+            if not r.get("available") and not r.get("reason"):
+                r["reason"] = "조회 실패 (사유 미상)"
+
         return list(results.values())
 
     # ------------------------------------------------------------------ #
@@ -397,7 +415,7 @@ class TexaScraper(BaseScraper):
                 close_date = bk_close.get(bk_ref, "")
                 results[eqp_id].update({
                     "available":   available,
-                    "depot":       depot,
+                    "depot":       _depot_with_name(depot),
                     "booking_ref": bk_ref,
                     "over_caps":   caps_left,
                     "close_date":  close_date,
@@ -459,7 +477,7 @@ class TexaScraper(BaseScraper):
                     if cno in results:
                         results[cno].update({
                             "available": True,
-                            "depot": depot_name,
+                            "depot": _depot_with_name(depot_name),
                             "booking_ref": booking_ref,
                             "over_caps": over_caps,
                             "close_date": close_date,

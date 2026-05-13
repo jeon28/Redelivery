@@ -3,7 +3,7 @@ export interface QueryResult {
   available: boolean
   depot: string | null
   booking_ref: string | null
-  over_caps: string | null
+  over_caps: number | null
   close_date: string | null
   reason: string | null
 }
