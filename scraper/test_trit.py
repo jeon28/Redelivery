@@ -24,9 +24,16 @@ CREATE_URL = "https://tools.tritoncontainer.com/tritoncontainer/redeliverySessio
 HEADLESS   = True
 
 # ── 테스트 입력값 ──────────────────────────────────────
-TEST_COUNTRY   = "CHINA"
-TEST_PORT      = "SHANGHAI"
-TEST_CONTAINER = "TCLU9479119"   # 중국 상해 위치 컨테이너 (Stage 1 까지만 수행)
+COMPANY          = "HA"          # "SK" (장금) 또는 "HA" (흥아)
+TEST_COUNTRY     = "KOREA"
+TEST_PORT        = "BUSAN"
+TEST_CONTAINERS  = [             # 중복 자동 제거
+    "TCLU8769849",
+]
+
+# ⚠ EXECUTE_STAGE_2 = True 일 때 "Continue Redelivery Request" 클릭 = 실 예약 생성
+#   취소가 별도 절차이므로 의도적으로 실행할 때만 True 로 변경할 것
+EXECUTE_STAGE_2  = True
 # ──────────────────────────────────────────────────────
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -126,26 +133,35 @@ async def select2_set_single(page: Page, select_id: str, label_substr: str) -> d
     }""", [select_id, label_substr])
 
 
-async def select2_add_tag(page: Page, select_id: str, tag_value: str) -> dict:
-    """Select2 multi-select에 동적으로 옵션을 추가하고 선택 상태로 설정."""
+async def select2_add_tags(page: Page, select_id: str, tag_values: list[str]) -> dict:
+    """Select2 multi-select에 여러 옵션을 동적으로 추가/선택 (입력 순서 유지, 중복 제거)."""
     return await page.evaluate("""(args) => {
-        const [sid, val] = args;
+        const [sid, vals] = args;
         const sel = document.getElementById(sid);
         if (!sel) return { ok: false, error: 'select not found: ' + sid };
         if (!window.jQuery) return { ok: false, error: 'jQuery missing' };
         const $sel = jQuery(sel);
-        const opt = new Option(val, val, true, true);
-        $sel.append(opt).trigger('change');
-        return { ok: true, value: $sel.val() };
-    }""", [select_id, tag_value])
+        const seen = new Set();
+        const added = [];
+        for (const v of vals) {
+            const key = String(v).trim().toUpperCase();
+            if (!key || seen.has(key)) continue;
+            seen.add(key);
+            $sel.append(new Option(key, key, true, true));
+            added.push(key);
+        }
+        $sel.trigger('change');
+        return { ok: true, added, value: $sel.val() };
+    }""", [select_id, tag_values])
 
 
 async def main():
-    user = os.getenv("SK_TRIT_ID")
-    pw   = os.getenv("SK_TRIT_PW")
+    user = os.getenv(f"{COMPANY}_TRIT_ID")
+    pw   = os.getenv(f"{COMPANY}_TRIT_PW")
     if not user or not pw:
-        print("ERROR: SK_TRIT_ID / SK_TRIT_PW 누락")
+        print(f"ERROR: {COMPANY}_TRIT_ID / {COMPANY}_TRIT_PW 누락")
         sys.exit(1)
+    print(f"계정: {COMPANY} ({user[:3]}***)")
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=HEADLESS)
@@ -186,8 +202,8 @@ async def main():
         await dump_form(page, "05_after_location")
 
         # 5) Unit Number 추가
-        print(f"[5] Unit Numbers에 '{TEST_CONTAINER}' 추가")
-        r = await select2_add_tag(page, "unitNumbers", TEST_CONTAINER)
+        print(f"[5] Unit Numbers에 {TEST_CONTAINERS} 추가")
+        r = await select2_add_tags(page, "unitNumbers", TEST_CONTAINERS)
         print(f"  결과: {r}")
         if not r.get("ok"):
             await browser.close(); sys.exit(5)
@@ -208,14 +224,53 @@ async def main():
         await page.wait_for_timeout(2000)
         await page.screenshot(path=str(OUT_DIR / "07_validate_result.png"), full_page=True)
         await dump_form(page, "07_validate_result")
-        # HTML 본문도 저장 (결과 구조 정밀 분석용)
         (OUT_DIR / "07_validate_result.html").write_text(
             await page.content(), encoding="utf-8"
         )
         print(f"  결과 URL: {page.url}")
 
-        print("\n[7] Stage 1 완료. Stage 2(최종 확정) 버튼은 누르지 않음.")
-        print(f"산출물: {OUT_DIR}")
+        # 7) Redelivery 탭 클릭 (있으면) — 유효 케이스 화면 캡처
+        print("[7] Redelivery 탭 확인 및 클릭")
+        tab = await page.query_selector("#redeliveriesTab")
+        if tab:
+            await tab.click()
+            await page.wait_for_timeout(1500)
+            await page.screenshot(path=str(OUT_DIR / "08_redelivery_tab.png"), full_page=True)
+            await dump_form(page, "08_redelivery_tab")
+            (OUT_DIR / "08_redelivery_tab.html").write_text(
+                await page.content(), encoding="utf-8"
+            )
+            print("  -> 08_redelivery_tab.png 저장")
+        else:
+            print("  #redeliveriesTab 없음 (모두 invalid이거나 페이지 구조 변경)")
+            if EXECUTE_STAGE_2:
+                print("  -> 유효 단위 없음. Stage 2 스킵.")
+                await browser.close(); return
+
+        # 8) Stage 2 — Continue Redelivery Request (실 예약 생성)
+        if EXECUTE_STAGE_2:
+            print("\n[8] ⚠ Stage 2 실행 — Continue Redelivery Request 클릭 (실 예약 생성)")
+            stage2_btn = await page.query_selector('input[name="Continue Redelivery Request"]')
+            if not stage2_btn:
+                print("  ERROR: Stage 2 버튼을 찾지 못함")
+                await browser.close(); sys.exit(7)
+            await stage2_btn.click()
+            try:
+                await page.wait_for_load_state("networkidle", timeout=60000)
+            except Exception:
+                pass
+            await page.wait_for_timeout(3000)
+            await page.screenshot(path=str(OUT_DIR / "09_stage2_result.png"), full_page=True)
+            await dump_form(page, "09_stage2_result")
+            (OUT_DIR / "09_stage2_result.html").write_text(
+                await page.content(), encoding="utf-8"
+            )
+            print(f"  Stage 2 결과 URL: {page.url}")
+            print("  -> 09_stage2_result.{png,json,html} 저장")
+        else:
+            print("\n[완료] Stage 1 + 두 탭 캡처. EXECUTE_STAGE_2=False 이므로 Stage 2 스킵.")
+
+        print(f"\n산출물: {OUT_DIR}")
 
         await browser.close()
 

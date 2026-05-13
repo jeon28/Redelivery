@@ -1,11 +1,11 @@
 {
-  "url": "https://tools.tritoncontainer.com/tritoncontainer/redeliverySession/validate",
-  "title": "Triton International - New Redeliveries",
+  "url": "https://tools.tritoncontainer.com/tritoncontainer/redelivery/create/ABUSG48854",
+  "title": "Triton International - New Redelivery",
   "forms": [
     {
-      "id": "requestForm",
-      "name": "requestForm",
-      "action": "https://tools.tritoncontainer.com/tritoncontainer/redeliverySession/save/1580428121297",
+      "id": "createForm",
+      "name": "createForm",
+      "action": "https://tools.tritoncontainer.com/tritoncontainer/redelivery/save/ABUSG48854",
       "method": "post"
     },
     {
@@ -22,6 +22,22 @@
     }
   ],
   "labels": [
+    {
+      "for": "dt-search-0",
+      "text": ""
+    },
+    {
+      "for": "dt-search-1",
+      "text": ""
+    },
+    {
+      "for": "additionalEmail",
+      "text": "Customer Email"
+    },
+    {
+      "for": "customerComments",
+      "text": "Customer Comments"
+    },
     {
       "for": "dns_fullName",
       "text": "Name"
@@ -51,7 +67,7 @@
       "name": "SYNCHRONIZER_TOKEN",
       "class": null,
       "placeholder": null,
-      "text": "31785f03-f50e-4e2f-9566-98817b48e486"
+      "text": "47f6087b-79d5-4c8a-b58f-2a26fdff1cd0"
     },
     {
       "tag": "INPUT",
@@ -60,16 +76,79 @@
       "name": "SYNCHRONIZER_URI",
       "class": null,
       "placeholder": null,
-      "text": "/tritoncontainer/redeliverySession/validate"
+      "text": "/tritoncontainer/redelivery/create/ABUSG48854"
+    },
+    {
+      "tag": "INPUT",
+      "type": "search",
+      "id": "dt-search-0",
+      "name": null,
+      "class": "form-control form-control-sm",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "search",
+      "id": "dt-search-1",
+      "name": null,
+      "class": "form-control form-control-sm",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": null,
+      "name": "_selectedUnitAll",
+      "class": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "checkbox",
+      "id": null,
+      "name": "selectedUnitAll",
+      "class": "toggle-all ",
+      "placeholder": null,
+      "text": "on"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": null,
+      "name": "_selectedUnit",
+      "class": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "checkbox",
+      "id": "selectedUnit-1580428104653",
+      "name": "selectedUnit",
+      "class": "redeliver",
+      "placeholder": null,
+      "text": "1580428104653"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "redeliveryUnits[0].id",
+      "name": "redeliveryUnits[0].id",
+      "class": null,
+      "placeholder": null,
+      "text": "1580428104653"
     },
     {
       "tag": "INPUT",
       "type": "submit",
-      "id": "Continue Redelivery Request",
-      "name": "Continue Redelivery Request",
-      "class": "btn btn-submit",
+      "id": "finalizeRedelivery",
+      "name": "Finalize",
+      "class": "btn btn-primary",
       "placeholder": null,
-      "text": "Continue Redelivery Request"
+      "text": "Finalize"
     },
     {
       "tag": "INPUT",
@@ -87,7 +166,7 @@
       "name": "SYNCHRONIZER_TOKEN",
       "class": null,
       "placeholder": null,
-      "text": "4e6dd125-7fc9-468c-b2bf-08d1adbc2f96"
+      "text": "8214a080-8b0d-46fd-9db2-f15d4ee4d4a2"
     },
     {
       "tag": "INPUT",
@@ -96,7 +175,7 @@
       "name": "SYNCHRONIZER_URI",
       "class": null,
       "placeholder": null,
-      "text": "/tritoncontainer/redeliverySession/validate"
+      "text": "/tritoncontainer/redelivery/create/ABUSG48854"
     },
     {
       "tag": "INPUT",
@@ -1133,7 +1212,26 @@
       ]
     }
   ],
-  "textareas": [],
+  "textareas": [
+    {
+      "tag": "TEXTAREA",
+      "type": "textarea",
+      "id": "additionalEmail",
+      "name": "additionalEmail",
+      "class": "form-control text-lowercase",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "TEXTAREA",
+      "type": "textarea",
+      "id": "customerComments",
+      "name": "customerComments",
+      "class": "form-control",
+      "placeholder": null,
+      "text": ""
+    }
+  ],
   "buttons": [
     {
       "tag": "BUTTON",
@@ -1158,18 +1256,117 @@
       "type": "button",
       "id": null,
       "name": null,
-      "class": "btn-close",
+      "class": "btn btn-icon rowEditAll hide",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "btn btn-icon rowSubmitAll hide",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "btn btn-icon rowCancelAll hide",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "btn btn-icon buttons-csv buttons-html5",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "btn btn-icon buttons-csv buttons-html5",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "btn btn-icon buttons-colvis",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "btn btn-icon rowEditAll hide",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "btn btn-icon rowSubmitAll hide",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "btn btn-icon rowCancelAll hide",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "btn btn-icon buttons-csv buttons-html5",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "btn btn-icon buttons-csv buttons-html5",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "btn btn-icon buttons-colvis",
       "placeholder": null,
       "text": ""
     },
     {
       "tag": "INPUT",
       "type": "submit",
-      "id": "Continue Redelivery Request",
-      "name": "Continue Redelivery Request",
-      "class": "btn btn-submit",
+      "id": "finalizeRedelivery",
+      "name": "Finalize",
+      "class": "btn btn-primary",
       "placeholder": null,
-      "text": "Continue Redelivery Request"
+      "text": "Finalize"
     },
     {
       "tag": "BUTTON",
@@ -1201,28 +1398,63 @@
   ],
   "tables": [
     {
-      "id": "redeliveryTable",
+      "id": "limitTable",
       "class": "table-all dataTable tf-dataTable",
       "headers": [
-        "Redelivery Number",
-        "Depot",
-        "Customer",
-        "Contract",
         "Equipment Type",
-        "Unit Count"
+        "Contract",
+        "On Hire Location",
+        "Off Hire Location",
+        "TIN Limit",
+        "Already TIN this Period",
+        "Awaiting Redelivery Approval",
+        "Awaiting Redelivery",
+        "Requested",
+        "Total Units on Redelivery",
+        "Available",
+        "Has Special Limits"
       ],
       "rows_count": 1,
       "rows_preview": [
         [
-          "Redelivery #1",
-          "BUSG",
-          "HNGX",
+          "D5",
+          "HNGX17-200000",
+          "All",
+          "BUS",
+          "15",
+          "0",
+          "0",
+          "1",
+          "1",
+          "2",
+          "13",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "unitTable",
+      "class": "table-all dataTable tf-dataTable",
+      "headers": [
+        "",
+        "Contract",
+        "Equipment Type",
+        "Unit Number",
+        "Lease Out Date",
+        "Lease Out Location"
+      ],
+      "rows_count": 1,
+      "rows_preview": [
+        [
+          "",
           "HNGX17-200000",
           "D5",
-          "1"
+          "TCLU8769849",
+          "30-Jul-2019",
+          "SHEJ"
         ]
       ]
     }
   ],
-  "body_text_preview": "Fleet Specifications\nCustomer Tools\nUnit Activity\nMaint & Repair\nInvoices\n CMP CMP\nTRITON\nNew Redeliveries\n1 Redelivery will be created. Please review below.\n1 Redelivery\nShowing 1 to 1 of 1 entry\nRedelivery Number\n\t\nDepot\n\t\nCustomer\n\t\nContract\n\t\nEquipment Type\n\t\nUnit Count\n\nRedelivery #1\tBUSG\tHNGX\tHNGX17-200000\tD5\t1\nAbout us\nLease\nOne-way lease\nContainer sales\nCost savings\nBuild quality\nContact us\nContainer leasing team\nContainer sales team\nChassis team\nTank Containers team\nOffices and locations\nCorporate website\nPrivacy\nCookies\nDo not sell or share my personal information\nCustomer tools\nSales portal\nOne-way portal\nSign up to emails\nEnter your email below to subscribe for company updates and relevant industry news. Click here to read our full privacy policy.\nSign up\n\n© 2022 Triton\n\nThe following items referred to on this website are registered or unregistered service marks in the United States and/or foreign jurisdictions pursuant to applicable intellectual property law and are the property of Triton International Limited and its subsidiaries: ®, Triton®, and TAL®."
+  "body_text_preview": "Fleet Specifications\nCustomer Tools\nUnit Activity\nMaint & Repair\nInvoices\n CMP CMP\nTRITON\nNew Redelivery\nCreating 1 of 1 Redeliveries.\nRedelivery Information\nStorage Location\nBUSG\nMaster Customer\nSNKX\nStatus\nPending Create\nExpiration Date\n11-Aug-2026 23:59\nStandard Expiration\nLimits\nShowing 1 to 1 of 1 entry\n  \nEquipment Type\n\t\nContract\n\t\nOn Hire Location\n\t\nOff Hire Location\n\t\nTIN Limit\n\t\nAlready TIN this Period\n\t\nAwaiting Redelivery Approval\n\t\nAwaiting Redelivery\n\t\nRequested\n\t\nTotal Units on Redelivery\n\t\nAvailable\n\t\nHas Special Limits\n\n\nD5\n\t\nHNGX17-200000\n\t\nAll\n\t\nBUS\n\t\n15\n\t0\t0\t1\t1\t2\t13\t\nUnits\nShowing 1 to 1 of 1 entry\n  \n\t\nContract\n\t\nEquipment Type\n\t\nUnit Number\n\t\nLease Out Date\n\t\nLease Out Location\n\n\n\t\nHNGX17-200000\n\t\nD5\n\t\nTCLU8769849 \n\t30-Jul-2019\t\nSHEJ\nContact Information\nCustomer Email\nCustomer Comments\nAbout us\nLease\nOne-way lease\nContainer sales\nCost savings\nBuild quality\nContact us\nContainer leasing team\nContainer sales team\nChassis team\nTank Containers team\nOffices and locations\nCorporate website\nPrivacy\nCookies\nDo not sell or share my personal information\nCustomer tools\nSales portal\nOne-way portal\nSign up to emails\nEnter your email below to subscribe for company updates and relevant industry news. Click here to read our full privacy policy.\nSign up\n\n© 2022 Triton\n\nThe following items referred to on this website are registered or unregistered service marks in the United States and/or foreign jurisdictions pursuant to applicable intellectual property law and are the property of Triton International Limited and its subsidiaries: ®, Triton®, and TAL®."
 }

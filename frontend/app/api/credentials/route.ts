@@ -4,7 +4,12 @@ import { decrypt } from '@/lib/session'
 async function authed(req: NextRequest) {
   const cookie = req.cookies.get('session')?.value
   const session = await decrypt(cookie)
-  return !!session?.userId
+  if (!session?.userId) return false
+
+  // 비밀번호 관리 API는 unlock 쿠키도 필수
+  const unlock = req.cookies.get('credentials_unlock')?.value
+  const unlockPayload = await decrypt(unlock)
+  return !!unlockPayload?.unlocked
 }
 
 function scraperUrl() {
