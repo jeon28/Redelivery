@@ -1,0 +1,94 @@
+{
+  "url": "https://seaweb.seacoglobal.com/sap/bc/ui5_ui5/sap/zseaweb/index.html?saml2=disabled&handleX509=false&sap-client=100&sap-language=EN#/navCus_Dashboard",
+  "title": "",
+  "forms": [],
+  "inputs": [],
+  "buttons": [
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "container-com.seaco.seaweb---idAppControl--idMenu",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBarChild",
+      "placeholder": null,
+      "text": "Menu"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "__button0",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBarChild",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "container-com.seaco.seaweb---idAppControl--idBtnContactUs",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBarChild",
+      "placeholder": null,
+      "text": "Contact Us"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "__button1",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBarChild",
+      "placeholder": null,
+      "text": "O.H Kwon"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "container-com.seaco.seaweb---idAppControl--idBtnLogOff",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBarChild",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "__button2",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBarChild",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "__button3",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn tileRefreshButton",
+      "placeholder": null,
+      "text": "Refresh"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "container-com.seaco.seaweb---Cus_Dashboard--idSubmit",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapUiTinyMarginEnd",
+      "placeholder": null,
+      "text": "Search"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "container-com.seaco.seaweb---Cus_Dashboard--idReset",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBtnInverted sapUiTinyMarginBegin",
+      "placeholder": null,
+      "text": "Reset"
+    }
+  ],
+  "labels": [],
+  "iframes": [],
+  "sap_present": true,
+  "sap_version": "1.120.15",
+  "body_text_preview": "Menu\nContact Us\nO.H Kwon\nDepreciated Residual Value (DRV)\nCustomer Activity Reports\nOnline Returns\nDepot Inventory\nRefresh\nOutstanding Redelivery\n21\nUnit Enquiry\nSearch\nReset\nQuick Links\nPublications"
+}

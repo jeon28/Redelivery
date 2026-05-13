@@ -1,0 +1,228 @@
+{
+  "url": "https://seaweb.seacoglobal.com/sap/bc/ui5_ui5/sap/zseaweb/index.html?saml2=disabled&handleX509=false&sap-client=100&sap-language=EN#/navCus_RedeliveryRequestViewCancel",
+  "title": "",
+  "forms": [],
+  "inputs": [
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": "container-com.seaco.seaweb---Cus_RedeliveryRequest--idRedeliveryRequestComboBoxCustomer-inner",
+      "name": null,
+      "class": "sapMInputBaseInner sapMComboBoxInner",
+      "placeholder": null,
+      "text": "Sinokor Merchant Marine Co. Ltd. (100898)"
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": "__input0-inner",
+      "name": null,
+      "class": "sapMInputBaseInner",
+      "placeholder": null,
+      "text": "14/05/2026"
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": "__input1-inner",
+      "name": null,
+      "class": "sapMInputBaseInner",
+      "placeholder": null,
+      "text": "31/05/2026"
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": "container-com.seaco.seaweb---Cus_RedeliveryRequest--idRedeliveryRequestComboBoxCity-inner",
+      "name": null,
+      "class": "sapMInputBaseInner sapMComboBoxInner",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": "__input5-inner",
+      "name": null,
+      "class": "sapMInputBaseInner",
+      "placeholder": null,
+      "text": ""
+    }
+  ],
+  "buttons": [
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "container-com.seaco.seaweb---idAppControl--idMenu",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBarChild",
+      "placeholder": null,
+      "text": "Menu"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "__button0",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBarChild",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "container-com.seaco.seaweb---idAppControl--idBtnContactUs",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBarChild",
+      "placeholder": null,
+      "text": "Contact Us"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "__button1",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBarChild",
+      "placeholder": null,
+      "text": "O.H Kwon"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "container-com.seaco.seaweb---idAppControl--idBtnLogOff",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBarChild",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "__button2",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBarChild",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "__button3",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn tileRefreshButton",
+      "placeholder": null,
+      "text": "Refresh"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "container-com.seaco.seaweb---Cus_Dashboard--idSubmit",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapUiTinyMarginEnd",
+      "placeholder": null,
+      "text": "Search"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "container-com.seaco.seaweb---Cus_Dashboard--idReset",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBtnInverted sapUiTinyMarginBegin",
+      "placeholder": null,
+      "text": "Reset"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "container-com.seaco.seaweb---Cus_RedeliveryRequest--btnUserGuideReDel",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBtnInverted sapUiMediumMarginEnd",
+      "placeholder": null,
+      "text": "User GuideUser Guide"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "__button6",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBtnDisabled sapUiLargePaddingBegin",
+      "placeholder": null,
+      "text": "Switch to Next month Switch to Next month possible only after 25th of each month!"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "__button7",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapUiResponsiveMargin sapMBarChild sapMBarChildFirstChild",
+      "placeholder": null,
+      "text": "Add to Returns"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "__button8",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBtnInverted sapUiResponsiveMargin sapMBarChild",
+      "placeholder": null,
+      "text": "Reset"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "container-com.seaco.seaweb---Cus_RedeliveryRequestViewCancel--btnUserGuideReDelVC",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBtnInverted sapUiMediumMarginEnd",
+      "placeholder": null,
+      "text": "User Guide"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "__button17",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapUiResponsiveMargin sapMBarChild sapMBarChildFirstChild",
+      "placeholder": null,
+      "text": "Submit"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "__button18",
+      "name": null,
+      "class": "sapMBtnBase sapMBtn sapMBtnInverted sapUiResponsiveMargin sapMBarChild",
+      "placeholder": null,
+      "text": "Reset"
+    }
+  ],
+  "labels": [
+    {
+      "for": "container-com.seaco.seaweb---Cus_RedeliveryRequest--idRedeliveryRequestComboBoxCustomer-inner",
+      "text": "Customer Name"
+    },
+    {
+      "for": "__input0-inner",
+      "text": "Start Date"
+    },
+    {
+      "for": "__input1-inner",
+      "text": "Expiry Date Date"
+    },
+    {
+      "for": "container-com.seaco.seaweb---Cus_RedeliveryRequest--idRedeliveryRequestComboBoxCity-inner",
+      "text": "City"
+    },
+    {
+      "for": "container-com.seaco.seaweb---Cus_RedeliveryRequest--idTextAreaSerialNo-inner",
+      "text": "Serial No."
+    },
+    {
+      "for": "__input5-inner",
+      "text": "Return Authorization No."
+    }
+  ],
+  "iframes": [],
+  "sap_present": true,
+  "sap_version": "1.120.15",
+  "body_text_preview": "Menu\nContact Us\nO.H Kwon\nDepreciated Residual Value (DRV)\nCustomer Activity Reports\nOnline Returns\nRedelivery Request\nRedelivery View/Cancel\nDepot Inventory\nRedelivery Request\nUser Guide\nReturn Authorization No.\nSubmit\nReset"
+}

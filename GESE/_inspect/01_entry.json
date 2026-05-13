@@ -1,0 +1,187 @@
+{
+  "url": "https://seaweb.seacoglobal.com/sap/bc/ui5_ui5/sap/zseaweb/index.html?saml2=disabled&handleX509=false&_sap-hash=JTIzJTJGbmF2Q3VzX0Rhc2hib2FyZA#/navCus_Dashboard",
+  "title": "Seaco Seaweb",
+  "forms": [
+    {
+      "id": "LOGIN_FORM",
+      "name": "loginForm",
+      "action": "https://seaweb.seacoglobal.com/sap/bc/ui5_ui5/sap/zseaweb/index.html?saml2=disabled&handleX509=false&_sap-hash=JTIzJTJGbmF2Q3VzX0Rhc2hib2FyZA",
+      "method": "post"
+    }
+  ],
+  "inputs": [
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": null,
+      "name": "sap-system-login-oninputprocessing",
+      "class": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": null,
+      "name": "sap-urlscheme",
+      "class": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": null,
+      "name": "sap-system-login",
+      "class": null,
+      "placeholder": null,
+      "text": "onLogin"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": null,
+      "name": "sap-system-login-basic_auth",
+      "class": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": null,
+      "name": "sap-client",
+      "class": null,
+      "placeholder": null,
+      "text": "100"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": null,
+      "name": "sap-language",
+      "class": null,
+      "placeholder": null,
+      "text": "EN"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": null,
+      "name": "sap-accessibility",
+      "class": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": null,
+      "name": "sap-login-XSRF",
+      "class": null,
+      "placeholder": null,
+      "text": "kg55XUsDDTNGZ8eRGcPt4kiabHrdTDUv3O499L_Gf-E="
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": null,
+      "name": "sap-system-login-cookie_disabled",
+      "class": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": null,
+      "name": "sap-hash",
+      "class": null,
+      "placeholder": null,
+      "text": "JTIzJTJGbmF2Q3VzX0Rhc2hib2FyZA"
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": "USERNAME_FIELD-inner",
+      "name": "sap-user",
+      "class": "loginInputField",
+      "placeholder": "User",
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "password",
+      "id": "PASSWORD_FIELD-inner",
+      "name": "sap-password",
+      "class": "loginInputField",
+      "placeholder": "Password",
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": null,
+      "name": "__sap-sl__dummy",
+      "class": null,
+      "placeholder": null,
+      "text": "1"
+    }
+  ],
+  "buttons": [
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": "PASSWORD_TOGGLE",
+      "name": null,
+      "class": "password-toggle",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": "LOGIN_LINK",
+      "name": null,
+      "class": "loginButton sapUiButtonEmphasized",
+      "placeholder": null,
+      "text": "Log On"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": "CHANGE_PASSWORD_LINK",
+      "name": null,
+      "class": "loginButton sapUiButtonLite",
+      "placeholder": null,
+      "text": "Change Password"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": "CREATE_MNG_ACCT_LINK",
+      "name": null,
+      "class": "loginButton sapUiButtonLite",
+      "placeholder": null,
+      "text": "Create / Manage Account"
+    }
+  ],
+  "labels": [
+    {
+      "for": "USERNAME_FIELD-inner",
+      "text": "User"
+    },
+    {
+      "for": "PASSWORD_FIELD-inner",
+      "text": "Password"
+    },
+    {
+      "for": null,
+      "text": "Copyright © 2026 SAP SE All Rights Reserved."
+    }
+  ],
+  "iframes": [],
+  "sap_present": false,
+  "sap_version": null,
+  "body_text_preview": "User\nPassword\nLog On\nChange Password\nCreate / Manage Account\nCopyright © 2026 SAP SE All Rights Reserved."
+}

@@ -89,4 +89,7 @@ def get_scraper(company: str, lessor: str) -> Optional[BaseScraper]:
     if key == "GOLD":
         from scrapers.gold import GoldScraper
         return GoldScraper(company, key)
+    if key == "FLOR":
+        from scrapers.flor import FlorScraper
+        return FlorScraper(company, key)
     return None
