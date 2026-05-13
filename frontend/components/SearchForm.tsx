@@ -13,7 +13,7 @@ const LESSOR_CATALOG: Record<string, LessorEntry[]> = {
   장금상선: [
     { code: 'TEXA',       mode: 'query', status: 'ready' },
     { code: 'TRIT+TRAM',  mode: 'query', status: 'ready' },
-    { code: 'GLOD',       mode: 'query', status: 'wip' },
+    { code: 'GLOD',       mode: 'query', status: 'ready' },
     { code: 'FLOR+DFIC',  mode: 'query', status: 'wip' },
     { code: 'GESE+CROS',  mode: 'query', status: 'wip' },
     { code: 'GCIC',       mode: 'query', status: 'wip' },
@@ -25,7 +25,7 @@ const LESSOR_CATALOG: Record<string, LessorEntry[]> = {
   흥아라인: [
     { code: 'TEXA',       mode: 'query', status: 'ready' },
     { code: 'TRIT',       mode: 'query', status: 'ready' },
-    { code: 'GOLD',       mode: 'query', status: 'wip' },
+    { code: 'GOLD',       mode: 'query', status: 'ready' },
     { code: 'FLOR',       mode: 'query', status: 'wip' },
     { code: 'GESE+SGCN',  mode: 'query', status: 'wip' },
     { code: 'BCON',       mode: 'email' },

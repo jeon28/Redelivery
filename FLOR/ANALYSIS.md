@@ -162,7 +162,26 @@ Port: | Depot: | Redelivery No. | Status | Contract | Order Date | Equip Type | 
 
 ---
 
-## 6. 신규 발급 흐름 — 거부 케이스 실측 (2026-05-14)
+## 6. 신규 발급 흐름 — 실 발급 검증 완료 (2026-05-14)
+
+### 실 발급 E2E 결과
+
+| 단계 | 입력/동작 | 결과 |
+|------|----------|------|
+| 입력 | HA / `DFSU7526412` / Port=INCHON / Depot=(KRINC08) The Logis New Port CY | — |
+| Step 1~3 자동화 | 폼 입력 → Next → Next → Confirm Redelivery Order | 성공 |
+| 발급된 반납번호 | **`PPR77147`** | — |
+| Status | `Open` (즉시 활성, Pending 단계 없음) | — |
+| Contract | `DF-HNGA20008A` | — |
+| Order Date | `2026-05-14` | 발급 당일 |
+| Equip Type | `40' Dry High Cube` | — |
+| Qty | Order=1, MOV=0, BAL=1 | 이동 전 |
+
+→ **Florens는 Confirm 클릭 시 즉시 발급 + `Open` 상태로 활성**. TRIT의 Pending Create 단계 없음.
+
+---
+
+## 7. 신규 발급 흐름 — 거부 케이스 실측 (2026-05-14)
 
 ### 확인된 흐름
 
