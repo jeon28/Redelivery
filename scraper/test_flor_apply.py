@@ -32,7 +32,7 @@ HEADLESS     = True
 # ── 입력값 ─────────────────────────────────────────────
 COMPANY    = "HA"
 TEST_UNIT  = "FSCU5896157"
-TEST_PORT  = "BUSAN"
+TEST_PORT  = "PUSAN"   # Florens 표기 (BUSAN 아님)
 TEST_DEPOT = None     # None = 드롭다운 첫 옵션 자동 선택
 EXECUTE_BOOKING = True   # ⚠ True 시 Confirm Redelivery Order 클릭 (실 발급)
 # ──────────────────────────────────────────────────────
@@ -168,6 +168,7 @@ async def main():
 
         print("\n[1] 로그인")
         if not await login(page, user, pw):
+            await page.screenshot(path=str(OUT_DIR / "login_fail.png"), full_page=True)
             print(f"  로그인 실패: {page.url}"); await browser.close(); sys.exit(2)
         print(f"  성공: {page.url}")
 
