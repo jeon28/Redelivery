@@ -1,0 +1,99 @@
+{
+  "url": "https://www.florens.com/user/home#/",
+  "title": "Florens | Container Leasing | Container Trading | Portable Storage Leasing",
+  "forms": [
+    {
+      "id": "",
+      "name": "",
+      "action": "https://florensfm.florens.com:10043/psp/fmp8/?cmd=login&languageCd=ENG",
+      "method": "post"
+    },
+    {
+      "id": "",
+      "name": "",
+      "action": "https://florensfm.florens.com:10043/psp/fmp8/?cmd=login&languageCd=ENG",
+      "method": "post"
+    }
+  ],
+  "labels": [],
+  "inputs": [
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": "client_region",
+      "name": null,
+      "class": null,
+      "placeholder": null,
+      "text": "None"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "ps-uid",
+      "name": "userid",
+      "class": null,
+      "placeholder": null,
+      "text": "YEONG"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "ps-pwd",
+      "name": "pwd",
+      "class": null,
+      "placeholder": null,
+      "text": "HEUNGA79"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "ps-uid",
+      "name": "userid",
+      "class": null,
+      "placeholder": null,
+      "text": "YEONG"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "ps-pwd",
+      "name": "pwd",
+      "class": null,
+      "placeholder": null,
+      "text": "HEUNGA79"
+    }
+  ],
+  "selects": [],
+  "buttons": [
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "navbar-toggle collapsed",
+      "placeholder": null,
+      "text": "Toggle navigation   "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": null,
+      "name": null,
+      "class": null,
+      "placeholder": null,
+      "text": "\n                                    Florens Fleet Manager\n                                "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": null,
+      "name": null,
+      "class": null,
+      "placeholder": null,
+      "text": "Florens Fleet Manager"
+    }
+  ],
+  "sliders": [],
+  "iframes": [],
+  "body_text_preview": "Main\nAbout \nServices \nEquipment \nContact \nFunctions \n|Container Trading\nYEONG \nHK\nFlorens Fleet Manager\n\nFlorens' E-market\n\nNow Here\n\nBuy Containers Now\n\n7*24hrs\n\nOnline Shopping\n\n2 Ways\n\nMobile Friendly\n\nPayments\n\nWith Flexible Option(s)\n\nHello, YEONG\nWelcome to Florens Web Portal\n--------------------\n\nCustomer ID: HEUNG, HALINE\n\nWeb Functions\nBooking\nRedelivery\nReplacement Value\nMaintenance & Repair\nManagement Report\nContact\nIf some of the web functions above are missing, please feel free to contact us.\nYou may read the manual - how to use the different web function.\nContact Us\nFlorens Asset Management Company Limited\n50/F COSCO Tower\n183 Queen's Road Central\nHong Kong\n\nTEL: (852) 2866-9959\nFAX: (852) 2866-7667\n \nCorporate Marketing\nAmerica (North, Central and South)\nEurope & South Africa\nAsia, India, Australia & New Zealand\nHelp\nPrivacy Policy\nFAQ\n\n\n\n\nCopyright © 1987-2026, Florens Asset Management Company Limited\nFlorens Fleet Manager"
+}

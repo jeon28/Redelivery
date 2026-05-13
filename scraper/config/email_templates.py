@@ -5,14 +5,26 @@
 - 사용자가 프론트에서 편집 가능
 - 영구 저장: Railway Volume의 /data/email_templates.json
 
-변수:
-  {carrier_name}   장금상선 | 흥아라인
-  {carrier_code}   SKR | HAS
-  {region}         인천 | 부산 | 광양
-  {region_en}      INCHON | BUSAN | GWANGYANG
-  {date}           5/14 (월/일)
+템플릿 키는 "베이스 임대사 코드" 기준 10개:
+  TEXA, TRIT, GOLD, FLOR, GESE, GCIC, CAIC, BCON, CARL, BLUE
+
+장금/흥아의 변형 코드 (TRIT+TRAM, FLOR+DFIC, GLOD, GESE+CROS/SGCN)는
+프론트에서 베이스 코드로 정규화해서 동일 템플릿을 사용한다.
+
+변수 (template placeholders):
+  {carrier_name}     장금상선 | 흥아라인
+  {carrier_code}     SKR | HAS
+  {carrier_alt}      SKR | HAL  (영문 메일 헤더용)
+  {office}           본사 | 부산 | 인천 | 평택 | 광양 | 울산 (사무소)
+  {region}           부산 | 인천 | 평택 | 광양 | 울산 (반납지역, 한글)
+  {region_en}        BUSAN | INCHON | PYEONGTAEK | GWANGYANG | ULSAN (반납지역, 영문)
+  {date}             5/14 (월/일)
   {first_container}  첫 컨테이너 번호
-  {containers}     컨테이너 블록 (carrier_code + no + type 반복)
+  {first_type}       첫 컨테이너 타입
+  {containers}       컨테이너 블록 (carrier_code + no + type 반복)
+
+서명(이름/연락처)은 Outlook 자동 서명에 맡기므로 본문에 포함하지 않는다.
+양사 내부 메일은 항상 Cc에 포함 (container@sinokor.co.kr 등).
 """
 import json
 import logging
@@ -26,103 +38,126 @@ EMAIL_TEMPLATES_FILE = Path(
     os.getenv("EMAIL_TEMPLATES_FILE", "/data/email_templates.json")
 )
 
-# 메일 발송 대상 임대사 (모두 회신 양식은 별도, 여기는 발송 양식만)
+# 양사 내부 메일 공통 Cc (모든 임대사 기본값에 포함)
+INTERNAL_CC = (
+    "container@sinokor.co.kr; "
+    "inchon@sinokor.co.kr; "
+    "inc@heungaline.com"
+)
+
+# 한글 양식 본문 공통 (CAI Korea 대행: CAIC, BCON)
+_BODY_KR = (
+    "수신: {agent_label}\n"
+    "발신: {carrier_name} {office}\n"
+    "\n"
+    "안녕하세요.\n"
+    "\n"
+    "하기 컨테이너 반납 요청드리오니 확인 후 반납번호 및 반납지역 회신 부탁드립니다.\n"
+    "\n"
+    "{containers}\n"
+    "\n"
+    "반납지역 : {region}"
+)
+
+# 영문 양식 본문 공통 (Seacube CARL, BSIU BLUE)
+_BODY_EN = (
+    "Dear All,\n"
+    "\n"
+    "Good day to you\n"
+    "\n"
+    "We have off-hire request for subjected container at {region_en}, KOREA.\n"
+    "Please double check and confirm it.\n"
+    "\n"
+    "{containers}\n"
+    "\n"
+    "감사합니다"
+)
+
 DEFAULT_TEMPLATES: dict = {
+    # ── 메일 임대사 (회신을 메일로 받는 임대사) ───────────────
     "CAIC": {
-        "name": "CAI Korea (CAIC)",
+        "name": "CAI",
         "language": "ko",
         "to": "hjung@capps.com; june@capps.com; sjent@sjcon.kr; sjent_cy@sjcon.kr",
-        "cc": "container@sinokor.co.kr; inchon@sinokor.co.kr; owchoi@capps.com; caise@capps.com",
+        "cc": f"{INTERNAL_CC}; owchoi@capps.com; caise@capps.com",
         "subject": "[{carrier_name}] {first_container} 요청 {date}",
-        "body": (
-            "수신: CAI / 정준혁 담당님\n"
-            "발신: {carrier_name} 인천사무소 전성현\n"
-            "\n"
-            "안녕하세요.\n"
-            "\n"
-            "하기 컨테이너 반납 요청드리오니 확인 후 반납번호 및 반납지역 회신 부탁드립니다.\n"
-            "\n"
-            "{containers}\n"
-            "\n"
-            "반납지역 : {region}\n"
-            "\n"
-            "\n"
-            "Best Regards,\n"
-            "Sean Jeon / 전 성 현\n"
-            "INCHEON OFFICE"
-        ),
+        "body": _BODY_KR.replace("{agent_label}", "CAI / 정준혁 담당님"),
     },
     "BCON": {
-        "name": "Beacon (BCON) — CAI Korea 대행",
+        "name": "Beacon (CAI Korea 대행)",
         "language": "ko",
         "to": "hjung@capps.com; june@capps.com; sjent@sjcon.kr; sjent_cy@sjcon.kr",
-        "cc": "container@sinokor.co.kr; inchon@sinokor.co.kr; owchoi@capps.com; caise@capps.com",
+        "cc": f"{INTERNAL_CC}; owchoi@capps.com; caise@capps.com",
         "subject": "[{carrier_name}] {first_container} 요청 {date}",
-        "body": (
-            "수신: CAI / 정준혁 담당님\n"
-            "발신: {carrier_name} 인천사무소 전성현\n"
-            "\n"
-            "안녕하세요.\n"
-            "\n"
-            "하기 컨테이너 반납 요청드리오니 확인 후 반납번호 및 반납지역 회신 부탁드립니다.\n"
-            "\n"
-            "{containers}\n"
-            "\n"
-            "반납지역 : {region}\n"
-            "\n"
-            "\n"
-            "Best Regards,\n"
-            "Sean Jeon / 전 성 현\n"
-            "INCHEON OFFICE"
-        ),
+        "body": _BODY_KR.replace("{agent_label}", "CAI / 정준혁 담당님"),
     },
     "CARL": {
-        "name": "Seacube (CARL)",
+        "name": "Seacube",
         "language": "en",
         "to": "kchoi.agent@seacubecontainers.com; inccy@thelogis.com; gayun97@nate.com; mgyoon@thelogis.com",
-        "cc": "container@sinokor.co.kr; inc@heungaline.com; skeung@seacubecontainers.com",
+        "cc": f"{INTERNAL_CC}; skeung@seacubecontainers.com",
         "subject": "[{carrier_alt}] {first_container} {first_type} OFF-HIRE / - {region_en}, KOREA. {date}",
-        "body": (
-            "Dear All,\n"
-            "\n"
-            "Good day to you\n"
-            "\n"
-            "We have off-hire request for subjected container at {region_en}, KOREA.\n"
-            "Please double check and confirm it.\n"
-            "\n"
-            "{containers}\n"
-            "\n"
-            "감사합니다\n"
-            "\n"
-            "\n"
-            "Best Regards,\n"
-            "Sean Jeon / 전 성 현\n"
-            "INCHEON OFFICE"
-        ),
+        "body": _BODY_EN,
     },
     "BLUE": {
-        "name": "Blue Sky Intermodal (BLUE / BSIU)",
+        "name": "Blue Sky Intermodal (BSIU)",
         "language": "en",
         "to": "lilian.qin@bsiu.com; icoral@bsiu.com; sjent_cy@sjcon.kr",
-        "cc": "container@sinokor.co.kr; inchon@sinokor.co.kr; movements@bsiu.com",
+        "cc": f"{INTERNAL_CC}; movements@bsiu.com",
         "subject": "[{carrier_alt}] {first_container} {first_type} OFF-HIRE / - {region_en}, KOREA. {date}",
-        "body": (
-            "Dear All,\n"
-            "\n"
-            "Good day to you\n"
-            "\n"
-            "We have off-hire request for subjected container at {region_en}, KOREA.\n"
-            "Please double check and confirm it.\n"
-            "\n"
-            "{containers}\n"
-            "\n"
-            "감사합니다\n"
-            "\n"
-            "\n"
-            "Best Regards,\n"
-            "Sean Jeon / 전 성 현\n"
-            "INCHEON OFFICE"
-        ),
+        "body": _BODY_EN,
+    },
+
+    # ── 웹반납 임대사 (백업/예외 케이스용 메일 양식) ────────────
+    # 평소엔 웹 조회로 처리하지만 드물게 메일이 필요할 때 사용.
+    # To/Cc는 일단 양사 내부 메일만 포함, 임대사 측 주소는 사용자가 추후 입력.
+    "TEXA": {
+        "name": "Textainer (백업)",
+        "language": "en",
+        "to": "",
+        "cc": INTERNAL_CC,
+        "subject": "[{carrier_alt}] {first_container} {first_type} OFF-HIRE / - {region_en}, KOREA. {date}",
+        "body": _BODY_EN,
+    },
+    "TRIT": {
+        "name": "Triton (백업)",
+        "language": "en",
+        "to": "",
+        "cc": INTERNAL_CC,
+        "subject": "[{carrier_alt}] {first_container} {first_type} OFF-HIRE / - {region_en}, KOREA. {date}",
+        "body": _BODY_EN,
+    },
+    "GOLD": {
+        "name": "Touax (GOLD/GLOD, 백업)",
+        "language": "en",
+        "to": "",
+        "cc": INTERNAL_CC,
+        "subject": "[{carrier_alt}] {first_container} {first_type} OFF-HIRE / - {region_en}, KOREA. {date}",
+        "body": _BODY_EN,
+    },
+    "FLOR": {
+        "name": "Florens (백업)",
+        "language": "en",
+        "to": "",
+        "cc": INTERNAL_CC,
+        "subject": "[{carrier_alt}] {first_container} {first_type} OFF-HIRE / - {region_en}, KOREA. {date}",
+        "body": _BODY_EN,
+    },
+    "GESE": {
+        "name": "Seaco (GESE) — 현재 메일 반납 중",
+        "language": "en",
+        "to": "",
+        "cc": INTERNAL_CC,
+        "subject": "[{carrier_alt}] {first_container} {first_type} OFF-HIRE / - {region_en}, KOREA. {date}",
+        "body": _BODY_EN,
+    },
+    "GCIC": {
+        "name": "GCX (GCIC, 백업)",
+        "language": "en",
+        "to": "",
+        "cc": INTERNAL_CC,
+        "subject": "[{carrier_alt}] {first_container} {first_type} OFF-HIRE / - {region_en}, KOREA. {date}",
+        "body": _BODY_EN,
     },
 }
 

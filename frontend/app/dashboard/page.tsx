@@ -19,10 +19,10 @@ export default async function DashboardPage() {
               조회
             </Link>
             <Link
-              href="/dashboard/email-request"
+              href="/dashboard/email-setting"
               className="text-slate-300 hover:text-white transition-colors"
             >
-              메일 반납
+              Email Setting
             </Link>
             <Link
               href="/dashboard/credentials"

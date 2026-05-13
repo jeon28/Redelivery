@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { verifySession } from '@/lib/session'
 import { logout } from '@/app/actions/auth'
-import EmailRequestForm from '@/components/EmailRequestForm'
+import EmailSettingTabs from '@/components/EmailSettingTabs'
 
-export default async function EmailRequestPage() {
+export default async function EmailSettingPage() {
   await verifySession()
 
   return (
@@ -19,10 +19,10 @@ export default async function EmailRequestPage() {
               조회
             </Link>
             <Link
-              href="/dashboard/email-request"
+              href="/dashboard/email-setting"
               className="text-white font-medium border-b-2 border-white pb-0.5"
             >
-              메일 반납
+              Email Setting
             </Link>
             <Link
               href="/dashboard/credentials"
@@ -43,14 +43,13 @@ export default async function EmailRequestPage() {
       </header>
       <main className="max-w-6xl mx-auto px-6 py-8">
         <div className="mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">메일 반납 요청</h2>
+          <h2 className="text-xl font-semibold text-gray-800">Email Setting</h2>
           <p className="text-sm text-gray-500 mt-1">
-            컨테이너 번호와 반납지를 입력하면 임대사별 양식에 맞춰 메일이
-            생성됩니다. <span className="font-medium">Outlook에서 열기</span>를
-            클릭하면 자동으로 양식이 입력된 상태로 Outlook이 열립니다.
+            Manage Outlook email rules and templates
           </p>
         </div>
-        <EmailRequestForm />
+
+        <EmailSettingTabs />
       </main>
     </div>
   )

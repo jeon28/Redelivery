@@ -1,0 +1,156 @@
+{
+  "url": "https://www.florens.com/official-pc/login#/",
+  "title": "Login",
+  "forms": [],
+  "labels": [
+    {
+      "for": null,
+      "text": "Florens ID"
+    },
+    {
+      "for": null,
+      "text": "Password"
+    }
+  ],
+  "inputs": [
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": null,
+      "name": null,
+      "class": "floating-input",
+      "placeholder": "Florens ID",
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "password",
+      "id": null,
+      "name": null,
+      "class": "floating-input",
+      "placeholder": "Password",
+      "text": ""
+    }
+  ],
+  "selects": [],
+  "buttons": [
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "ant-btn ant-btn-primary sign-btn",
+      "placeholder": null,
+      "text": "Sign in"
+    }
+  ],
+  "sliders": [
+    {
+      "tag": "DIV",
+      "type": null,
+      "id": null,
+      "name": null,
+      "class": "slider-captcha",
+      "placeholder": null,
+      "text": "",
+      "rect": {
+        "x": 256.390625,
+        "y": 495.5,
+        "w": 312,
+        "h": 24
+      }
+    },
+    {
+      "tag": "DIV",
+      "type": null,
+      "id": null,
+      "name": null,
+      "class": "slider-container",
+      "placeholder": null,
+      "text": "",
+      "rect": {
+        "x": 256.390625,
+        "y": 495.5,
+        "w": 312,
+        "h": 24
+      }
+    },
+    {
+      "tag": "DIV",
+      "type": null,
+      "id": null,
+      "name": null,
+      "class": "slider-track",
+      "placeholder": null,
+      "text": "",
+      "rect": {
+        "x": 256.390625,
+        "y": 506.5,
+        "w": 312,
+        "h": 2
+      }
+    },
+    {
+      "tag": "DIV",
+      "type": null,
+      "id": null,
+      "name": null,
+      "class": "slider-bar",
+      "placeholder": null,
+      "text": "",
+      "rect": {
+        "x": 256.390625,
+        "y": 506.5,
+        "w": 0,
+        "h": 2
+      }
+    },
+    {
+      "tag": "DIV",
+      "type": null,
+      "id": null,
+      "name": null,
+      "class": "slider-button-wrapper",
+      "placeholder": null,
+      "text": "",
+      "rect": {
+        "x": 256.390625,
+        "y": 495.5,
+        "w": 24,
+        "h": 24
+      }
+    },
+    {
+      "tag": "DIV",
+      "type": null,
+      "id": null,
+      "name": null,
+      "class": "slider-button",
+      "placeholder": null,
+      "text": "",
+      "rect": {
+        "x": 256.390625,
+        "y": 495.5,
+        "w": 24,
+        "h": 24
+      }
+    },
+    {
+      "tag": "IMG",
+      "type": null,
+      "id": null,
+      "name": null,
+      "class": "slider-icon",
+      "placeholder": null,
+      "text": "",
+      "rect": {
+        "x": 262.390625,
+        "y": 501.5,
+        "w": 12,
+        "h": 12
+      }
+    }
+  ],
+  "iframes": [],
+  "body_text_preview": "Welcome to Florens\nNew to Florens?\n\nSign up now\n\nFlorens ID\nPassword\n\nForgot Password?\n\nSlide to Sign in\nIncorect account or password.\nSign in\nFlorens Employee?\n\nLog in here"
+}

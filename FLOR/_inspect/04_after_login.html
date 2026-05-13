@@ -1,0 +1,197 @@
+<!DOCTYPE html><html><head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="description" content="We are one of the world’s leading container lessors. Over the past three decades, we have been committed to providing flexible and innovative solutions for global customers looking to lease or buy new or used containers, whether for cargo shipment, storage or conversion for other purposes. Backed by the equipment manufacturing and logistics capabilities of our parent group COSCO SHIPPING, we are ready to deliver first-rate service at reasonable prices from over 300 depots in five continents anytime you need us.">
+    <meta name="keywords" content="Container,Leasing,Resale,Container Leasing,Containers,Shipping,Container Sale,Portable Storage,Conex,Storage Container,Storage Container Rental,Storage Container Sales,Used Cargo Container,Shipping Container,Used Container">
+    <meta name="author" content="Florens Asset Management Company Limited">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="apple-touch-icon" sizes="57x57" href="/img/favicon/apple-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/img/favicon/apple-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/img/favicon/apple-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/img/favicon/apple-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/img/favicon/apple-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/img/favicon/apple-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/img/favicon/apple-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/img/favicon/apple-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/img/favicon/apple-icon-180x180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/img/favicon/android-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="/img/favicon/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/img/favicon/favicon-16x16.png">
+    <link rel="manifest" href="/img/favicon/manifest.json">
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-TileImage" content="/img/favicon/ms-icon-144x144.png">
+    <meta name="theme-color" content="#ffffff">
+    <title>Florens | Container Leasing | Container Trading | Portable Storage Leasing</title>
+    <link rel="stylesheet" href="/node_modules/bootstrap/dist/css/bootstrap.min.css">
+    
+    <link rel="stylesheet" href="/node_modules/ionicons/css/ionicons.min.css">
+    <!--[if lte IE 9]><script>window.location.href="/outdated/browser"</script><![endif]-->
+    
+
+    
+        <link rel="stylesheet" href="/gen/style.min.css?1f50d116">
+    
+</head>
+<body>
+<h1 class="hidden">We are one of the world’s leading container lessors. Over the past three decades, we have been
+    committed to providing flexible and innovative solutions for global customers looking to lease or buy new or used
+    containers, whether for cargo shipment, storage or conversion for other purposes. Backed by the equipment
+    manufacturing and logistics capabilities of our parent group COSCO SHIPPING, we are ready to deliver first-rate
+    service at reasonable prices from over 300 depots in five continents anytime you need us.</h1>
+<template id="flPdfViewer">
+    <div>
+        <div class="clearfix" style="margin-bottom: 10px">
+            <div class="pull-right">
+                <a :href="file || pdfFile" class="btn btn-theme" target="_blank">Open in PDF</a>
+            </div>
+            <p v-if="showSizer">
+                Scale:
+                <el-input-number :step="0.1" v-model="option.scale" @change="scaleChanged" size="medium" :min="0.8" :max="2"></el-input-number>
+            </p>
+        </div>
+        <div style="overflow-x: auto; min-height: 800px; text-align: center" ref="doc" v-loading="loading">
+        </div>
+    </div>
+</template>
+<script>
+    // limit user to access www.florens.com only
+    if (window.location.hostname === 'florens.com') {
+        window.location.href = window.location.href.replace('florens.com', 'www.florens.com');
+    }
+</script>
+<div id="florensApp" class=""><div class="fl-view"><input type="" hidden="hidden" id="client_region" value="None" style=""> <nav class="navbar navbar-default navbar-fixed-top fl-navbar"><div class="container-fluid"><div class="navbar-header"><button type="button" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false" class="navbar-toggle collapsed"><span class="sr-only">Toggle navigation</span> <span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span></button> <a href="/" class="navbar-brand fl-navbar-brand"><img src="/img/logo-alpha.png" alt="LOGO"></a></div> <div id="bs-example-navbar-collapse-1" class="collapse navbar-collapse"><ul class="nav navbar-nav" style="display: none;"><li><a href="/">Main</a></li> <li><a href="/map" data-toggle="dropdown" class="dropdown-toggle">Global Leasing
+                        <span class="caret"></span></a> <ul class="dropdown-menu"><li><a href="/leasing"><span class="ion-play"></span> About</a></li> <li><a href="/office_and_agents"><span class="ion-play"></span> Offices and
+                            Agents</a></li></ul></li> <li><a data-toggle="dropdown" href="" class="dropdown-toggle"> Services <span class="caret"></span></a> <ul class="dropdown-menu"><li><a href="/services#/depots"><span class="ion-play"></span> Depots </a></li> <li><a href="/services?service=exchange-rate#/exchange-rate"><span class="ion-play"></span>
+                                    Exchange Rates </a></li> <li><a href="/payment_form"><span class="ion-play"></span> Online Payment</a></li> <li class="divider"></li> <li class="dropdown-header">
+                            Technical Documents
+                        </li> <li><a href="/services#/IICL6"><span class="ion-play"></span> IICL-6
+                            Standard </a></li> <li><a href="/services?service=container-grading-guidelines#/container-grading-guidelines"><span class="ion-play"></span> Operations &amp;
+                                    Technical
+                                    Document</a></li> <li><a href="/services?service=introduction-and-purpose#/introduction-and-purpose"><span class="ion-play"></span> Inspection and
+                                    Repair Guidelines</a></li> <li><a href="javascript:void window.open('https://www.iicl.org/technical-documents/dry-van-technical-bulletins/');"><span class="ion-play"></span> IICL On-Line Tech. Bulletin</a></li> <li><a href="javascript:void window.open('https://www.iicl.org/certification/inspector-directories/');"><span class="ion-play"></span> IICL
+                                Inspector's Directory </a></li> <li><a href="javascript:void window.open('https://iflorens.florens.com/official-pc/IICLapi.html');"><span class="ion-play"></span> Florens IICL API Guidelines </a></li></ul></li> <li><a data-toggle="dropdown" href="" class="dropdown-toggle">
+                        Equipment <span class="caret"></span></a> <ul class="dropdown-menu"><li><a href="/equipment#/DryCargo"><span class="ion-play"></span> Dry Cargo
+                            Container</a></li> <li><a href="/equipment#/Flat"><span class="ion-play"></span> Flatrack</a></li> <li><a href="/equipment#/OpenTop"><span class="ion-play"></span> Open Top
+                            Container</a></li> <li><a href="/equipment#/refridge"><span class="ion-play"></span>
+                            Refrigerated Container</a></li> <li><a href="/equipment#/Tanks"><span class="ion-play"></span> Tanks</a></li> <li class="divider"></li> <li><a href="/equipment#/unit-inquiry"><span class="ion-play"></span> Unit
+                                Inquiry</a></li> <li><a href="/equipment#/unit-specifications"><span class="ion-play"></span> Unit Specifications</a></li></ul></li> <li><a href="/map" data-toggle="dropdown" class="dropdown-toggle">Contact
+                        <span class="caret"></span></a> <ul class="dropdown-menu"><li><a href="/contact_us"><span class="ion-play"></span> Contact Us</a></li> <li><a href="mailto:contact@florens.com"><span class="ion-play"></span> Corporate Marketing</a></li> <li><a href="mailto:customerservice@florens.com"><span class="ion-play"></span> America (North,
+                            Central and South)</a></li> <li><a href="mailto:customerserviceEU@florens.com"><span class="ion-play"></span> Europe &amp; South
+                            Africa</a></li> <li><a href="mailto:customerserviceAP@florens.com"><span class="ion-play"></span> Asia, India,
+                            Australia &amp; New Zealand</a></li></ul></li> <li><a data-toggle="dropdown" href="/about" class="dropdown-toggle">
+                        About <span class="caret"></span></a> <ul class="dropdown-menu"><li><a href="/about#/info"><span class="ion-play"></span> About Florens </a></li> <li><a href="/about#/worldwide/Management"><span class="ion-play"></span> Worldwide Functions</a></li> <li class="divider"></li> <li><a href="/about#/investment"><span class="ion-play"></span> Investment Programs</a></li> <li><a href="/about#/affiliations"><span class="ion-play"></span> Affiliations</a></li></ul></li> <li><a href="/user/home" data-toggle="dropdown" class="dropdown-toggle">Functions
+                            <span class="caret"></span></a><ul class="dropdown-menu"><li><a href="/func/booking"><span class="ion-play"></span> Booking</a></li> <li><a href="/func/redelivery"><span class="ion-play"></span> Redelivery</a></li> <li><a href="/func/replacement"><span class="ion-play"></span>
+                                    Replacement
+                                    Value</a></li> <li><a href="/func/mnr"><span class="ion-play"></span> Maintenance
+                                    &amp; Repair</a></li> <li role="separator" class="divider"></li> <li><a href="/user/home"><span class="ion-play"></span> All Functions</a></li></ul></li> <li><a href="/container"><span class="line">|</span>Container Trading<img src="/img/container/nav-icon.gif" style="width: 20px; height: 20px; margin-left: 5px;"></a></li></ul> <ul class="nav navbar-nav"><li><a href="/">Main</a></li> <li><a data-toggle="dropdown" href="/about" class="dropdown-toggle">
+                        About <span class="caret"></span></a> <ul class="dropdown-menu"><li><a href="/about#/info"><span class="ion-play"></span> About Florens </a></li> <li><a href="/about#/worldwide/Management"><span class="ion-play"></span> Worldwide Functions</a></li> <li class="divider"></li> <li><a href="/about#/investment"><span class="ion-play"></span> Investment Programs</a></li> <li><a href="/about#/affiliations"><span class="ion-play"></span> Affiliations</a></li></ul></li> <li><a data-toggle="dropdown" href="" class="dropdown-toggle"> Services <span class="caret"></span></a> <ul class="dropdown-menu"><li><a href="/services#/depots"><span class="ion-play"></span> Depots </a></li> <li><a href="/services?service=exchange-rate#/exchange-rate"><span class="ion-play"></span>
+                                    Exchange Rates </a></li> <li><a href="/payment_form"><span class="ion-play"></span> Online Payment</a></li> <li class="divider"></li> <li class="dropdown-header">
+                            Technical Documents
+                        </li> <li><a href="/services#/IICL6"><span class="ion-play"></span> IICL-6
+                            Standard </a></li> <li><a href="/services?service=container-grading-guidelines#/container-grading-guidelines"><span class="ion-play"></span> Operations &amp;
+                                    Technical
+                                    Document</a></li> <li><a href="/services?service=introduction-and-purpose#/introduction-and-purpose"><span class="ion-play"></span> Inspection and
+                                    Repair Guidelines</a></li> <li><a href="javascript:void window.open('https://www.iicl.org/technical-documents/dry-van-technical-bulletins/');"><span class="ion-play"></span> IICL On-Line Tech. Bulletin</a></li> <li><a href="javascript:void window.open('https://www.iicl.org/certification/inspector-directories/');"><span class="ion-play"></span> IICL
+                                Inspector's Directory </a></li> <li><a href="javascript:void window.open('https://iflorens.florens.com/official-pc/IICLapi.html');"><span class="ion-play"></span> Florens IICL API Guidelines </a></li></ul></li> <li><a data-toggle="dropdown" href="" class="dropdown-toggle">
+                        Equipment <span class="caret"></span></a> <ul class="dropdown-menu"><li><a href="/equipment#/DryCargo"><span class="ion-play"></span> Dry Cargo
+                            Container</a></li> <li><a href="/equipment#/Flat"><span class="ion-play"></span> Flatrack</a></li> <li><a href="/equipment#/OpenTop"><span class="ion-play"></span> Open Top
+                            Container</a></li> <li><a href="/equipment#/refridge"><span class="ion-play"></span>
+                            Refrigerated Container</a></li> <li><a href="/equipment#/Tanks"><span class="ion-play"></span> Tanks</a></li> <li class="divider"></li> <li><a href="/equipment#/unit-inquiry"><span class="ion-play"></span> Unit
+                                Inquiry</a></li> <li><a href="/equipment#/unit-specifications"><span class="ion-play"></span> Unit Specifications</a></li></ul></li> <li><a href="/map" data-toggle="dropdown" class="dropdown-toggle">Contact
+                        <span class="caret"></span></a> <ul class="dropdown-menu"><li><a href="/contact_us"><span class="ion-play"></span> Contact Us</a></li> <li><a href="/map"><span class="ion-play"></span> Offices and Agents</a></li> <li class="divider"></li> <li><a href="mailto:contact@florens.com"><span class="ion-play"></span> Corporate Marketing</a></li> <li><a href="mailto:customerservice@florens.com"><span class="ion-play"></span> America (North,
+                            Central and South)</a></li> <li><a href="mailto:customerserviceEU@florens.com"><span class="ion-play"></span> Europe &amp; South
+                            Africa</a></li> <li><a href="mailto:customerserviceAP@florens.com"><span class="ion-play"></span> Asia, India,
+                            Australia &amp; New Zealand</a></li></ul></li> <li><a href="/user/home" data-toggle="dropdown" class="dropdown-toggle">Functions
+                            <span class="caret"></span></a><ul class="dropdown-menu"><li><a href="/func/booking"><span class="ion-play"></span> Booking</a></li> <li><a href="/func/redelivery"><span class="ion-play"></span> Redelivery</a></li> <li><a href="/func/replacement"><span class="ion-play"></span>
+                                    Replacement
+                                    Value</a></li> <li><a href="/func/mnr"><span class="ion-play"></span> Maintenance
+                                    &amp; Repair</a></li> <li role="separator" class="divider"></li> <li><a href="/user/home"><span class="ion-play"></span> All Functions</a></li></ul></li> <li><a href="/container"><span class="line">|</span>Container Trading<img src="/img/container/nav-icon.gif" style="width: 20px; height: 20px; margin-left: 5px;"></a></li></ul> <ul class="nav navbar-nav navbar-right"><li class="dropdown"><a href="#" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false" class="dropdown-toggle">YEONG <span class="caret"></span></a> <ul class="dropdown-menu"><li><a href="/user/home"><span class="ion-person"></span> User Home</a></li> <li role="separator" class="divider"></li> <li><a href="/logout"><span class="ion-log-out"></span>&nbsp;&nbsp;Sign out</a></li></ul></li></ul> <ul class="nav navbar-nav navbar-right"><li class="dropdown"><a data-toggle="dropdown" role="button" href="" class="dropdown-toggle" style="display: none;">US<span class="caret"></span></a> <a data-toggle="dropdown" role="button" href="" class="dropdown-toggle">HK<span class="caret"></span></a> <ul class="dropdown-menu"><li><a href="/func/switch_client_region?client_region=HK" style="display: none;"><span class="ion-play"></span>HK</a> <a href="/func/switch_client_region?client_region=US"><span class="ion-play"></span>US</a></li></ul></li></ul> <ul class="nav navbar-nav navbar-right" style="display: none;"><li><form action="https://florensfm.florens.com:10043/psp/fmp8/?cmd=login&amp;languageCd=ENG" method="post" target="_blank"><input id="ps-uid" type="hidden" name="userid" value="YEONG" style=""> <input id="ps-pwd" type="hidden" name="pwd" value="HEUNGA79" style=""> <div class="fleet-manager"><button onclick="check_login('/login')" style="background-color: rgba(0, 28, 74, 0); border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; padding: 0px;">
+                                    Florens Fleet Manager
+                                </button></div></form></li></ul> <ul class="nav navbar-nav navbar-right"><li><form action="https://florensfm.florens.com:10043/psp/fmp8/?cmd=login&amp;languageCd=ENG" method="post" target="_blank"><input id="ps-uid" type="hidden" name="userid" value="YEONG" style=""> <input id="ps-pwd" type="hidden" name="pwd" value="HEUNGA79" style=""> <div class="fleet-manager"><button onclick="check_login('/login')" style="background-color: rgba(0, 28, 74, 0); border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; padding: 0px;">
+                                    Florens Fleet Manager
+                                </button></div></form></li></ul></div></div></nav> <div class="fl-nav-placeholder"></div> <div class="container" style="min-height: 810px;"><div class="text-left row" style="border-radius: 4px; cursor: pointer; position: relative; padding-top: 52px;"><a target="_blank" href="https://trading.florens.com/"><img src="/img/container/portal.png" class="text-left_banner_img" style="width: 1140px;"> <div class="container" style="position: relative;"><div class="el-row"><div class="el-col el-col-24 el-col-xs-23 el-col-sm-23 el-col-md-24 el-col-lg-24"><div class="con" style="top: -225px; right: 40px;"><div class="con-left"><p class="tit" style="color: yellow; font-size: 32px; margin-bottom: 0px;">Florens' E-market</p> <p>Now Here</p> <p style="margin-top: 25px;"><span style="display: block; background: rgb(0, 31, 75); border-radius: 6px; padding: 5px 15px;"><img src="/img/container/cart1.png" style="padding-right: 10px; width: 30px; height: 20px; left: 78%;">Buy Containers Now</span></p></div> <div class="con-right"><div class="con-text"><img src="/img/container/hrs.png"> <div><p style="margin-bottom: 0px;">7*24hrs</p> <p class="title-tips">Online Shopping</p></div></div> <div class="con-text"><img src="/img/container/way.png"> <div><p style="margin-bottom: 0px;">2 Ways</p> <p class="title-tips">Mobile Friendly</p></div></div> <div class="con-text"><img src="/img/container/cc.png"> <div><p style="margin-bottom: 0px;">Payments</p> <p class="title-tips">With Flexible Option(s)</p></div></div></div></div></div></div> <div class="fl-name-card fl-name-card-light" style="max-height: 190px; overflow: auto; margin-left: 10px; width: auto; margin-top: -19%;"><div class="fl-name-card-info"><h3>Hello, YEONG</h3> <h4>Welcome to Florens Web Portal</h4>
+                        --------------------
+                        <p>Customer ID: HEUNG, HALINE</p> <div class="fl-name-card-deco"></div></div></div></div></a></div> <div class="row"><div class="col-sm-6 col-md-6"><h2>Web Functions</h2></div> <div class="col-sm-6 col-md-6"></div></div> <hr> <div class="row"><div class="col-sm-6 col-md-4"><a href="/func/booking" class="fl-function-card text-center"><span class="fl-function-card-icon"><i class="ion-ios-bookmarks"></i></span> <h4>Booking</h4></a></div> <div class="col-sm-6 col-md-4"><a href="/func/redelivery?rnd=123" class="fl-function-card text-center"><span class="fl-function-card-icon"><i class="ion-ios-compose"></i></span> <h4>Redelivery</h4></a></div> <div class="col-sm-6 col-md-4"><a href="/func/replacement" class="fl-function-card text-center"><span class="fl-function-card-icon"><i class="ion-ios-refresh"></i></span> <h4>Replacement Value</h4></a></div> <div class="col-sm-6 col-md-4"><a href="/func/mnr" class="fl-function-card text-center"><span class="fl-function-card-icon"><i class="ion-wrench"></i></span> <h4>Maintenance &amp; Repair</h4></a></div> <div class="col-sm-6 col-md-4"><a href="/func/management/report" class="fl-function-card text-center"><span class="fl-function-card-icon"><i class="icon ion-clipboard"></i></span> <h4>Management Report</h4></a></div></div> <hr> <h2>Contact</h2> <div class="well">
+        If some of the web functions above are missing, please feel free to contact us. <br>
+        You may read the <a href="/pdf/online-services-202012_v4.pdf">manual</a> - how to use the different web
+        function.
+    </div></div> <footer class="fl-footer hidden-print" style="display: none;"><div class="container"><div class="row"><div class="col-sm-4 col-sm-push-1"><h3 class="us_footer_h3">North American Headquarters</h3> <address><strong>Florens Asset Management (USA), Limited<br></strong>
+                        15600 John F Kennedy Blvd, Suite 150,<br>
+                        Houston, TX 77032<br><br>
+                        TEL: <abbr title="Tel"><a href="tel: 281-809-6987">281-809-6987</a></abbr><br><br> <a href="https://www.facebook.com/FlorensContainers/" target="_blank"><img src="/img/logo-facebook.png" style="filter: invert(0.8); height: 30px; margin: -3px;"></a> <a href="https://www.linkedin.com/company/florens-asset-management-usa-ltd" target="_blank"><img src="/img/linkedin.png" style="height: 30px; margin: -3px -3px -3px 1px;"></a></address></div> <div class="col-sm-4 col-sm-push-1"><h3 class="us_footer_h3">Contact Us</h3> <ul><li><a href="mailto:customerservice@florens.com">America (North, Central and South)</a></li> <li><a href="mailto:customerserviceEU@florens.com">Europe &amp; South Africa</a></li> <li><a href="mailto:customerserviceAP@florens.com">Asia, India, Australia &amp; New Zealand</a></li> <li><a href="mailto:contact@florens.com">Corporate Marketing</a></li></ul></div> <div class="col-sm-3 col-sm-push-1"><h3 class="us_footer_h3">Help</h3> <ul><li><a href="/privacy" class="grey-text text-lighten-3">Privacy Policy</a></li> <li><a href="/pdf/online-services-202012_v4_NAM.pdf" target="_blank" class="grey-text text-lighten-3">FAQ</a></li></ul></div></div> <br> <br> <br></div> <div class="fl-footer-copyright text-center"><div class="container">
+
+
+
+                Copyright © 1987-2026, Florens Asset Management Company Limited
+            </div> <div class="container">
+                Florens Fleet Manager
+            </div></div></footer> <footer class="fl-footer hidden-print"><div class="container"><div class="row"><div class="col-sm-4 col-sm-push-1"><h3>Contact Us</h3> <address><strong>Florens Asset Management Company Limited</strong><br>
+                        50/F COSCO Tower<br>
+                        183 Queen's Road Central<br>
+                        Hong Kong<br> <br>
+                        TEL: <abbr title="Tel"><a href="tel:(852) 2866-9959">(852) 2866-9959</a></abbr><br>
+                        FAX: <abbr title="Fax">(852) 2866-7667</abbr></address></div> <div class="col-sm-4 col-sm-push-1"><h3>&nbsp;</h3> <ul><li><a href="mailto:contact@florens.com">Corporate Marketing</a></li> <li><a href="mailto:customerservice@florens.com">America (North, Central and South)</a></li> <li><a href="mailto:customerserviceEU@florens.com">Europe &amp; South Africa</a></li> <li><a href="mailto:customerserviceAP@florens.com">Asia, India, Australia &amp; New Zealand</a></li></ul></div> <div class="col-sm-3 col-sm-push-1"><h3>Help</h3> <ul><li><a href="/privacy" class="grey-text text-lighten-3">Privacy Policy</a></li> <li><a href="/pdf/online-services-202012_v4.pdf" target="_blank" class="grey-text text-lighten-3">FAQ</a></li></ul></div></div> <br> <br> <br></div> <div class="fl-footer-copyright text-center"><div class="container">
+                Copyright © 1987-2026, Florens Asset Management Company Limited
+            </div> <div class="container">
+                Florens Fleet Manager
+            </div></div></footer></div> <!----> <!----><div class="el-loading-mask" style="display: none;"><div class="el-loading-spinner"><svg viewBox="25 25 50 50" class="circular"><circle cx="50" cy="50" r="20" fill="none" class="path"></circle></svg><!----></div></div></div>
+<script src="/node_modules/jquery/dist/jquery.min.js"></script>
+<script src="/node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
+<script src="/node_modules/promise-polyfill/dist/polyfill.min.js"></script>
+
+
+
+    <script type="text/javascript" src="/gen/vendor.min.js?fdf8b7ad"></script>
+
+
+    <script type="text/javascript" src="/js/fl-script.js"></script>
+
+    <script type="text/javascript" src="/js/vant.min.js"></script>
+
+
+
+
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-C9JTDXN502"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-C9JTDXN502');
+
+    var idleTime = 0;
+
+    function timerIncrement() {
+        idleTime = idleTime + 1;
+        if (idleTime > 125) { // 125 minutes
+            window.location.reload();
+        }
+    }
+
+    $(document).ready(function () {
+        //Increment the idle time counter every minute.
+        var idleInterval = setInterval(timerIncrement, 60000); // 1 minute
+
+        //Zero the idle timer on mouse movement.
+        $(this).mousemove(function (e) {
+            idleTime = 0;
+        });
+        $(this).keypress(function (e) {
+            idleTime = 0;
+        });
+    });
+
+    function check_login(loginUrl){
+        const ps_uid = document.getElementById('ps-uid')
+        const ps_pwd = document.getElementById('ps-pwd')
+
+        if (!(ps_uid.value && ps_pwd.value)) {
+            window.location.replace(loginUrl);
+        }
+    }
+</script>
+
+</body></html>

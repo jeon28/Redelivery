@@ -1,0 +1,458 @@
+{
+  "url": "https://www.florens.com/func/redelivery#/",
+  "title": "Florens | Container Leasing | Container Trading | Portable Storage Leasing",
+  "forms": [
+    {
+      "id": "",
+      "name": "",
+      "action": "https://florensfm.florens.com:10043/psp/fmp8/?cmd=login&languageCd=ENG",
+      "method": "post"
+    },
+    {
+      "id": "",
+      "name": "",
+      "action": "https://florensfm.florens.com:10043/psp/fmp8/?cmd=login&languageCd=ENG",
+      "method": "post"
+    },
+    {
+      "id": "",
+      "name": "",
+      "action": "https://www.florens.com/func/redelivery#/",
+      "method": "get"
+    },
+    {
+      "id": "",
+      "name": "",
+      "action": "https://www.florens.com/func/redelivery#/",
+      "method": "get"
+    }
+  ],
+  "labels": [
+    {
+      "for": "custId",
+      "text": "Customer ID"
+    },
+    {
+      "for": null,
+      "text": "HALINE"
+    },
+    {
+      "for": null,
+      "text": "HEUNG"
+    },
+    {
+      "for": "port",
+      "text": "Port"
+    },
+    {
+      "for": "depot",
+      "text": "Depot"
+    },
+    {
+      "for": "custId",
+      "text": "Customer ID"
+    },
+    {
+      "for": null,
+      "text": "HALINE"
+    },
+    {
+      "for": null,
+      "text": "HEUNG"
+    },
+    {
+      "for": null,
+      "text": "Search By"
+    },
+    {
+      "for": null,
+      "text": "Redelivery No."
+    },
+    {
+      "for": null,
+      "text": "Unit No."
+    },
+    {
+      "for": null,
+      "text": "Advanced Options"
+    },
+    {
+      "for": "port",
+      "text": "Redelivery No."
+    },
+    {
+      "for": "port",
+      "text": "Unit No."
+    },
+    {
+      "for": "port",
+      "text": "Status"
+    },
+    {
+      "for": "port",
+      "text": "From"
+    },
+    {
+      "for": "port",
+      "text": "To"
+    },
+    {
+      "for": "port",
+      "text": "Port"
+    },
+    {
+      "for": "port",
+      "text": ""
+    }
+  ],
+  "inputs": [
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": "client_region",
+      "name": null,
+      "class": null,
+      "placeholder": null,
+      "text": "None"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "ps-uid",
+      "name": "userid",
+      "class": null,
+      "placeholder": null,
+      "text": "YEONG"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "ps-pwd",
+      "name": "pwd",
+      "class": null,
+      "placeholder": null,
+      "text": "HEUNGA79"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "ps-uid",
+      "name": "userid",
+      "class": null,
+      "placeholder": null,
+      "text": "YEONG"
+    },
+    {
+      "tag": "INPUT",
+      "type": "hidden",
+      "id": "ps-pwd",
+      "name": "pwd",
+      "class": null,
+      "placeholder": null,
+      "text": "HEUNGA79"
+    },
+    {
+      "tag": "INPUT",
+      "type": "radio",
+      "id": null,
+      "name": null,
+      "class": "el-radio__original",
+      "placeholder": null,
+      "text": "HALINE"
+    },
+    {
+      "tag": "INPUT",
+      "type": "radio",
+      "id": null,
+      "name": null,
+      "class": "el-radio__original",
+      "placeholder": null,
+      "text": "HEUNG"
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": null,
+      "name": null,
+      "class": "el-input__inner",
+      "placeholder": "Please select the port according to the terms of contract",
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": null,
+      "name": null,
+      "class": "el-input__inner",
+      "placeholder": "Please select",
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "radio",
+      "id": null,
+      "name": null,
+      "class": "el-radio__original",
+      "placeholder": null,
+      "text": "HALINE"
+    },
+    {
+      "tag": "INPUT",
+      "type": "radio",
+      "id": null,
+      "name": null,
+      "class": "el-radio__original",
+      "placeholder": null,
+      "text": "HEUNG"
+    },
+    {
+      "tag": "INPUT",
+      "type": "radio",
+      "id": null,
+      "name": null,
+      "class": "el-radio__original",
+      "placeholder": null,
+      "text": "no"
+    },
+    {
+      "tag": "INPUT",
+      "type": "radio",
+      "id": null,
+      "name": null,
+      "class": "el-radio__original",
+      "placeholder": null,
+      "text": "unit"
+    },
+    {
+      "tag": "INPUT",
+      "type": "radio",
+      "id": null,
+      "name": null,
+      "class": "el-radio__original",
+      "placeholder": null,
+      "text": "other"
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": null,
+      "name": null,
+      "class": "el-input__inner",
+      "placeholder": "Redelivery Number",
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": null,
+      "name": null,
+      "class": "el-input__inner",
+      "placeholder": "Unit Number",
+      "text": "DFSU7591613"
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": null,
+      "name": null,
+      "class": "el-input__inner",
+      "placeholder": "Select Status",
+      "text": "All"
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": null,
+      "name": null,
+      "class": "el-input__inner",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": null,
+      "name": null,
+      "class": "el-input__inner",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "id": null,
+      "name": null,
+      "class": "el-input__inner",
+      "placeholder": "Select Depot",
+      "text": "ALL"
+    }
+  ],
+  "selects": [],
+  "buttons": [
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "navbar-toggle collapsed",
+      "placeholder": null,
+      "text": "Toggle navigation   "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": null,
+      "name": null,
+      "class": null,
+      "placeholder": null,
+      "text": "\n                                    Florens Fleet Manager\n                                "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "id": null,
+      "name": null,
+      "class": null,
+      "placeholder": null,
+      "text": "Florens Fleet Manager"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "el-button pull-left el-button--default",
+      "placeholder": null,
+      "text": "Back\n                                "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "el-button el-button--primary is-plain",
+      "placeholder": null,
+      "text": "\n                                    Next"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "el-button el-button--primary",
+      "placeholder": null,
+      "text": "Download\n                                "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "el-button el-button--primary is-disabled",
+      "placeholder": null,
+      "text": "Confirm Redelivery\n                                    Order\n                                "
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "el-button el-button--primary",
+      "placeholder": null,
+      "text": "Create a New Apply"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "el-button el-button--primary",
+      "placeholder": null,
+      "text": " Search"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "el-button el-button--default el-button--small",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "el-dialog__headerbtn",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "el-button el-button--primary",
+      "placeholder": null,
+      "text": "Confirm"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "el-dialog__headerbtn",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "el-button el-button--primary",
+      "placeholder": null,
+      "text": "OK"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "el-dialog__headerbtn",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "el-button el-button--primary",
+      "placeholder": null,
+      "text": "OK"
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "el-dialog__headerbtn",
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "button",
+      "id": null,
+      "name": null,
+      "class": "el-dialog__headerbtn",
+      "placeholder": null,
+      "text": ""
+    }
+  ],
+  "sliders": [],
+  "iframes": [],
+  "body_text_preview": "Main\nAbout \nServices \nEquipment \nContact \nFunctions \n|Container Trading\nYEONG \nHK\nFlorens Fleet Manager\nUser Home Redelivery Status\nRedelivery\nApply RedeliveryRedelivery Status\nSearch By\nRedelivery No. \nUnit No. \nAdvanced Options\nUnit No.\n Search\n1 results, recent 1 shown.\n\tRedelivery No.\n\tStatus\n\tContract\tOrder Date\n\tEquip Type\n\tOrder Qty\tMOV Qty\tBAL Qty\tMore\n\t\nPPR70283\n\t\nClosed\n\t\nDF-HNGA20008\n\t\n2026-04-01\n\t\n40' Dry High Cube\n\t\n1\n\t\n1\n\t\n0\n\t\nflorens\nHelp\nContact Us\nFlorens Asset Management Company Limited\n50/F COSCO Tower\n183 Queen's Road Central\nHong Kong\n\nTEL: (852) 2866-9959\nFAX: (852) 2866-7667\n \nCorporate Marketing\nAmerica (North, Central and South)\nEurope & South Africa\nAsia, India, Australia & New Zealand\nHelp\nPrivacy Policy\nFAQ\n\n\n\n\nCopyright © 1987-2026, Florens Asset Management Company Limited\nFlorens Fleet Manager"
+}
