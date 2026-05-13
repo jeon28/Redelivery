@@ -32,8 +32,8 @@ TEST_CONTAINERS  = [             # 중복 자동 제거
 ]
 
 # ⚠ EXECUTE_STAGE_2 = True 일 때 "Continue Redelivery Request" 클릭 = 실 예약 생성
-#   취소가 별도 절차이므로 의도적으로 실행할 때만 True 로 변경할 것
-EXECUTE_STAGE_2  = True
+#   취소가 별도 절차이므로 의도적으로 실행할 때만 True 로 변경할 것 (기본값 False 유지)
+EXECUTE_STAGE_2  = False
 # ──────────────────────────────────────────────────────
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

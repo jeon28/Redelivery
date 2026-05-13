@@ -67,4 +67,7 @@ def get_scraper(company: str, lessor: str) -> Optional[BaseScraper]:
     if lessor == "TEXA":
         from scrapers.texa import TexaScraper
         return TexaScraper(company, lessor)
+    if lessor == "TRIT":
+        from scrapers.trit import TritScraper
+        return TritScraper(company, lessor)
     return None

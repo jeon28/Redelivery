@@ -26,7 +26,7 @@ CREDENTIALS_FILE = Path(os.getenv("CREDENTIALS_FILE", "/data/credentials.json"))
 COMPANIES = {
     "장금상선": {
         "prefix": "SK",
-        "lessors": ["TEXA", "TRIT", "GLOD", "FLOR", "GESE"],
+        "lessors": ["TEXA", "TRIT", "GOLD", "FLOR", "GESE"],
     },
     "흥아라인": {
         "prefix": "HA",
