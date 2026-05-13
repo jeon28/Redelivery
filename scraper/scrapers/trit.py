@@ -24,15 +24,16 @@ LOGIN_URL  = "https://tools.tritoncontainer.com/tritoncontainer/login/auth"
 CREATE_URL = "https://tools.tritoncontainer.com/tritoncontainer/redeliverySession/create"
 
 REGION_MAP: dict[str, dict[str, str]] = {
-    # 영문 코드 (대문자)
-    "INCHON":     {"country": "KOREA", "port": "INCHON"},
+    # 영문 코드 (대문자) — port 값은 Triton 사이트 드롭다운 옵션 텍스트에 부분 매칭됨.
+    # Triton은 "INCHEON" (E 포함, 표준 표기) 을 쓰므로 우리 시스템 입력값 INCHON 을 INCHEON 으로 변환.
+    "INCHON":     {"country": "KOREA", "port": "INCHEON"},
     "BUSAN":      {"country": "KOREA", "port": "BUSAN"},
     "GWANGYANG":  {"country": "KOREA", "port": "GWANGYANG"},
     "PYEONGTAEK": {"country": "KOREA", "port": "PYEONGTAEK"},
     "ULSAN":      {"country": "KOREA", "port": "ULSAN"},
     # 국문 동의어
     "부산": {"country": "KOREA", "port": "BUSAN"},
-    "인천": {"country": "KOREA", "port": "INCHON"},
+    "인천": {"country": "KOREA", "port": "INCHEON"},
     "광양": {"country": "KOREA", "port": "GWANGYANG"},
     "평택": {"country": "KOREA", "port": "PYEONGTAEK"},
     "울산": {"country": "KOREA", "port": "ULSAN"},

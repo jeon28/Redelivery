@@ -148,37 +148,98 @@ Port: | Depot: | Redelivery No. | Status | Contract | Order Date | Equip Type | 
 
 | 항목 | 형식 | 예 |
 |------|------|-----|
-| 컨테이너 prefix (Florens owned) | `DFSU` | `DFSU7591613` |
-| 반납번호 | `PPR<5자리>` | `PPR70283` |
-| Contract (HA) | `DF-HNGA<5자리>` | `DF-HNGA20008` |
-| Contract (SK, 추정) | `DF-SINK<5자리>` | _(미확인, SK 측에서 확인 필요)_ |
+| 컨테이너 prefix (Florens owned) | `DFSU`, `FSCU` | `DFSU7591613`, `FSCU5896157` |
+| 반납번호 (현재 활성) | `PPR<5자리>` | `PPR70283` |
+| 반납번호 (과거 closed) | `PPF<5자리>` | `PPF50839` (2020년 발급) — 시리즈가 시기별로 다를 가능성 |
+| Contract (HA, 신규) | `LT-HALINE-<번호>` | `LT-HALINE-02` |
+| Contract (HA, 과거 형식) | `DF-HNGA<5자리>` | `DF-HNGA20008` (2026 시점에도 잔재) |
+| Contract (SK, 추정) | `LT-SINKO-<번호>` 또는 `DF-SINK<5자리>` | _(미확인)_ |
+| Port 코드 | UN/LOCODE 5자리 | `KRPUS`(부산), `KRINC`(인천), `KRSEL`(서울) |
+| Depot 코드 | Port코드 + 2자리 | `KRPUS07` (YoungJin CY) |
+| Equip Type 코드 | 3자리 | `R4H` (40' Reefer High-Cube) |
+| Equip Type 풀네임 | 자유 문자열 | `40' Dry High Cube`, `40' Reefer High-Cube` |
 | Order Date | `YYYY-MM-DD` | `2026-04-01` |
-| Equip Type | 자유 문자열 | `40' Dry High Cube` |
 
 ---
 
-## 6. 신규 발급 흐름 (미완료 — 추가 검증 필요)
+## 6. 신규 발급 흐름 — 거부 케이스 실측 (2026-05-14)
 
-### 확인된 부분
+### 확인된 흐름
 
-- 3단계 위저드 페이지 구조
-- Step 1 필드 라벨/위젯
-- Step 3에 `Confirm Redelivery Order` 버튼 존재 (현재 disabled 상태로 캡처됨)
-- "Submit within 5 minutes" 시간 제약
+1. `/func/redelivery#/` 진입 (Apply Redelivery 탭 기본 활성)
+2. **Step 1** — Customer ID 라디오 선택 + Port + Depot
+3. **Next** → **Step 2**
+4. **Step 2** — Unit Numbers textarea 입력 (줄바꿈 구분, 최대 100개)
+5. **Next** → **Step 3**
+6. Step 3 — Florens 자체 사전 검증으로 거부 가능 행 표시
+   - 모두 무효 시 **`Confirm Redelivery Order` 버튼이 disabled** (안전)
+   - 유효 행 있을 시 버튼 활성 → 클릭 시 실 발급
 
-### 미확인 부분
+### Step 1 — Customer ID 라디오
 
-- Port/Depot 드롭다운 옵션 (Element UI 클릭 후 패널 열어야 노출됨)
-- Step 2 입력 UI (단일/다중 컨테이너 방식)
-- Step 3 화면 (가능/불가 표시 방식, 발급 확정 트리거)
-- Confirm 후 실제 반납번호 발급 응답
-- 거부 케이스 메시지 형식
+| 선사 | Customer ID 값 |
+|------|---------------|
+| 장금상선 (SK) | `SINOKOR` |
+| 흥아라인 (HA) | `HALINE` |
+
+### Step 1 — Port 드롭다운 (HA 계약 기준, 총 168개)
+
+한국 항구 3개 가용:
+- `INCHON (KRINC)`
+- **`PUSAN (KRPUS)`** ← 부산은 "PUSAN" 표기 (BUSAN 아님)
+- `SEOUL (KRSEL)`
+
+옵션 텍스트 포맷: `<도시명> (<5자리코드>)`. 코드는 5글자 (국가2 + 도시3).
+
+### Step 1 — Depot 드롭다운
+
+Port 선택 후 동적 활성. 옵션 텍스트 포맷: `(<DEPOT_CODE>) <Depot 풀네임>` (예: `(KRPUS07) YoungJin CY`).
+**Depot마다 반납 가능 컨테이너 타입 제한**:
+- Reefer 미수용 depot 존재 (예: YoungJin CY)
+- Dry 전용 depot, 양쪽 모두 수용 depot 등 다양
+
+### Step 2 — Unit Numbers textarea
+
+```html
+<textarea placeholder="A maximum of 100 redelivery can be applied at a time, please use separate by the specified symbol (only support enter)." class="el-textarea__inner">
+```
+
+- 다중 입력 가능 (줄바꿈 구분, 최대 100개)
+- TRIT/GOLD와 달리 single text input이 아니어서 일괄 처리 가능
+
+### Step 3 — 사전 검증 결과 화면
+
+**거부 행 컬럼** (관찰):
+| # | 컬럼 (추정) | 예 |
+|---|------------|-----|
+| 1 | Unit Number | `FSCU5896157` |
+| 2 | Contract | `LT-HALINE-02` |
+| 3 | Equip Type 코드 | `R4H` (= 40' Reefer High-Cube) |
+| 4 | 거부 사유 | `This Depot ((KRPUS07) YoungJin CY), is incapable of accepting reefer turn-in, please enter another location or unit number.` |
+
+**유효 행** (미캡처): 추정 컬럼은 Status 탭과 유사 — Unit / Contract / Equip Type / Order Qty 등.
+
+### Step 3 — Confirm Redelivery Order 버튼 (실 발급)
+
+- 클래스: `el-button el-button--primary` (활성) / `... is-disabled` (비활성)
+- **모든 단위가 invalid이면 disabled 상태로 노출** → 클릭 무의미, 안전 가드
+- 유효 단위 있을 시 활성. 클릭 = `PPR<5자리>` 즉시 발급 추정 (TRIT의 Pending 단계 없음)
+
+### 확인된 거부 사유 예시
+
+| 거부 사유 | 의미 |
+|----------|------|
+| `This Depot ((<DEPOT_CODE>) <NAME>), is incapable of accepting reefer turn-in, please enter another location or unit number.` | Depot이 reefer 미수용 — 다른 depot/unit 입력 필요 |
+
+> 추가 사유는 실 운영 중 수집.
 
 ### 자동화 시 주의사항
 
-- Element UI 드롭다운: 텍스트 인풋 클릭 → `.el-select-dropdown` 패널 → `li.el-select-dropdown__item` 클릭으로 선택
-- SPA 라우팅: URL 변화 없이 콘텐츠 전환되는 케이스 많음. 명시적 wait 필요.
-- 5분 시간 제약: Step 3 도달 후 빠르게 처리해야 함
+- **Element UI 드롭다운**: Playwright의 `click()` / `scroll_into_view_if_needed()` 가 가시성 판정으로 실패할 수 있음. **JS `evaluate`로 `target.scrollIntoView() + target.click()` 직접 호출**이 안정적.
+- **드롭다운 옵션 다수**: 168개 → 스크롤 가능 영역. 화면 보이는 li만 매칭하려면 `offsetParent !== null` 필터.
+- **다중 컨테이너 입력**: textarea에 `\n` 구분으로 일괄 입력. TRIT/GOLD보다 효율적.
+- **Confirm disabled 체크**: 클릭 전에 `classList.contains('is-disabled')` 확인 → false-positive 방지.
+- **5분 시간 제약**: Step 3 도달 후 빠르게 처리 (자동화에서는 사실상 즉시 처리이므로 문제 없음).
 
 ---
 

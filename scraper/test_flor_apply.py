@@ -31,10 +31,10 @@ HEADLESS     = True
 
 # ── 입력값 ─────────────────────────────────────────────
 COMPANY    = "HA"
-TEST_UNIT  = "FSCU5896157"
-TEST_PORT  = "PUSAN"   # Florens 표기 (BUSAN 아님)
-TEST_DEPOT = None     # None = 드롭다운 첫 옵션 자동 선택
-EXECUTE_BOOKING = True   # ⚠ True 시 Confirm Redelivery Order 클릭 (실 발급)
+TEST_UNIT  = "DFSU7526412"     # HA dry 45GP (사용자 제공, 원상복귀 예정)
+TEST_PORT  = "INCHON"          # 사용자 지정
+TEST_DEPOT = None              # None = 드롭다운 첫 옵션 자동 선택
+EXECUTE_BOOKING = True         # ⚠ True 시 Confirm Redelivery Order 클릭 (실 발급)
 # ──────────────────────────────────────────────────────
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
