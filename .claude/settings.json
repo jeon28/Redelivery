@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python *)",
+      "Bash(cd *)",
+      "PowerShell(python *)",
+      "PowerShell(cd *)",
+      "PowerShell(New-Item *)",
+      "PowerShell(Get-*)"
+    ]
+  }
+}
