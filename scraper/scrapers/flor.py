@@ -239,6 +239,14 @@ class FlorScraper(BaseScraper):
                 "ref": "", "status": "", "contract": "",
                 "order_date": "", "equip_type": "",
             }
+            STATUS_WORDS = (
+                "open", "closed", "close",
+                "void", "voided",
+                "cancelled", "canceled", "cancel",
+                "pending", "active", "inactive",
+                "completed", "complete",
+                "rejected", "approved", "submitted",
+            )
             for v in cells:
                 v = (v or "").strip()
                 if not v:
@@ -246,7 +254,10 @@ class FlorScraper(BaseScraper):
                 # PPR####### 또는 PPF#######
                 if re.match(r"^PP[RF]\d+$", v):
                     out["ref"] = v
-                elif v.lower() in ("open", "closed", "void", "cancelled", "cancel", "pending"):
+                # 상태값: 짧은 단어로 위 목록에 포함
+                elif v.lower() in STATUS_WORDS or (
+                    len(v) <= 20 and any(w == v.lower() for w in STATUS_WORDS)
+                ):
                     out["status"] = v
                 # DF-HNGA20008, LT-HALINE-02 등
                 elif re.match(r"^[A-Z]{2,}-[A-Z]+[-\d]+[A-Z]?$", v):
@@ -279,6 +290,12 @@ class FlorScraper(BaseScraper):
             if "void" in s or "cancel" in s:
                 return 99
             return 5
+
+        # 모든 행을 파싱해서 로그 (디버깅용)
+        for i, r in enumerate(rows):
+            pc = parse_cells(r)
+            logger.info("FLOR %s row[%d] cells=%s parsed=%s",
+                        container, i, r, pc)
 
         candidates = sorted(rows, key=row_priority)
         active_rows = [r for r in candidates if not is_void(r)]
@@ -391,8 +408,8 @@ class FlorScraper(BaseScraper):
             return { ok: false, error: 'row not found' };
         }""", ref)
 
+        logger.info("FLOR expand result: %s", clicked)
         if not clicked.get("ok"):
-            logger.warning("FLOR expand: %s", clicked)
             return {}
 
         await asyncio.sleep(2)
