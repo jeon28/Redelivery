@@ -11,8 +11,10 @@
   5. OK 행이 있으면 Submit → 발급 결과(RA) 캡처
 """
 import asyncio
+import calendar
 import logging
 import re
+from datetime import date
 
 from scrapers.base import BaseScraper
 from config.credentials import get_credential
@@ -51,6 +53,9 @@ REGION_MAP: dict[str, str] = {
 }
 
 MAX_BATCH = 25   # GESE Serial No. textarea 최대 입력
+
+# Validate ERROR 메시지에서 기존 RA(반납번호) 추출. 좌측 0 패딩은 호출부에서 제거.
+ACTIVE_RA_RE = re.compile(r"active Return Authorization\s+(\d+)", re.IGNORECASE)
 
 
 class GeseScraper(BaseScraper):
@@ -182,6 +187,16 @@ class GeseScraper(BaseScraper):
 
             # 6) Validate 결과 파싱
             rows = await self._parse_staging_table()
+            # ERROR 행이 있으면 View Messages 팝업에서 실제 메시지 캡처 후 머지
+            if any((r.get("status") or "").strip().upper() == "ERROR" for r in rows):
+                msg_map = await self._capture_error_messages()
+                for r in rows:
+                    if (r.get("status") or "").strip().upper() != "ERROR":
+                        continue
+                    unit = (r.get("unit") or "").strip().upper()
+                    popup_msg = msg_map.get(unit)
+                    if popup_msg and not r.get("message"):
+                        r["message"] = popup_msg
             logger.info("GESE Validate 결과 %d행: %s",
                         len(rows), [(r.get("unit"), r.get("status")) for r in rows])
             for r in rows:
@@ -190,11 +205,14 @@ class GeseScraper(BaseScraper):
                     continue
                 status = (r.get("status") or "").strip().upper()
                 if status == "ERROR":
+                    msg = r.get("message") or ""
+                    m = ACTIVE_RA_RE.search(msg)
+                    ra = m.group(1).lstrip("0") if m else None
                     results[unit].update({
                         "available": False,
                         "depot": r.get("depot"),
-                        "close_date": None,
-                        "reason": r.get("message") or "Validate ERROR",
+                        "booking_ref": ra,
+                        "reason": None if ra else (msg or "Validate ERROR"),
                     })
                 elif status == "OK":
                     results[unit].update({
@@ -239,16 +257,24 @@ class GeseScraper(BaseScraper):
         except Exception as exc:
             logger.error("GESE query error: %s", exc)
 
-        # 안전장치
+        # 안전장치 + close_date 일괄 세팅 (요청월 말일)
+        close_date_str = self._current_month_end_str()
         for r in results.values():
-            if not r.get("available") and not r.get("reason"):
+            if not r.get("available") and not r.get("reason") and not r.get("booking_ref"):
                 r["reason"] = "조회 실패 (사유 미상)"
+            r["close_date"] = close_date_str
 
         return self._to_list(containers, results)
 
     # ------------------------------------------------------------------ #
     # Helpers                                                              #
     # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _current_month_end_str() -> str:
+        today = date.today()
+        last_day = calendar.monthrange(today.year, today.month)[1]
+        return f"{today.year:04d}-{today.month:02d}-{last_day:02d}"
 
     @staticmethod
     def _error_row(container: str, reason: str) -> dict:
@@ -258,7 +284,7 @@ class GeseScraper(BaseScraper):
             "depot": None,
             "booking_ref": None,
             "over_caps": None,
-            "close_date": None,
+            "close_date": GeseScraper._current_month_end_str(),
             "reason": reason,
         }
 
@@ -298,6 +324,56 @@ class GeseScraper(BaseScraper):
         except Exception as exc:
             logger.warning("GESE _select_city(%r): %s", city, exc)
             return False
+
+    async def _capture_error_messages(self) -> dict[str, str]:
+        """View Messages 팝업을 열어 컨테이너 번호 → 메시지 텍스트 매핑을 반환.
+        Validate 후 ERROR 행의 실제 사유는 셀이 아닌 팝업에 있음. 팝업이 없거나
+        텍스트를 못 잡으면 빈 dict 반환."""
+        vm_btn = self.page.locator("button").filter(has_text="View Messages").first
+        if await vm_btn.count() == 0:
+            return {}
+        try:
+            await vm_btn.click()
+            await asyncio.sleep(1.2)
+            texts: list[str] = await self.page.evaluate(
+                r"""() => {
+                    const sel = '.sapMPopover, .sapMDialog, [role="dialog"], [role="tooltip"]';
+                    const visible = Array.from(document.querySelectorAll(sel))
+                        .filter(e => e.offsetParent !== null);
+                    const out = new Set();
+                    for (const p of visible) {
+                        const items = p.querySelectorAll('li, .sapMLIB, .sapMSLI, .sapMText');
+                        for (const it of items) {
+                            const t = (it.innerText || '').trim();
+                            if (t.length > 5) out.add(t);
+                        }
+                        const root = (p.innerText || '').trim();
+                        if (root.length > 5) out.add(root);
+                    }
+                    return Array.from(out);
+                }"""
+            )
+            container_re = re.compile(r"\b([A-Z]{4}\d{7})\b")
+            msg_map: dict[str, str] = {}
+            for t in texts:
+                m = container_re.search(t)
+                if not m:
+                    continue
+                unit = m.group(1)
+                # 같은 컨테이너에 대해 더 긴 메시지 우선 (정보량 많음)
+                if unit not in msg_map or len(t) > len(msg_map[unit]):
+                    msg_map[unit] = t
+            logger.info("GESE View Messages 캡처: %d개 매핑", len(msg_map))
+            return msg_map
+        except Exception as exc:
+            logger.warning("GESE _capture_error_messages: %s", exc)
+            return {}
+        finally:
+            try:
+                await self.page.keyboard.press("Escape")
+                await asyncio.sleep(0.4)
+            except Exception:
+                pass
 
     async def _parse_staging_table(self) -> list[dict]:
         """Validate 후 Staging Table 행 데이터 추출."""
