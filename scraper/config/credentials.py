@@ -52,6 +52,35 @@ def _from_env() -> dict:
     return creds
 
 
+# 레거시 → 정규 코드 마이그레이션 매핑.
+# 과거 버전에서 다른 이름으로 저장된 자격증명을 새 키로 옮긴다.
+# (이미 새 키에 값이 있으면 마이그레이션 스킵 — 기존 값 보호)
+LEGACY_KEY_MAP: dict[str, str] = {
+    "GLOD": "GOLD",   # 2026-05 통일: 장금 GLOD → GOLD
+}
+
+
+def _migrate_legacy_keys(data: dict) -> bool:
+    """data 내 레거시 임대사 키를 정규 키로 이동. 변경이 있었는지 반환."""
+    changed = False
+    for company, lessors in list(data.items()):
+        if not isinstance(lessors, dict):
+            continue
+        for old_key, new_key in LEGACY_KEY_MAP.items():
+            if old_key not in lessors:
+                continue
+            old_val = lessors[old_key]
+            new_val = lessors.get(new_key) or {}
+            # 새 키가 비어있을 때만 옛 값으로 채움 (기존 값 보호)
+            if not new_val.get("id") and not new_val.get("pw"):
+                lessors[new_key] = old_val
+                logger.info("Migrated credentials key %s/%s → %s/%s", company, old_key, company, new_key)
+            # 옛 키는 제거
+            del lessors[old_key]
+            changed = True
+    return changed
+
+
 def _load() -> dict:
     """파일에서 자격증명 로드. 파일 없으면 환경변수 기반으로 생성 후 저장."""
     if CREDENTIALS_FILE.exists():
@@ -59,12 +88,17 @@ def _load() -> dict:
             with CREDENTIALS_FILE.open("r", encoding="utf-8") as f:
                 data = json.load(f)
             logger.info("Loaded credentials from %s", CREDENTIALS_FILE)
+            # 레거시 키 자동 마이그레이션
+            migrated = _migrate_legacy_keys(data)
             # 새 회사/임대사가 .env에 추가됐을 수 있으므로 병합
             env_creds = _from_env()
             for company, lessors in env_creds.items():
                 data.setdefault(company, {})
                 for lessor, kv in lessors.items():
                     data[company].setdefault(lessor, kv)
+            # 마이그레이션 결과 즉시 저장
+            if migrated:
+                _save(data)
             return data
         except Exception as exc:
             logger.warning("Failed to load %s: %s — falling back to .env", CREDENTIALS_FILE, exc)
