@@ -208,8 +208,10 @@ class GeseScraper(BaseScraper):
                     msg = r.get("message") or ""
                     m = ACTIVE_RA_RE.search(msg)
                     ra = m.group(1).lstrip("0") if m else None
+                    # 기 발급 RA가 있으면 사이트가 ERROR로 표시해도 사용자 관점에서는
+                    # 반납 가능(기존 RA로 반납 진행). RA 추출 실패한 진짜 거부만 불가.
                     results[unit].update({
-                        "available": False,
+                        "available": bool(ra),
                         "depot": r.get("depot"),
                         "booking_ref": ra,
                         "reason": None if ra else (msg or "Validate ERROR"),
@@ -221,10 +223,14 @@ class GeseScraper(BaseScraper):
                         "reason": None,
                     })
 
-            # 7) OK 행이 있으면 Submit
-            ok_units = [u for u, r in results.items()
-                        if u in {(r2.get("unit") or "").strip().upper() for r2 in rows}
-                        and r.get("available")]
+            # 7) row.status == "OK" 인 행만 Submit. (ERROR+기 발급 RA는 available=True
+            # 라도 새 Submit 대상이 아니므로 row status 기준으로 게이트.)
+            ok_units = [
+                (r2.get("unit") or "").strip().upper()
+                for r2 in rows
+                if (r2.get("status") or "").strip().upper() == "OK"
+            ]
+            ok_units = [u for u in ok_units if u in results]
             if not ok_units:
                 logger.info("GESE: OK 행 없음 — Submit 스킵")
                 return self._to_list(containers, results)
