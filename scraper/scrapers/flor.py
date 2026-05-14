@@ -300,16 +300,17 @@ class FlorScraper(BaseScraper):
         candidates = sorted(rows, key=row_priority)
         active_rows = [r for r in candidates if not is_void(r)]
 
+        # 모든 기록이 VOID/Cancelled → 이전 예약은 취소됨, 새로 신청 가능.
+        # 사용자 시각: 컨테이너는 반납 가능한 상태 (재신청만 하면 됨) → 가능.
         if not active_rows:
-            # 모든 기록이 VOID → 활성 예약 없음. 신청 가능 상태로 안내.
             return {
                 "container_no": container,
-                "available": False,
+                "available": True,
                 "depot": None,
                 "booking_ref": None,
                 "over_caps": None,
                 "close_date": None,
-                "reason": "활성 예약 없음 (모두 VOID) — 신청 필요",
+                "reason": "재신청 가능 (이전 예약 모두 VOID)",
             }
 
         row = active_rows[0]
