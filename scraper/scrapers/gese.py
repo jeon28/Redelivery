@@ -332,11 +332,68 @@ class GeseScraper(BaseScraper):
             return False
 
     async def _capture_error_messages(self) -> dict[str, str]:
-        """View Messages 팝업을 열어 컨테이너 번호 → 메시지 텍스트 매핑을 반환.
-        Validate 후 ERROR 행의 실제 사유는 셀이 아닌 팝업에 있음. 팝업이 없거나
-        텍스트를 못 잡으면 빈 dict 반환."""
+        """ERROR 행 메시지 캡처. 3단계 폴백:
+        1) SAP UI5 MessageManager API (클릭 불필요, 가장 안정적)
+        2) document.body.innerText 줄 스캔 (페이지 어딘가 노출된 메시지)
+        3) View Messages 팝업 클릭 + 다이얼로그 파싱 (기존 로직)
+        하나라도 비어있지 않은 결과를 얻으면 즉시 반환."""
+        container_re = re.compile(r"\b([A-Z]{4}\d{7})\b")
+
+        # 1) SAP UI5 MessageManager — 메시지 모델 직접 조회
+        try:
+            mm_msgs: list[str] = await self.page.evaluate(
+                """() => {
+                    try {
+                        const mm = sap.ui.getCore().getMessageManager();
+                        const data = mm.getMessageModel().getData() || [];
+                        return data.map(m => [m.message, m.description].filter(Boolean).join(' '));
+                    } catch(e) { return []; }
+                }"""
+            )
+            msg_map: dict[str, str] = {}
+            for t in mm_msgs or []:
+                m = container_re.search(t or "")
+                if not m:
+                    continue
+                unit = m.group(1)
+                if unit not in msg_map or len(t) > len(msg_map[unit]):
+                    msg_map[unit] = t
+            if msg_map:
+                logger.info("GESE 메시지 캡처(MessageManager): %d개", len(msg_map))
+                return msg_map
+            logger.info("GESE MessageManager 캡처 결과 없음 — 폴백 시도")
+        except Exception as exc:
+            logger.warning("GESE MessageManager 캡처 예외: %s", exc)
+
+        # 2) 페이지 전체 innerText 줄 스캔 — active RA 패턴 한정
+        try:
+            body_text: str = await self.page.evaluate(
+                "() => (document.body && document.body.innerText) || ''"
+            )
+            msg_map = {}
+            for line in (body_text or "").splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                m = container_re.search(line)
+                if not m:
+                    continue
+                if "active return authorization" not in line.lower():
+                    continue
+                unit = m.group(1)
+                if unit not in msg_map or len(line) > len(msg_map[unit]):
+                    msg_map[unit] = line
+            if msg_map:
+                logger.info("GESE 메시지 캡처(innerText): %d개", len(msg_map))
+                return msg_map
+            logger.info("GESE innerText 캡처 결과 없음 — 팝업 폴백 시도")
+        except Exception as exc:
+            logger.warning("GESE innerText 캡처 예외: %s", exc)
+
+        # 3) View Messages 팝업 클릭 + 다이얼로그 파싱
         vm_btn = self.page.locator("button").filter(has_text="View Messages").first
         if await vm_btn.count() == 0:
+            logger.warning("GESE View Messages 버튼 없음 — 캡처 실패")
             return {}
         try:
             await vm_btn.click()
@@ -359,20 +416,18 @@ class GeseScraper(BaseScraper):
                     return Array.from(out);
                 }"""
             )
-            container_re = re.compile(r"\b([A-Z]{4}\d{7})\b")
-            msg_map: dict[str, str] = {}
+            msg_map = {}
             for t in texts:
                 m = container_re.search(t)
                 if not m:
                     continue
                 unit = m.group(1)
-                # 같은 컨테이너에 대해 더 긴 메시지 우선 (정보량 많음)
                 if unit not in msg_map or len(t) > len(msg_map[unit]):
                     msg_map[unit] = t
-            logger.info("GESE View Messages 캡처: %d개 매핑", len(msg_map))
+            logger.info("GESE 메시지 캡처(View Messages 팝업): %d개", len(msg_map))
             return msg_map
         except Exception as exc:
-            logger.warning("GESE _capture_error_messages: %s", exc)
+            logger.warning("GESE View Messages 팝업 캡처 예외: %s", exc)
             return {}
         finally:
             try:

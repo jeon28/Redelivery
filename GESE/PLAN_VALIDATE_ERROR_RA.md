@@ -115,3 +115,41 @@ logger.info("GESE Validate 결과 %d행: %s", ...)
 - 팝업 셀렉터 (`.sapMPopover, .sapMDialog`) 가 실제 SAP UI5 v1.120 의 View Messages 다이얼로그 마크업과 일치할지 미확인. 빈 결과 시 reason 은 기존대로 "Validate ERROR" 폴백.
 - 팝업이 메시지를 텍스트로 노출하지 않고 가상 스크롤로 일부만 렌더하는 경우 — 현재 행 수(최대 25)에서는 가능성 낮음. 필요 시 한 번 더 캡처 분석 후 재수정.
 - 팝업 닫기 동작이 사이트 상태를 망가뜨리지 않는지 확인 필요 (Escape가 일반적).
+
+## 6. 3차 수정 — 팝업 캡처 실패 대응 (2026-05-15)
+
+### 6.1 관찰
+
+Railway 배포 후 실측 응답:
+```json
+{ "container_no": "CRXU9980434", "available": false,
+  "depot": "1973 - New Continental Logistics Co Ltd",
+  "booking_ref": null, "close_date": "2026-05-31",
+  "reason": "Validate ERROR" }
+```
+
+- `close_date` 채워짐 → 1차/2차 코드 배포는 정상.
+- `booking_ref=null`, `reason="Validate ERROR"` → `_capture_error_messages()` 팝업 캡처 실패 → 빈 msg → 정규식 무매칭.
+
+### 6.2 목표
+
+`_capture_error_messages()` 를 3단계 폴백 구조로 재작성하여 어느 한 경로라도 작동하면 RA 추출에 성공하도록 한다.
+
+### 6.3 단계
+
+1. **1차 (1순위, 클릭 불필요)** — SAP UI5 MessageManager API 직접 조회
+   ```js
+   sap.ui.getCore().getMessageManager().getMessageModel().getData()
+   ```
+   각 메시지 객체의 `message` / `description` 필드 결합.
+
+2. **2차 폴백** — `document.body.innerText` 줄 단위 스캔. `Container [A-Z]{4}\d{7}` + `active Return Authorization \d+` 패턴이 같은 줄에 있으면 채택.
+
+3. **3차 폴백** — 기존 View Messages 클릭 + 다이얼로그 파싱 로직 그대로.
+
+각 단계 진입/결과 로그 남김 (`logger.info`). 어느 경로로 잡혔는지 디버그 시 확인 가능.
+
+### 6.4 비변경 항목
+
+- ERROR 분기 RA 추출 정규식 / `available=bool(ra)` / Submit 게이트 — 그대로.
+- `_parse_staging_table` — 그대로 (팝업 보조 소스).
