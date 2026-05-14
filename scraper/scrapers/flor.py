@@ -283,40 +283,151 @@ class FlorScraper(BaseScraper):
 
         ref    = cell(i_ref)
         status = cell(i_status)
-        date   = cell(i_date)
-        bal_s  = cell(i_bal)
-        # FLOR Status 테이블에는 Depot 컬럼이 없음 (필터 라벨로만 존재).
-        # 상세 expand("+" 행)에서만 보이므로 기본 결과에서는 None.
-        depot: str | None = None
+
+        # + More 클릭 → 상세 (Expiry Date, Depot Name, Open Rdlvry Qty) 추출
+        details: dict = {}
+        if ref:
+            try:
+                details = await self._expand_and_extract(ref)
+                logger.info("FLOR %s details=%s", container, details)
+            except Exception as exc:
+                logger.warning("FLOR %s expand 실패: %s", container, exc)
+
+        depot     = details.get("depot_name") or None
+        expiry    = details.get("expiry_date") or None
+        open_qty  = details.get("open_rdlvry_qty")
 
         try:
-            bal = int(bal_s) if bal_s.isdigit() else None
-        except ValueError:
-            bal = None
+            over_caps = int(open_qty) if open_qty and str(open_qty).isdigit() else None
+        except (ValueError, TypeError):
+            over_caps = None
 
-        # 가용 판정: Status가 Open이고 BAL>0 이면 반납 가능
+        # 가용 판정: Status가 Open 이면 반납 가능 (Open Rdlvry Qty 는 참고용)
         is_open = "open" in status.lower()
-        has_balance = (bal is None) or (bal > 0)
-        available = is_open and has_balance
+        available = is_open
 
         reason: str | None = None
         if not available:
             if "closed" in status.lower():
                 reason = "이미 반납됨 (Closed)"
-            elif bal == 0:
-                reason = "당월 반납분 소진 (BAL=0)"
+            elif "void" in status.lower() or "cancel" in status.lower():
+                reason = "취소된 예약 (VOID)"
             else:
                 reason = f"발급 상태: {status or '미상'}"
+
+        # 유효기간 우선순위: Expiry Date > Order Date
+        date = expiry or cell(i_date)
 
         return {
             "container_no": container,
             "available": available,
-            "depot": depot or None,
+            "depot": depot,
             "booking_ref": ref or None,
-            "over_caps": bal,
+            "over_caps": over_caps,
             "close_date": date or None,
             "reason": reason,
         }
+
+    # ------------------------------------------------------------------ #
+    # + More 클릭 → 상세 추출
+    # ------------------------------------------------------------------ #
+
+    async def _expand_and_extract(self, ref: str) -> dict:
+        """
+        Status 테이블에서 Redelivery No=ref 행의 + More 아이콘을 클릭해 펼치고,
+        Expiry Date / Depot Name / Open Rdlvry Qty 를 추출.
+        """
+        clicked = await self.page.evaluate(r"""(needle) => {
+            const trs = Array.from(document.querySelectorAll('table tbody tr'));
+            for (const tr of trs) {
+                const txt = (tr.innerText || '');
+                if (!txt.includes(needle)) continue;
+                // Element UI 등 흔한 expand 아이콘
+                const sels = [
+                    '.el-table__expand-icon',
+                    'i.el-icon-plus',
+                    'i.el-icon-arrow-right',
+                    'span.el-icon-plus',
+                    '.el-table__expand-column i',
+                ];
+                for (const s of sels) {
+                    const el = tr.querySelector(s);
+                    if (el) {
+                        el.scrollIntoView({ block: 'center' });
+                        el.click();
+                        return { ok: true, via: s };
+                    }
+                }
+                // fallback: text "+" / ">" / "More"
+                const all = tr.querySelectorAll('*');
+                for (const el of all) {
+                    const t = (el.innerText || el.textContent || '').trim();
+                    if (t === '+' || t === '▶' || t === '▷' || /^more$/i.test(t)) {
+                        el.scrollIntoView({ block: 'center' });
+                        el.click();
+                        return { ok: true, via: 'text:' + t };
+                    }
+                }
+                return { ok: false, error: 'expand icon not found' };
+            }
+            return { ok: false, error: 'row not found' };
+        }""", ref)
+
+        if not clicked.get("ok"):
+            logger.warning("FLOR expand: %s", clicked)
+            return {}
+
+        await asyncio.sleep(2)
+
+        return await self.page.evaluate(r"""() => {
+            function valueByLabel() {
+                const labels = Array.from(arguments);
+                const els = Array.from(document.querySelectorAll(
+                    'th, td, div, span, dt, dd, label, strong, b, p'
+                ));
+                for (const want of labels) {
+                    for (const el of els) {
+                        const text = (el.innerText || '').trim();
+                        if (text === want || text === want + ':' || text === want + ' :') {
+                            // 같은 행의 다음 셀 (th-td 패턴)
+                            let next = el.nextElementSibling;
+                            while (next && !(next.innerText || '').trim()) {
+                                next = next.nextElementSibling;
+                            }
+                            if (next) {
+                                const v = (next.innerText || '').trim();
+                                if (v && v.length < 200) return v;
+                            }
+                        }
+                    }
+                }
+                return null;
+            }
+
+            // Contracts 테이블에서 Open Rdlvry Qty 추출
+            let openQty = null;
+            for (const tbl of document.querySelectorAll('table')) {
+                const headers = Array.from(tbl.querySelectorAll('thead th, thead td'))
+                    .map(th => (th.innerText || '').trim());
+                const idx = headers.findIndex(h => /open\s*rdlvry\s*qty/i.test(h));
+                if (idx >= 0) {
+                    const firstRow = tbl.querySelector('tbody tr');
+                    if (firstRow) {
+                        const cells = firstRow.querySelectorAll('td');
+                        if (idx < cells.length) {
+                            openQty = (cells[idx].innerText || '').trim();
+                        }
+                    }
+                    break;
+                }
+            }
+
+            return {
+                expiry_date: valueByLabel('Expiry Date', 'EXPIRY DATE', 'Expiry'),
+                depot_name: valueByLabel('Depot Name', 'DEPOT NAME', 'Depot'),
+                open_rdlvry_qty: openQty,
+            };
+        }""")
 
     # ------------------------------------------------------------------ #
     # 헬퍼
