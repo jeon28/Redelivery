@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { verifySession } from '@/lib/session'
 import { logout } from '@/app/actions/auth'
 import EmailSettingTabs from '@/components/EmailSettingTabs'
+import HeaderOfficeSelector from '@/components/HeaderOfficeSelector'
 
 export default async function EmailSettingPage() {
   await verifySession()
@@ -32,14 +33,17 @@ export default async function EmailSettingPage() {
             </Link>
           </nav>
         </div>
-        <form action={logout}>
-          <button
-            type="submit"
-            className="text-sm text-slate-300 hover:text-white transition-colors"
-          >
-            로그아웃
-          </button>
-        </form>
+        <div className="flex items-center gap-6">
+          <HeaderOfficeSelector />
+          <form action={logout}>
+            <button
+              type="submit"
+              className="text-sm text-slate-300 hover:text-white transition-colors"
+            >
+              로그아웃
+            </button>
+          </form>
+        </div>
       </header>
       <main className="max-w-6xl mx-auto px-6 py-8">
         <div className="mb-4">

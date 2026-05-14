@@ -1,5 +1,5 @@
 {
-  "url": "https://seaweb.seacoglobal.com/sap/bc/ui5_ui5/sap/zseaweb/index.html?saml2=disabled&handleX509=false&sap-client=100&sap-language=EN#/navCus_RedeliveryRequestViewCancel",
+  "url": "https://seaweb.seacoglobal.com/sap/bc/ui5_ui5/sap/zseaweb/index.html?saml2=disabled&handleX509=false&sap-client=100&sap-language=EN#/navCus_RedeliveryRequest",
   "title": "",
   "forms": [],
   "inputs": [
@@ -61,15 +61,6 @@
       "tag": "INPUT",
       "type": "text",
       "id": "__input4-inner",
-      "name": null,
-      "class": "sapMInputBaseInner",
-      "placeholder": null,
-      "text": ""
-    },
-    {
-      "tag": "INPUT",
-      "type": "text",
-      "id": "__input5-inner",
       "name": null,
       "class": "sapMInputBaseInner",
       "placeholder": null,
@@ -165,7 +156,7 @@
       "name": null,
       "class": "sapMBtnBase sapMBtn sapMBtnInverted sapUiMediumMarginEnd",
       "placeholder": null,
-      "text": "User GuideUser Guide"
+      "text": "User Guide"
     },
     {
       "tag": "BUTTON",
@@ -174,7 +165,7 @@
       "name": null,
       "class": "sapMBtnBase sapMBtn sapMBtnDisabled sapUiLargePaddingBegin",
       "placeholder": null,
-      "text": "Switch to Next month Switch to Next month possible only after 25th of each month!"
+      "text": "Switch to Next month"
     },
     {
       "tag": "BUTTON",
@@ -201,7 +192,7 @@
       "name": null,
       "class": "sapMBtnBase sapMBtn sapMBarChild sapMBarChildFirstChild",
       "placeholder": null,
-      "text": "Download Excel"
+      "text": ""
     },
     {
       "tag": "BUTTON",
@@ -210,7 +201,7 @@
       "name": null,
       "class": "sapMBtnBase sapMBtn sapMBarChild",
       "placeholder": null,
-      "text": "Reset Sort/Filter"
+      "text": ""
     },
     {
       "tag": "BUTTON",
@@ -219,7 +210,7 @@
       "name": null,
       "class": "sapMBtnBase sapMBtn sapMBtnInverted sapMBarChild",
       "placeholder": null,
-      "text": "Delete Error UnitsDelete Error Units"
+      "text": "Delete Error Units"
     },
     {
       "tag": "BUTTON",
@@ -228,7 +219,7 @@
       "name": null,
       "class": "sapMBtnBase sapMBtn sapMBtnInverted sapMBarChild",
       "placeholder": null,
-      "text": "View MessagesView Messages"
+      "text": "View Messages"
     },
     {
       "tag": "BUTTON",
@@ -274,33 +265,6 @@
       "class": "sapMBtnBase sapMBtn sapMBtnDisabled sapUiResponsiveMargin sapMBarChild",
       "placeholder": null,
       "text": "Reset"
-    },
-    {
-      "tag": "BUTTON",
-      "type": "submit",
-      "id": "container-com.seaco.seaweb---Cus_RedeliveryRequestViewCancel--btnUserGuideReDelVC",
-      "name": null,
-      "class": "sapMBtnBase sapMBtn sapMBtnInverted sapUiMediumMarginEnd",
-      "placeholder": null,
-      "text": "User Guide"
-    },
-    {
-      "tag": "BUTTON",
-      "type": "submit",
-      "id": "__button17",
-      "name": null,
-      "class": "sapMBtnBase sapMBtn sapUiResponsiveMargin sapMBarChild sapMBarChildFirstChild",
-      "placeholder": null,
-      "text": "Submit"
-    },
-    {
-      "tag": "BUTTON",
-      "type": "submit",
-      "id": "__button18",
-      "name": null,
-      "class": "sapMBtnBase sapMBtn sapMBtnInverted sapUiResponsiveMargin sapMBarChild",
-      "placeholder": null,
-      "text": "Reset"
     }
   ],
   "labels": [
@@ -335,14 +299,10 @@
     {
       "for": "__input4-inner",
       "text": ""
-    },
-    {
-      "for": "__input5-inner",
-      "text": "Return Authorization No."
     }
   ],
   "iframes": [],
   "sap_present": true,
   "sap_version": "1.120.15",
-  "body_text_preview": "Menu\nContact Us\nO.H Kwon\nDepreciated Residual Value (DRV)\nCustomer Activity Reports\nOnline Returns\nRedelivery Request\nRedelivery View/Cancel\nDepot Inventory\nRedelivery Request\nUser Guide\nReturn Authorization No.\nSubmit\nReset"
+  "body_text_preview": "Menu\nContact Us\nO.H Kwon\nDepreciated Residual Value (DRV)\nCustomer Activity Reports\nOnline Returns\nRedelivery Request\nRedelivery View/Cancel\nDepot Inventory\nRedelivery Request\nMessage Strip Information\nFor individual containers, please enter the 4 letter prefix and 7 digit number for each container( Eg. SEGU3000511).\nFor multiple containers(Max. 25), press the Enter key after each one or copy-paste the list in the entry field\nUser Guide\nCustomer Name\nStart Date\nSwitch to Next month\nExpiry Date Date\nCity\nSerial No.\nAdd to Returns\nReset\nRedeliveryRequest - Select Units\nNumber of Rows:\n2\nDelete Error Units\nView Messages\n\t\t\t\t\t\t\t\t\n\nLease Type\n\t\nLease No.\n\t\nUnit Type Description\n\t\nCity\n\t\nDepot Name\n\t\nSerial No.\n\t\nStatus\n\t\n\t\n\t\t\t\t\t\t\t\t\n\nFixed\n\t\n1002305\n\t\n40'HCRF Carr 69NT40-561 Primeline (MGSS)\n\t\nBusan\n\t\n2724 - Seyang Logistics, CO,. LTD\n\t\nSEGU9586313\n\t\nERROR\n\t\nMessages\n\t\n\nVariable\n\t\n140638\n\t\n40' High Cube Standard\n\t\nBusan\n\t\n1973 - New Continental Logistics Co Ltd\n\t\nCRXU9980434\n\t\nOK\n\t\n\t\nValidate\nDelete\nEmail Addresses\nSubmit\nReset"
 }

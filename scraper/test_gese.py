@@ -205,7 +205,141 @@ async def main():
             except Exception as e:
                 print(f"  Redelivery Request 클릭 실패: {e}")
 
-        # Phase 5: 'Redelivery View/Cancel' 클릭 → 취소 UI 확인
+        # Phase 4b: Redelivery Request — City 옵션 덤프 + Add to Returns (실 컨테이너로)
+        TEST_CITY = "BUSAN"   # 또는 PUSAN — 옵션 덤프로 확정
+        TEST_UNITS = [
+            "SEGU9586313",   # 사용자 제공 (장금, 부산)
+            "CRXU9980434",   # 사용자 제공 추가 (장금, 부산)
+        ]
+        print(f"\n[Phase4b] City 옵션 + {TEST_UNITS} 입력 + Add to Returns")
+        # 이미 Phase 4에서 Redelivery Request 페이지에 있으므로 재진입 불요
+        CITY_ID = "container-com.seaco.seaweb---Cus_RedeliveryRequest--idRedeliveryRequestComboBoxCity-inner"
+        SERIAL_ID = "container-com.seaco.seaweb---Cus_RedeliveryRequest--idTextAreaSerialNo-inner"
+
+        # City 입력에 "Busan" 전체 타이핑 후 Tab으로 확정 (SAP UI5 ComboBox autocomplete)
+        city_inp = page.locator(f'[id="{CITY_ID}"]').first
+        await city_inp.click()
+        await page.wait_for_timeout(500)
+        await city_inp.fill("Busan")
+        await page.wait_for_timeout(1500)
+        await page.screenshot(path=str(OUT_DIR / "04b_city_dropdown.png"), full_page=True)
+
+        # 옵션 덤프 (다양한 SAP UI5 popover 셀렉터)
+        opts = await page.evaluate("""() => {
+            const sels = [
+                '.sapMComboBoxBasePicker li.sapMLIB',
+                '.sapMSelectList li',
+                '[role="listbox"] [role="option"]',
+                '.sapMPopover li.sapMLIB',
+                'ul.sapMSelectList li',
+            ];
+            for (const sel of sels) {
+                const items = Array.from(document.querySelectorAll(sel))
+                    .filter(e => e.offsetParent !== null);
+                if (items.length > 0) {
+                    return { selector: sel, items: items.map(e => (e.innerText || '').trim()).filter(t => t) };
+                }
+            }
+            // fallback: any visible li
+            const all = Array.from(document.querySelectorAll('li'))
+                .filter(e => e.offsetParent !== null);
+            return { selector: 'li(visible)', items: all.map(e => (e.innerText || '').trim()).filter(t => t && t.length < 80) };
+        }""")
+        print(f"  City 필터(B) 결과: selector='{opts['selector']}' / {len(opts['items'])}개")
+        for o in opts['items'][:30]:
+            print(f"    - {o}")
+
+        # Busan 옵션을 정확히 매칭 (단어 단위)
+        target_opt = next((o for o in opts['items']
+                           if o.strip().upper() in ('BUSAN', 'PUSAN')), None)
+        if not target_opt:
+            # 첫번째 단어가 Busan/Pusan인 옵션
+            target_opt = next((o for o in opts['items']
+                               if o.strip().upper().split()[0] in ('BUSAN', 'PUSAN')), None)
+        print(f"  매칭: {target_opt}")
+        if not target_opt:
+            print("  ❌ Busan/Pusan 옵션 없음 — 분석 종료")
+            await browser.close(); return
+
+        # 옵션 li 직접 클릭 (정확히 일치하는 텍스트)
+        clicked = await page.evaluate("""(needle) => {
+            const items = Array.from(document.querySelectorAll('li'))
+                .filter(e => e.offsetParent !== null);
+            const target = items.find(e => (e.innerText || '').trim().toUpperCase() === needle.toUpperCase());
+            if (!target) return false;
+            target.scrollIntoView({ block: 'center' });
+            target.click();
+            return true;
+        }""", target_opt)
+        print(f"  City 선택 클릭: {clicked} → {target_opt}")
+        await page.wait_for_timeout(800)
+
+        # Serial No. 입력
+        ser_el = page.locator(f'[id="{SERIAL_ID}"]').first
+        if await ser_el.count() == 0:
+            print(f"  ❌ Serial No. textarea 못 찾음")
+            await browser.close(); return
+        await ser_el.fill("\n".join(TEST_UNITS))
+        await page.wait_for_timeout(500)
+        await page.screenshot(path=str(OUT_DIR / "04c_form_filled.png"), full_page=True)
+        print(f"  Serial No. 입력 완료: {len(TEST_UNITS)}개 (줄바꿈)")
+
+        # Add to Returns 클릭
+        add_btn = page.locator("button").filter(has_text="Add to Returns").first
+        if await add_btn.count() == 0:
+            print(f"  ❌ Add to Returns 버튼 못 찾음")
+            await browser.close(); return
+        await add_btn.click()
+        await page.wait_for_timeout(4000)
+        await page.screenshot(path=str(OUT_DIR / "04d_after_add.png"), full_page=True)
+        d4d = await dump_page(page, "04d_after_add")
+        (OUT_DIR / "04d_after_add.html").write_text(await page.content(), encoding="utf-8")
+        print(f"  Add to Returns 후 URL: {page.url}")
+
+        # Phase 4e: Validate 클릭 (서버 검증, 발급 아님)
+        print(f"\n[Phase4e] Validate 클릭 (서버 검증, Submit 안 함)")
+        # sap.ui.table SelectAll: Playwright 직접 클릭이 SAP 이벤트를 더 잘 트리거
+        sa = page.locator('.sapUiTableSelectAllCheckBox').first
+        if await sa.count() > 0:
+            try:
+                await sa.click(force=True)
+                print(f"  SelectAll 클릭 (Playwright)")
+            except Exception as e:
+                print(f"  SelectAll 클릭 실패: {e}")
+        else:
+            # fallback: row headers individually
+            hdrs = page.locator('.sapUiTableRowHdr')
+            n = await hdrs.count()
+            for i in range(n):
+                try:
+                    await hdrs.nth(i).click(force=True)
+                except Exception:
+                    pass
+            print(f"  Row headers 클릭: {n}개")
+        await page.wait_for_timeout(2000)
+        await page.screenshot(path=str(OUT_DIR / "04e_selected.png"), full_page=True)
+        validate_btn = page.locator("button").filter(has_text="Validate").first
+        if await validate_btn.count() == 0:
+            print("  Validate 버튼 없음")
+        else:
+            await validate_btn.click()
+            try:
+                await page.wait_for_load_state("networkidle", timeout=30_000)
+            except Exception:
+                pass
+            await page.wait_for_timeout(4000)
+            await page.screenshot(path=str(OUT_DIR / "04e_after_validate.png"), full_page=True)
+            d4e = await dump_page(page, "04e_after_validate")
+            (OUT_DIR / "04e_after_validate.html").write_text(await page.content(), encoding="utf-8")
+            # 테이블 행 데이터 추출
+            rows = await page.evaluate(r"""() => Array.from(document.querySelectorAll('table tbody tr'))
+                .map(tr => Array.from(tr.querySelectorAll('td')).map(td => (td.innerText || '').trim()))
+                .filter(r => r.length > 0)""")
+            print(f"  Validate 후 행 ({len(rows)}개):")
+            for i, r in enumerate(rows[:10]):
+                print(f"    ROW {i}: {r}")
+
+        print(f"\n[Phase5] 'Redelivery View/Cancel' 클릭")
         print(f"\n[Phase5] 'Redelivery View/Cancel' 클릭")
         vc_btn = page.locator("text=Redelivery View/Cancel").first
         if await vc_btn.count() > 0:

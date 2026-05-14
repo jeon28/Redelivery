@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { verifySession, verifyCredentialsUnlock } from '@/lib/session'
 import { logout, lockCredentials } from '@/app/actions/auth'
 import CredentialsManager from '@/components/CredentialsManager'
+import HeaderOfficeSelector from '@/components/HeaderOfficeSelector'
 
 export default async function CredentialsPage() {
   await verifySession()
@@ -38,7 +39,8 @@ export default async function CredentialsPage() {
             </Link>
           </nav>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
+          <HeaderOfficeSelector />
           <form action={lockCredentials}>
             <button
               type="submit"

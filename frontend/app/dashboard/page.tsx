@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { verifySession } from '@/lib/session'
 import { logout } from '@/app/actions/auth'
 import SearchForm from '@/components/SearchForm'
+import HeaderOfficeSelector from '@/components/HeaderOfficeSelector'
 
 export default async function DashboardPage() {
   await verifySession()
@@ -32,14 +33,17 @@ export default async function DashboardPage() {
             </Link>
           </nav>
         </div>
-        <form action={logout}>
-          <button
-            type="submit"
-            className="text-sm text-slate-300 hover:text-white transition-colors"
-          >
-            로그아웃
-          </button>
-        </form>
+        <div className="flex items-center gap-6">
+          <HeaderOfficeSelector />
+          <form action={logout}>
+            <button
+              type="submit"
+              className="text-sm text-slate-300 hover:text-white transition-colors"
+            >
+              로그아웃
+            </button>
+          </form>
+        </div>
       </header>
       <main className="max-w-5xl mx-auto px-6 py-8">
         <SearchForm />

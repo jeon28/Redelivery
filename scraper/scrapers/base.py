@@ -92,4 +92,7 @@ def get_scraper(company: str, lessor: str) -> Optional[BaseScraper]:
     if key == "FLOR":
         from scrapers.flor import FlorScraper
         return FlorScraper(company, key)
+    if key == "GESE":
+        from scrapers.gese import GeseScraper
+        return GeseScraper(company, key)
     return None

@@ -15,7 +15,7 @@ const LESSOR_CATALOG: Record<string, LessorEntry[]> = {
     { code: 'TRIT+TRAM',  mode: 'query', status: 'ready' },
     { code: 'GLOD',       mode: 'query', status: 'ready' },
     { code: 'FLOR+DFIC',  mode: 'query', status: 'ready' },
-    { code: 'GESE+CROS',  mode: 'query', status: 'wip' },
+    { code: 'GESE+CROS',  mode: 'query', status: 'ready' },
     { code: 'GCIC',       mode: 'query', status: 'wip' },
     { code: 'CAIC',       mode: 'email' },
     { code: 'BCON',       mode: 'email' },
@@ -27,7 +27,7 @@ const LESSOR_CATALOG: Record<string, LessorEntry[]> = {
     { code: 'TRIT',       mode: 'query', status: 'ready' },
     { code: 'GOLD',       mode: 'query', status: 'ready' },
     { code: 'FLOR',       mode: 'query', status: 'ready' },
-    { code: 'GESE+SGCN',  mode: 'query', status: 'wip' },
+    { code: 'GESE+SGCN',  mode: 'query', status: 'ready' },
     { code: 'BCON',       mode: 'email' },
     { code: 'CARL',       mode: 'email' },
     { code: 'BLUE',       mode: 'email' },
@@ -177,7 +177,7 @@ export default function SearchForm() {
 
   const [templates, setTemplates] = useState<Templates>({})
 
-  // 초기 마운트: localStorage 복원 + 템플릿 로드
+  // 초기 마운트: localStorage 복원 + 템플릿 로드 + 헤더 사무소 변경 이벤트 리스너
   useEffect(() => {
     const saved = loadUIState()
     if (saved.company && LESSOR_CATALOG[saved.company]) setCompany(saved.company)
@@ -189,6 +189,16 @@ export default function SearchForm() {
       .then((r) => r.json())
       .then((d) => setTemplates(d.templates ?? {}))
       .catch(() => {})
+
+    // 헤더의 사무소 드롭다운이 바뀌면 동기화
+    const onOfficeChange = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail
+      if (typeof detail === 'string' && OFFICES.includes(detail)) {
+        setOffice(detail)
+      }
+    }
+    window.addEventListener('office-change', onOfficeChange)
+    return () => window.removeEventListener('office-change', onOfficeChange)
   }, [])
 
   // 선사 변경 시 임대사 목록 갱신
@@ -307,7 +317,7 @@ export default function SearchForm() {
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-4">
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           {/* 선사 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -346,25 +356,7 @@ export default function SearchForm() {
             </select>
           </div>
 
-          {/* 사무소 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              사무소
-            </label>
-            <select
-              value={office}
-              onChange={(e) => setOffice(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
-            >
-              {OFFICES.map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 반납지역 */}
+          {/* 반납지역 (사무소는 헤더에서 선택 → 자동 동기화) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               반납지역
