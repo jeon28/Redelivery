@@ -42,6 +42,24 @@ function templateKey(code: string): string {
   return code.split('+')[0]
 }
 
+// 임대사 베이스 코드 → 공식 홈페이지/포털 URL
+const LESSOR_HOMEPAGES: Record<string, string> = {
+  TEXA: 'https://www.textainer.com/contact',
+  TRIT: 'https://www.tritoncontainer.com/tritoncontainer/',
+  GOLD: 'http://www.touax-container.com/?option=com_indexinfo',
+  FLOR: 'http://www.florens.com/',
+  GESE: 'https://seaweb.seacoglobal.com/',
+  GCIC: 'https://gcx.intermodalportal.com/',
+  CAIC: 'https://cai.capps.com/',
+  BCON: 'https://beacon.intermodalportal.com/',
+  CARL: 'https://seacube.intermodalportal.com/',
+  BLUE: 'https://bsiu.com/',
+}
+
+function homepageFor(code: string): string | null {
+  return LESSOR_HOMEPAGES[templateKey(code)] ?? null
+}
+
 // ─────────────────────────────────────────────────────────────
 // 사무소 / 반납지역
 // ─────────────────────────────────────────────────────────────
@@ -338,8 +356,19 @@ export default function SearchForm() {
 
           {/* 임대사 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              임대사
+            <label className="flex items-center justify-between text-sm font-medium text-gray-700 mb-1">
+              <span>임대사</span>
+              {homepageFor(lessor) && (
+                <a
+                  href={homepageFor(lessor) as string}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:underline font-normal"
+                  title={`${lessor} 홈페이지로 이동`}
+                >
+                  🌐 홈페이지
+                </a>
+              )}
             </label>
             <select
               value={lessor}
