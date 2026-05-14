@@ -1,22 +1,11 @@
-export type QueryStatus = 'available' | 'completed' | 'unavailable'
-
 export interface QueryResult {
   container_no: string
   available: boolean
-  status?: QueryStatus | null
-  completed_date?: string | null
   depot: string | null
   booking_ref: string | null
   over_caps: number | null
   close_date: string | null
   reason: string | null
-}
-
-function effectiveStatus(r: QueryResult): QueryStatus {
-  if (r.status === 'available' || r.status === 'completed' || r.status === 'unavailable') {
-    return r.status
-  }
-  return r.available ? 'available' : 'unavailable'
 }
 
 export default function ResultTable({ results }: { results: QueryResult[] }) {
@@ -47,39 +36,30 @@ export default function ResultTable({ results }: { results: QueryResult[] }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {results.map((r) => {
-              const st = effectiveStatus(r)
-              return (
-                <tr
-                  key={r.container_no}
-                  className={r.available ? 'bg-green-50' : 'bg-red-50'}
-                >
-                  <td className="px-4 py-3 font-mono font-medium text-gray-900">
-                    {r.container_no}
-                  </td>
-                  <td className="px-4 py-3">
-                    {st === 'available' && (
-                      <span className="text-green-700 font-medium">✅ 가능</span>
-                    )}
-                    {st === 'completed' && (
-                      <span className="text-red-600 font-medium">
-                        {r.completed_date ? `${r.completed_date} 완료` : '완료'}
-                      </span>
-                    )}
-                    {st === 'unavailable' && (
-                      <span className="text-red-600 font-medium">❌ 불가</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">{r.depot ?? '-'}</td>
-                  <td className="px-4 py-3 font-mono text-blue-700 font-medium">
-                    {r.booking_ref ?? '-'}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{r.over_caps ?? '-'}</td>
-                  <td className="px-4 py-3 text-gray-600">{r.close_date ?? '-'}</td>
-                  <td className="px-4 py-3 text-red-600 text-xs">{r.reason ?? '-'}</td>
-                </tr>
-              )
-            })}
+            {results.map((r) => (
+              <tr
+                key={r.container_no}
+                className={r.available ? 'bg-green-50' : 'bg-red-50'}
+              >
+                <td className="px-4 py-3 font-mono font-medium text-gray-900">
+                  {r.container_no}
+                </td>
+                <td className="px-4 py-3">
+                  {r.available ? (
+                    <span className="text-green-700 font-medium">✅ 가능</span>
+                  ) : (
+                    <span className="text-red-600 font-medium">❌ 불가</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-gray-700">{r.depot ?? '-'}</td>
+                <td className="px-4 py-3 font-mono text-blue-700 font-medium">
+                  {r.booking_ref ?? '-'}
+                </td>
+                <td className="px-4 py-3 text-gray-600">{r.over_caps ?? '-'}</td>
+                <td className="px-4 py-3 text-gray-600">{r.close_date ?? '-'}</td>
+                <td className="px-4 py-3 text-red-600 text-xs">{r.reason ?? '-'}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

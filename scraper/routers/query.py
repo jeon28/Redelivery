@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from typing import List, Literal, Optional
+from typing import List, Optional
 
 router = APIRouter()
 
@@ -15,10 +15,6 @@ class QueryRequest(BaseModel):
 class ContainerResult(BaseModel):
     container_no: str
     available: bool
-    # 3상태 분류. None이면 프론트가 available 불리언에서 추론 (하위호환).
-    status: Optional[Literal["available", "completed", "unavailable"]] = None
-    # 'M/D' (예: '5/13'). completed 행에서 사용. 그 외엔 None.
-    completed_date: Optional[str] = None
     depot: Optional[str] = None
     booking_ref: Optional[str] = None
     over_caps: Optional[int] = None

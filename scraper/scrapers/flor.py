@@ -27,14 +27,6 @@ LOGIN_URL    = "https://www.florens.com/official-pc/login#/"
 REDELIV_URL  = "https://www.florens.com/func/redelivery#/"
 
 
-def _to_mmdd(iso: str | None) -> str | None:
-    """'2026-05-13' → '5/13'. 비/잘못된 입력은 None. 앞자리 0 없음."""
-    m = re.match(r"^\d{4}-(\d{1,2})-(\d{1,2})$", (iso or "").strip())
-    if not m:
-        return None
-    return f"{int(m.group(1))}/{int(m.group(2))}"
-
-
 class FlorScraper(BaseScraper):
     def __init__(self, company: str, lessor: str):
         super().__init__(company, lessor)
@@ -180,12 +172,9 @@ class FlorScraper(BaseScraper):
                 results.setdefault(c, self._error_row(c, "조회 실패"))
 
         # 안전장치: 모든 컨테이너 결과 보장 + reason 누락 방지
-        # (completed 행은 reason 비우는 게 정상이므로 제외)
         for c in deduped:
             results.setdefault(c, self._error_row(c, "조회 실패"))
         for r in results.values():
-            if r.get("status") == "completed":
-                continue
             if not r.get("available") and not r.get("reason"):
                 r["reason"] = "조회 실패 (사유 미상)"
 
@@ -235,8 +224,6 @@ class FlorScraper(BaseScraper):
             return {
                 "container_no": container,
                 "available": False,
-                "status": "unavailable",
-                "completed_date": None,
                 "depot": None,
                 "booking_ref": None,
                 "over_caps": None,
@@ -319,8 +306,6 @@ class FlorScraper(BaseScraper):
             return {
                 "container_no": container,
                 "available": True,
-                "status": "available",
-                "completed_date": None,
                 "depot": None,
                 "booking_ref": None,
                 "over_caps": None,
@@ -353,26 +338,15 @@ class FlorScraper(BaseScraper):
         except (ValueError, TypeError):
             over_caps = None
 
-        # 3상태 판정: available / completed (=Closed) / unavailable
-        s = status.lower()
-        is_open    = "open" in s
-        is_closed  = "closed" in s
-        available  = is_open
+        # 가용 판정: Status가 Open 이면 반납 가능
+        is_open = "open" in status.lower()
+        available = is_open
 
-        result_status: str
-        completed_date: str | None = None
         reason: str | None = None
-
-        if is_open:
-            result_status = "available"
-        elif is_closed:
-            # 이미 반납 완료된 컨테이너 — Order Date를 'M/D'로 노출
-            result_status = "completed"
-            completed_date = _to_mmdd(parsed.get("order_date", ""))
-            reason = "이미 반납됨 (Closed)"
-        else:
-            result_status = "unavailable"
-            if "void" in s or "cancel" in s:
+        if not available:
+            if "closed" in status.lower():
+                reason = "이미 반납됨 (Closed)"
+            elif "void" in status.lower() or "cancel" in status.lower():
                 reason = "취소된 예약 (VOID)"
             else:
                 reason = f"발급 상태: {status or '미상'}"
@@ -383,8 +357,6 @@ class FlorScraper(BaseScraper):
         return {
             "container_no": container,
             "available": available,
-            "status": result_status,
-            "completed_date": completed_date,
             "depot": depot,
             "booking_ref": ref or None,
             "over_caps": over_caps,
@@ -503,8 +475,6 @@ class FlorScraper(BaseScraper):
         return {
             "container_no": container,
             "available": False,
-            "status": "unavailable",
-            "completed_date": None,
             "depot": None,
             "booking_ref": None,
             "over_caps": None,
