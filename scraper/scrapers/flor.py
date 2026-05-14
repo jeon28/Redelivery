@@ -15,6 +15,8 @@
 import asyncio
 import logging
 import random
+import re
+import traceback
 
 from scrapers.base import BaseScraper
 from config.credentials import get_credential
@@ -159,7 +161,10 @@ class FlorScraper(BaseScraper):
                 try:
                     results[cont] = await self._search_one(cont)
                 except Exception as exc:
-                    logger.error("FLOR search %s error: %s", cont, exc)
+                    logger.error(
+                        "FLOR search %s error: %s\n%s",
+                        cont, exc, traceback.format_exc(),
+                    )
                     results[cont] = self._error_row(cont, "조회 실패 (예외)")
         except Exception as exc:
             logger.error("FLOR query error: %s", exc)
