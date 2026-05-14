@@ -50,15 +50,21 @@ class BaseScraper(ABC):
         pass
 
     @abstractmethod
-    async def query(self, containers: list[str], region: str) -> list[dict]:
+    async def query(self, containers: list[str], region: str, depot: Optional[str] = None) -> list[dict]:
         pass
 
-    async def run(self, containers: list[str], region: str, headless: bool = True) -> list[dict]:
+    async def run(
+        self,
+        containers: list[str],
+        region: str,
+        depot: Optional[str] = None,
+        headless: bool = True,
+    ) -> list[dict]:
         try:
             await self.start(headless=headless)
             if not await self.login():
                 raise RuntimeError(f"{self.lessor} 로그인 실패")
-            return await self.query(containers, region)
+            return await self.query(containers, region, depot)
         finally:
             await self.close()
 

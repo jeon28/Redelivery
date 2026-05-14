@@ -313,6 +313,8 @@ export default function SearchForm() {
           lessor,
           region,
           containers: containers.map((c) => c.container_no),
+          // depot: FLOR Apply Redelivery 확장 슬롯. BUSAN/GWANGYANG 등 default 없는 Port에
+          // 사용자가 직접 선택할 수 있게 향후 드롭다운 UI 추가 시 여기서 전달.
         }),
       })
       const data = await res.json()

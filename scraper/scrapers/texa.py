@@ -183,7 +183,9 @@ class TexaScraper(BaseScraper):
     # Main query                                                           #
     # ------------------------------------------------------------------ #
 
-    async def query(self, containers: list[str], region: str) -> list[dict]:
+    async def query(self, containers: list[str], region: str, depot: str | None = None) -> list[dict]:
+        # depot 인자는 향후 사용자 명시 depot용 슬롯. TEXA는 현재 미사용.
+        _ = depot
         region_info = REGION_MAP.get(region, REGION_MAP["INCHON"])
 
         results: dict[str, dict] = {

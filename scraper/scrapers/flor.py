@@ -1,16 +1,19 @@
-"""FLOR (Florens) 스크래퍼 — 조회 모드.
+"""FLOR (Florens) 스크래퍼 — Apply Redelivery 1차 흐름.
 
 분석 문서: REDELIVERY/FLOR/ANALYSIS.md
+구현 계획: REDELIVERY/FLOR/IMPLEMENTATION_PLAN.md
 
-조회 흐름 (안전 모드, 실 발급 없음):
+조회 흐름 (Apply Redelivery 위저드 — Phase A, Confirm 미클릭):
   1. 로그인 (슬라이드 캡차 + Sign-in 버튼)
-  2. /func/redelivery#/ 진입
-  3. Redelivery Status 탭 선택
-  4. Unit No. 라디오 선택
-  5. 컨테이너별로 입력 + Search → 결과 테이블 파싱
-  6. PPR 번호 / Status / Order Date / Equip Type / Qty 반환
+  2. /func/redelivery#/ 진입 (Apply Redelivery 탭 기본 활성)
+  3. Step1: Customer ID(SINOKOR/HALINE) + Port + Depot 설정 → Next
+  4. Step2: Unit Numbers textarea \n 구분 입력 → Next
+  5. Step3: 거부/유효 테이블 파싱
+     - 거부행 → 사유 캡처 → 불가
+     - 유효행 → 가능 (PPR 번호는 Phase B에서 Confirm 클릭 후 채움)
 
-발급(Apply)은 별도 구현 예정. 현재는 이미 발급된 PPR 조회만.
+Phase B (예정): Confirm Redelivery Order 클릭 → 신규 PPR 캡처 → Status 보조 enrichment.
+Status 탭 기반 헬퍼(`_search_one`, `_expand_and_extract`)는 Phase B 보조용으로 보존.
 """
 import asyncio
 import logging
@@ -25,6 +28,38 @@ logger = logging.getLogger(__name__)
 
 LOGIN_URL    = "https://www.florens.com/official-pc/login#/"
 REDELIV_URL  = "https://www.florens.com/func/redelivery#/"
+
+
+# Port → Default Depot 옵션 문자열 (사용자 명시 depot 없을 때 fallback).
+# 옵션 텍스트 포맷: "(CODE) NAME (CODE)" — 코드가 앞·뒤 두 번 노출됨 (사이트 관찰).
+# BUSAN/GWANGYANG 은 미설정 — 향후 사용자 드롭다운 선택 또는 매핑 추가 필요.
+PORT_DEFAULT_DEPOT: dict[str, str] = {
+    "INCHON": "(KRINC04) SeungJin Enterprise Co., Ltd. (KRINC04)",
+}
+
+# Company (한글) → Customer ID 라디오 텍스트 (Step1).
+COMPANY_CUSTOMER_ID: dict[str, str] = {
+    "장금상선": "SINOKOR",
+    "흥아라인": "HALINE",
+}
+
+# Region (대문자 영문) → Port 드롭다운 옵션 텍스트 검색용 substring.
+# FLOR 사이트는 부산을 "PUSAN" (옛 표기) 으로 표시 (ANALYSIS.md §7).
+PORT_OPTION_SUBSTR: dict[str, str] = {
+    "INCHON":    "INCHON",
+    "BUSAN":     "PUSAN",
+    "GWANGYANG": "GWANGYANG",
+}
+
+
+def _to_mmdd(iso: str | None) -> str | None:
+    """'2026-05-13' → '5/13'. 비/잘못된 입력은 None. 앞자리 0 없음."""
+    if not iso:
+        return None
+    m = re.match(r"^\d{4}-(\d{1,2})-(\d{1,2})$", iso.strip())
+    if not m:
+        return None
+    return f"{int(m.group(1))}/{int(m.group(2))}"
 
 
 class FlorScraper(BaseScraper):
@@ -123,10 +158,15 @@ class FlorScraper(BaseScraper):
             return False
 
     # ------------------------------------------------------------------ #
-    # Query (Redelivery Status 탭)
+    # Query (Apply Redelivery 위저드 — Phase A: Confirm 미클릭)
     # ------------------------------------------------------------------ #
 
-    async def query(self, containers: list[str], region: str) -> list[dict]:
+    async def query(
+        self,
+        containers: list[str],
+        region: str,
+        depot: str | None = None,
+    ) -> list[dict]:
         # 입력 정규화 + 중복 제거 (입력 순서 보존)
         seen: set[str] = set()
         deduped: list[str] = []
@@ -137,51 +177,303 @@ class FlorScraper(BaseScraper):
             seen.add(k)
             deduped.append(k)
 
-        results: dict[str, dict] = {}
+        # 기본 결과: 모두 "조회 실패"로 시작 → 단계별 갱신
+        results: dict[str, dict] = {c: self._error_row(c, "조회 실패") for c in deduped}
 
         try:
-            # Redelivery 페이지 진입 → Status 탭 활성화
-            await self.page.goto(REDELIV_URL, wait_until="networkidle", timeout=30_000)
-            await asyncio.sleep(2.0)
+            # 1. Depot 결정 (사용자 명시 > Port 별 default fallback)
+            depot_str = self._resolve_depot(region, depot)
 
-            status_tab = self.page.locator("text=Redelivery Status").first
-            if await status_tab.count() == 0:
-                logger.error("FLOR: Redelivery Status 탭 없음")
-                return [self._error_row(c, "Status 탭 없음") for c in containers]
-            await status_tab.click()
-            await asyncio.sleep(1.5)
+            # 2. Customer ID + Port substring 결정
+            cust_id = COMPANY_CUSTOMER_ID.get(self.company)
+            if not cust_id:
+                raise RuntimeError(f"지원하지 않는 선사: {self.company}")
+            port_substr = PORT_OPTION_SUBSTR.get((region or "").upper())
+            if not port_substr:
+                raise RuntimeError(f"지원하지 않는 region: {region}")
 
-            # Unit No. 라디오 선택
-            unit_radio = self.page.locator("text=Unit No.").first
-            if await unit_radio.count() > 0:
-                await unit_radio.click()
-                await asyncio.sleep(0.8)
+            # 3. Redelivery 페이지 진입 (Apply 탭 기본 활성)
+            await self._navigate_to_apply()
 
-            for cont in deduped:
-                try:
-                    results[cont] = await self._search_one(cont)
-                except Exception as exc:
-                    logger.error(
-                        "FLOR search %s error: %s\n%s",
-                        cont, exc, traceback.format_exc(),
-                    )
-                    results[cont] = self._error_row(cont, "조회 실패 (예외)")
+            # 4. Step 1: Customer ID / Port / Depot
+            await self._select_customer_id(cust_id)
+            await self._select_port(port_substr)
+            await self._select_depot(depot_str)
+
+            # 5. Next → Step 2
+            await self._step_next()
+
+            # 6. Step 2: Unit Numbers 일괄 입력
+            await self._step2_fill_units(deduped)
+
+            # 7. Next → Step 3 (사전 검증)
+            await self._step_next()
+
+            # 8. Step 3 파싱 (거부/유효 분리)
+            await self._parse_step3(results, depot_str)
+
+            # Phase B (예정): Confirm Redelivery Order 클릭 → PPR 캡처 + Status enrichment
+
         except Exception as exc:
-            logger.error("FLOR query error: %s", exc)
-            for c in deduped:
-                results.setdefault(c, self._error_row(c, "조회 실패"))
+            logger.error("FLOR query error: %s\n%s", exc, traceback.format_exc())
 
-        # 안전장치: 모든 컨테이너 결과 보장 + reason 누락 방지
+        # 안전장치 + 3상태 status 일괄 도출
         for c in deduped:
             results.setdefault(c, self._error_row(c, "조회 실패"))
         for r in results.values():
-            if not r.get("available") and not r.get("reason"):
-                r["reason"] = "조회 실패 (사유 미상)"
+            if r.get("status") == "completed":
+                continue
+            if r.get("available"):
+                r["status"] = "available"
+                r.setdefault("completed_date", None)
+            else:
+                r["status"] = "unavailable"
+                r.setdefault("completed_date", None)
+                if not r.get("reason"):
+                    r["reason"] = "조회 실패 (사유 미상)"
 
         return [
             results.get((c or "").strip().upper()) or self._error_row(c, "결과 없음")
             for c in containers
         ]
+
+    # ------------------------------------------------------------------ #
+    # Apply Redelivery 위저드 헬퍼 (Phase A)
+    # ------------------------------------------------------------------ #
+
+    def _resolve_depot(self, region: str, depot_param: str | None) -> str:
+        """사용자 명시 depot 우선, 없으면 PORT_DEFAULT_DEPOT fallback."""
+        if depot_param and depot_param.strip():
+            return depot_param.strip()
+        key = (region or "").upper()
+        default = PORT_DEFAULT_DEPOT.get(key)
+        if not default:
+            raise RuntimeError(
+                f"{region}: default depot 미설정 — depot 명시 필요 (BUSAN/GWANGYANG 등)"
+            )
+        return default
+
+    async def _navigate_to_apply(self) -> None:
+        """Redelivery 페이지 진입. Apply Redelivery 탭이 기본 활성이지만 안전을 위해 클릭."""
+        await self.page.goto(REDELIV_URL, wait_until="networkidle", timeout=30_000)
+        await asyncio.sleep(2.0)
+        apply_tab = self.page.locator("text=Apply Redelivery").first
+        if await apply_tab.count() > 0:
+            try:
+                await apply_tab.click(timeout=3_000)
+                await asyncio.sleep(0.8)
+            except Exception:
+                pass  # 이미 활성이면 클릭 실패해도 무방
+
+    async def _select_customer_id(self, cust_id: str) -> None:
+        """Step1 Customer ID 라디오 클릭 (SINOKOR / HALINE)."""
+        radio = self.page.locator(f"text={cust_id}").first
+        if await radio.count() == 0:
+            raise RuntimeError(f"Customer ID '{cust_id}' 옵션 없음")
+        await radio.click()
+        await asyncio.sleep(0.5)
+
+    async def _select_port(self, port_substr: str) -> None:
+        """Step1 Port Element UI 드롭다운 — 첫 번째 el-select 위젯."""
+        await self._click_el_select(0)
+        await self._pick_el_option_substr(port_substr)
+
+    async def _select_depot(self, depot_str: str) -> None:
+        """Step1 Depot Element UI 드롭다운 — 두 번째 el-select 위젯.
+        depot_str 에서 '(CODE)' 추출하여 옵션 텍스트 부분일치."""
+        m = re.search(r"\(([^)]+)\)", depot_str)
+        if not m:
+            raise RuntimeError(f"depot 문자열에 (CODE) 패턴 없음: {depot_str}")
+        code_token = f"({m.group(1)})"
+        await self._click_el_select(1)
+        await self._pick_el_option_substr(code_token)
+
+    async def _click_el_select(self, nth: int) -> None:
+        """nth 번째 el-select 입력을 클릭하여 옵션 패널을 연다."""
+        sel = self.page.locator(".el-select").nth(nth)
+        if await sel.count() == 0:
+            raise RuntimeError(f"el-select[{nth}] 없음")
+        # 내부 input 클릭이 더 안정적
+        inner = sel.locator(".el-input__inner").first
+        if await inner.count() > 0:
+            await inner.click()
+        else:
+            await sel.click()
+        await asyncio.sleep(0.6)
+
+    async def _pick_el_option_substr(self, substr: str) -> None:
+        """현재 열려있는 옵션 패널에서 substring 매칭하는 li 를 JS evaluate 로 클릭."""
+        result = await self.page.evaluate(
+            r"""(sub) => {
+                const items = Array.from(
+                    document.querySelectorAll('.el-select-dropdown__item')
+                ).filter(el => el.offsetParent !== null);
+                const subU = sub.toUpperCase();
+                const target = items.find(
+                    el => (el.innerText || '').toUpperCase().includes(subU)
+                );
+                if (!target) return { ok: false, visible: items.length };
+                target.scrollIntoView({ block: 'center' });
+                target.click();
+                return { ok: true, text: target.innerText };
+            }""",
+            substr,
+        )
+        if not result.get("ok"):
+            raise RuntimeError(
+                f"드롭다운 옵션 '{substr}' 없음 (visible {result.get('visible')}개)"
+            )
+        logger.info("FLOR option picked: %r → %r", substr, result.get("text"))
+        await asyncio.sleep(0.8)
+
+    async def _step_next(self) -> None:
+        """Next 버튼 클릭."""
+        btn = self.page.locator("button").filter(has_text="Next").first
+        if await btn.count() == 0:
+            raise RuntimeError("Next 버튼 없음")
+        await btn.click()
+        try:
+            await self.page.wait_for_load_state("networkidle", timeout=10_000)
+        except Exception:
+            pass
+        await asyncio.sleep(1.5)
+
+    async def _step2_fill_units(self, containers: list[str]) -> None:
+        """Step2 textarea 에 컨테이너 번호 \\n 구분으로 일괄 입력."""
+        ta = self.page.locator("textarea.el-textarea__inner").first
+        if await ta.count() == 0:
+            raise RuntimeError("Unit Numbers textarea 없음")
+        await ta.fill("\n".join(containers))
+        await asyncio.sleep(0.5)
+
+    async def _parse_step3(self, results: dict, depot_str: str) -> None:
+        """Step3 사전 검증 결과 파싱.
+
+        FLOR Step3 화면엔 두 종류 테이블이 있을 수 있음:
+          - 거부 행: Unit Number / Contract / Equip Type / Reason
+          - 유효 행: Unit Number / Contract / Equip Type / Qty 등
+
+        구조 식별 휴리스틱:
+          - 행 셀 중 reason-스러운 긴 문장(>=40자) 또는 키워드(incapable/cannot/over/already 등)
+            가 있으면 거부 행으로 분류.
+          - 그 외 컨테이너 패턴(`[A-Z]{4}\\d{6,7}`) 가진 행은 유효 행.
+        """
+        data = await self.page.evaluate(
+            r"""() => {
+                const out = { invalid: [], valid: [], dump: [] };
+                const REJECT_KEYWORDS = [
+                    'incapable', 'cannot', 'over caps', 'over_caps',
+                    'already', 'reject', 'invalid', 'previously'
+                ];
+                for (const tbl of document.querySelectorAll('table')) {
+                    const rows = Array.from(tbl.querySelectorAll('tbody tr'));
+                    for (const tr of rows) {
+                        const cells = Array.from(tr.querySelectorAll('td'))
+                            .map(td => (td.innerText || '').trim());
+                        if (cells.length === 0) continue;
+                        out.dump.push(cells);
+                        const unit = cells.find(c => /^[A-Z]{4}\d{6,7}$/.test(c)) || '';
+                        if (!unit) continue;
+                        // 거부 사유 후보: 긴 문장 또는 키워드 포함
+                        const reasonCell = cells.find(c => {
+                            if (c === unit) return false;
+                            const cl = c.toLowerCase();
+                            if (c.length >= 40) return true;
+                            return REJECT_KEYWORDS.some(k => cl.includes(k));
+                        });
+                        if (reasonCell) {
+                            out.invalid.push({ unit, reason: reasonCell, cells });
+                        } else {
+                            out.valid.push({ unit, cells });
+                        }
+                    }
+                }
+                return out;
+            }"""
+        )
+
+        invalid = data.get("invalid") or []
+        valid = data.get("valid") or []
+        logger.info(
+            "FLOR Step3 parsed: invalid=%d valid=%d (depot=%s)",
+            len(invalid), len(valid), depot_str,
+        )
+        for row in (data.get("dump") or [])[:10]:
+            logger.info("FLOR Step3 row: %s", row)
+
+        # 거부행 처리: §5-3 (이미 활성 PPR), §5-4 (이전 완료) 패턴은 1차 reason 텍스트에서 탐지
+        for r in invalid:
+            unit = (r.get("unit") or "").upper()
+            reason = r.get("reason") or ""
+            if unit not in results:
+                continue
+            results[unit].update(
+                self._classify_reject(unit, reason)
+            )
+
+        # 유효행 처리: 가능 (Phase B 에서 Confirm 후 PPR 채움)
+        for r in valid:
+            unit = (r.get("unit") or "").upper()
+            if unit not in results:
+                continue
+            results[unit].update({
+                "available": True,
+                "status": "available",
+                "completed_date": None,
+                "depot": depot_str,
+                "booking_ref": None,   # Phase B 에서 채움
+                "over_caps": None,
+                "close_date": None,
+                "reason": None,
+            })
+
+    def _classify_reject(self, unit: str, reason: str) -> dict:
+        """거부 reason 텍스트를 분류 (§5-3 / §5-4 / 일반).
+
+        §5-3 이미 활성 PPR: reason 에 PPR 번호 + active/already/open 키워드 → 가능 처리
+        §5-4 이전 완료    : reason 에 closed/previously + 날짜 → completed 처리
+        그 외             : 일반 불가
+        """
+        r_lower = reason.lower()
+
+        # §5-3: 활성 PPR 추출
+        ppr_match = re.search(r"PP[RF]\d+", reason)
+        active_kw = any(k in r_lower for k in (
+            "already", "active", "open redelivery", "existing redelivery"
+        ))
+        if ppr_match and active_kw:
+            logger.info("FLOR %s: §5-3 활성 PPR 감지 → %s", unit, ppr_match.group(0))
+            return {
+                "available": True,
+                "status": "available",
+                "completed_date": None,
+                "booking_ref": ppr_match.group(0),
+                "reason": None,
+                # depot/over_caps/close_date 은 Phase B Status enrichment 에서 채움
+            }
+
+        # §5-4: 이전 완료 (날짜 패턴 검출)
+        date_match = re.search(r"(\d{4}-\d{1,2}-\d{1,2})", reason)
+        completed_kw = any(k in r_lower for k in (
+            "previously", "closed", "already redelivered", "이미 반납"
+        ))
+        if completed_kw and date_match:
+            mmdd = _to_mmdd(date_match.group(1))
+            logger.info("FLOR %s: §5-4 이전 완료 감지 → %s", unit, mmdd)
+            return {
+                "available": False,
+                "status": "completed",
+                "completed_date": mmdd,
+                "reason": "이미 반납됨 (Closed)",
+            }
+
+        # 일반 불가
+        return {
+            "available": False,
+            "status": "unavailable",
+            "completed_date": None,
+            "reason": reason or "거부 (사유 미상)",
+        }
 
     async def _search_one(self, container: str) -> dict:
         """Status 탭에서 컨테이너 한 개 검색 후 결과 행 파싱."""
@@ -475,6 +767,8 @@ class FlorScraper(BaseScraper):
         return {
             "container_no": container,
             "available": False,
+            "status": "unavailable",
+            "completed_date": None,
             "depot": None,
             "booking_ref": None,
             "over_caps": None,

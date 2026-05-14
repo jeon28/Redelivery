@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 router = APIRouter()
 
@@ -10,11 +10,18 @@ class QueryRequest(BaseModel):
     lessor: str
     region: str
     containers: List[str]
+    # FLOR Apply Redelivery: 사용자 명시 depot 옵션 문자열 (현 시점엔 프론트 UI 미구현,
+    # 향후 BUSAN/GWANGYANG 등 default 없는 Port에 대해 드롭다운으로 채워질 자리).
+    depot: Optional[str] = None
 
 
 class ContainerResult(BaseModel):
     container_no: str
     available: bool
+    # 3상태 분류. None이면 프론트가 available 불리언에서 추론 (하위호환).
+    status: Optional[Literal["available", "completed", "unavailable"]] = None
+    # 'M/D' (예: '5/13'). completed 행에서 사용. 그 외엔 None.
+    completed_date: Optional[str] = None
     depot: Optional[str] = None
     booking_ref: Optional[str] = None
     over_caps: Optional[int] = None
@@ -39,7 +46,7 @@ async def query_containers(req: QueryRequest):
         # 지원하지 않는 임대사는 Mock 데이터 반환
         results = _mock_results(req.containers)
     else:
-        results = await scraper.run(req.containers, req.region)
+        results = await scraper.run(req.containers, req.region, depot=req.depot)
 
     return QueryResponse(results=results)
 

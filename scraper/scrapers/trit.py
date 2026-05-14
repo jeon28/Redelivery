@@ -80,7 +80,9 @@ class TritScraper(BaseScraper):
     # Query                                                                #
     # ------------------------------------------------------------------ #
 
-    async def query(self, containers: list[str], region: str) -> list[dict]:
+    async def query(self, containers: list[str], region: str, depot: str | None = None) -> list[dict]:
+        # depot 인자는 향후 사용자 명시 depot용 슬롯. TRIT는 현재 미사용.
+        _ = depot
         region_info = REGION_MAP.get((region or "").upper()) or REGION_MAP.get(region or "")
         if not region_info:
             logger.error("TRIT: 지원하지 않는 region '%s'", region)
