@@ -197,10 +197,12 @@ class FlorScraper(BaseScraper):
         await asyncio.sleep(2.0)
 
         # 결과 행 추출 + 헤더로 매핑
+        # 주의: FLOR Status 테이블의 thead 에는 "Port:", "Depot:" 같은 필터 라벨이
+        # 함께 들어있어 col() 인덱스를 어긋나게 만든다. 콜론으로 끝나는 셀은 제외.
         data = await self.page.evaluate(r"""() => {
             const headers = Array.from(document.querySelectorAll('table thead th, table thead td'))
                 .map(th => (th.innerText || '').trim())
-                .filter(t => t);
+                .filter(t => t && !t.endsWith(':'));
             const rows = Array.from(document.querySelectorAll('table tbody tr'))
                 .map(tr => Array.from(tr.querySelectorAll('td')).map(td => (td.innerText || '').trim()))
                 .filter(r => r.length > 0);
@@ -209,6 +211,9 @@ class FlorScraper(BaseScraper):
 
         headers = data.get("headers") or []
         rows = data.get("rows") or []
+        logger.info("FLOR %s headers=%s", container, headers)
+        if rows:
+            logger.info("FLOR %s first row=%s", container, rows[0])
 
         if not rows:
             return {
@@ -229,11 +234,11 @@ class FlorScraper(BaseScraper):
 
         i_ref     = col("Redelivery No")
         i_status  = col("Status")
-        i_depot   = col("Depot")
         i_date    = col("Order Date")
         i_bal     = col("BAL")        # 잔여 수량 (over_caps 대응)
         i_mov     = col("MOV")
         i_qty     = col("Order Qty")
+        i_equip   = col("Equip")      # Equip Type 컬럼 (참고용)
 
         # 첫 행을 결과로 사용 (필요 시 최신순 정렬은 추후 보강)
         row = rows[0]
@@ -243,9 +248,11 @@ class FlorScraper(BaseScraper):
 
         ref    = cell(i_ref)
         status = cell(i_status)
-        depot  = cell(i_depot)
         date   = cell(i_date)
         bal_s  = cell(i_bal)
+        # FLOR Status 테이블에는 Depot 컬럼이 없음 (필터 라벨로만 존재).
+        # 상세 expand("+" 행)에서만 보이므로 기본 결과에서는 None.
+        depot: str | None = None
 
         try:
             bal = int(bal_s) if bal_s.isdigit() else None
