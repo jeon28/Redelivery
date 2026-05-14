@@ -226,22 +226,36 @@ class FlorScraper(BaseScraper):
                 "reason": "발급된 반납번호 없음 (신청 필요)",
             }
 
-        def col(keyword: str) -> int:
-            for i, h in enumerate(headers):
-                if keyword.lower() in h.lower():
-                    return i
-            return -1
-
-        i_ref     = col("Redelivery No")
-        i_status  = col("Status")
-        i_date    = col("Order Date")
-        i_bal     = col("BAL")        # 잔여 수량 (over_caps 대응)
-        i_mov     = col("MOV")
-        i_qty     = col("Order Qty")
-        i_equip   = col("Equip")      # Equip Type 컬럼 (참고용)
+        # 헤더 기반 매핑은 사이트 구조 변화에 취약함 (Port:/Depot: 필터 라벨 등).
+        # 값 자체의 패턴으로 컬럼 식별하는 헬퍼.
+        def parse_cells(cells: list) -> dict:
+            """행의 셀들에서 값 패턴으로 필드 식별."""
+            out: dict = {
+                "ref": "", "status": "", "contract": "",
+                "order_date": "", "equip_type": "",
+            }
+            for v in cells:
+                v = (v or "").strip()
+                if not v:
+                    continue
+                # PPR####### 또는 PPF#######
+                if re.match(r"^PP[RF]\d+$", v):
+                    out["ref"] = v
+                elif v.lower() in ("open", "closed", "void", "cancelled", "cancel", "pending"):
+                    out["status"] = v
+                # DF-HNGA20008, LT-HALINE-02 등
+                elif re.match(r"^[A-Z]{2,}-[A-Z]+[-\d]+[A-Z]?$", v):
+                    out["contract"] = v
+                # 2026-04-01 / 2026-04-30 형식
+                elif re.match(r"^\d{4}-\d{1,2}-\d{1,2}$", v):
+                    out["order_date"] = v
+                # 40' Dry High Cube 등
+                elif re.match(r"^\d+'\s*(Dry|Reefer|Standard|HC|High)", v, re.IGNORECASE):
+                    out["equip_type"] = v
+            return out
 
         def status_of(r: list) -> str:
-            return r[i_status].strip() if 0 <= i_status < len(r) else ""
+            return parse_cells(r).get("status", "")
 
         def is_active(r: list) -> bool:
             return "open" in status_of(r).lower()
@@ -277,12 +291,11 @@ class FlorScraper(BaseScraper):
             }
 
         row = active_rows[0]
+        parsed = parse_cells(row)
+        logger.info("FLOR %s parsed=%s", container, parsed)
 
-        def cell(i: int) -> str:
-            return row[i].strip() if 0 <= i < len(row) else ""
-
-        ref    = cell(i_ref)
-        status = cell(i_status)
+        ref    = parsed.get("ref", "")
+        status = parsed.get("status", "")
 
         # + More 클릭 → 상세 (Expiry Date, Depot Name, Open Rdlvry Qty) 추출
         details: dict = {}
@@ -302,7 +315,7 @@ class FlorScraper(BaseScraper):
         except (ValueError, TypeError):
             over_caps = None
 
-        # 가용 판정: Status가 Open 이면 반납 가능 (Open Rdlvry Qty 는 참고용)
+        # 가용 판정: Status가 Open 이면 반납 가능
         is_open = "open" in status.lower()
         available = is_open
 
@@ -316,7 +329,7 @@ class FlorScraper(BaseScraper):
                 reason = f"발급 상태: {status or '미상'}"
 
         # 유효기간 우선순위: Expiry Date > Order Date
-        date = expiry or cell(i_date)
+        date = expiry or parsed.get("order_date", "")
 
         return {
             "container_no": container,
