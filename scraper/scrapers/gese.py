@@ -332,14 +332,22 @@ class GeseScraper(BaseScraper):
             return False
 
     async def _capture_error_messages(self) -> dict[str, str]:
-        """ERROR 행 메시지 캡처. 3단계 폴백:
-        1) SAP UI5 MessageManager API (클릭 불필요, 가장 안정적)
-        2) document.body.innerText 줄 스캔 (페이지 어딘가 노출된 메시지)
-        3) View Messages 팝업 클릭 + 다이얼로그 파싱 (기존 로직)
+        """ERROR 행 메시지 캡처. 다단계 폴백:
+        1) SAP UI5 MessageManager API (클릭 불필요)
+        2) document.body.innerText 줄 스캔
+        3) ERROR row 내부 Messages 셀/링크 직접 클릭 → popover 캡처
+        4) 툴바 View Messages 버튼 클릭 → popover 캡처 (최후 시도)
+        5) 모두 실패 시 진단용 innerText[0:500] WARNING 로그
         하나라도 비어있지 않은 결과를 얻으면 즉시 반환."""
         container_re = re.compile(r"\b([A-Z]{4}\d{7})\b")
+        # popover/dialog 후보 셀렉터 — SAP UI5 v1.120 변종 포괄
+        popover_sel = ", ".join([
+            ".sapMPopover", ".sapMDialog", ".sapMResponsivePopover",
+            ".sapMMessagePopover", ".sapMMessageView",
+            '[role="dialog"]', '[role="tooltip"]', '[role="alertdialog"]',
+        ])
 
-        # 1) SAP UI5 MessageManager — 메시지 모델 직접 조회
+        # 1) SAP UI5 MessageManager
         try:
             mm_msgs: list[str] = await self.page.evaluate(
                 """() => {
@@ -365,7 +373,7 @@ class GeseScraper(BaseScraper):
         except Exception as exc:
             logger.warning("GESE MessageManager 캡처 예외: %s", exc)
 
-        # 2) 페이지 전체 innerText 줄 스캔 — active RA 패턴 한정
+        # 2) innerText 줄 스캔 — active RA 패턴 한정
         try:
             body_text: str = await self.page.evaluate(
                 "() => (document.body && document.body.innerText) || ''"
@@ -386,55 +394,143 @@ class GeseScraper(BaseScraper):
             if msg_map:
                 logger.info("GESE 메시지 캡처(innerText): %d개", len(msg_map))
                 return msg_map
-            logger.info("GESE innerText 캡처 결과 없음 — 팝업 폴백 시도")
+            logger.info("GESE innerText 캡처 결과 없음 — row 링크 폴백 시도")
         except Exception as exc:
             logger.warning("GESE innerText 캡처 예외: %s", exc)
 
-        # 3) View Messages 팝업 클릭 + 다이얼로그 파싱
-        vm_btn = self.page.locator("button").filter(has_text="View Messages").first
-        if await vm_btn.count() == 0:
-            logger.warning("GESE View Messages 버튼 없음 — 캡처 실패")
-            return {}
+        # 3) ERROR row 내부 Messages 링크 직접 클릭
         try:
-            await vm_btn.click()
-            await asyncio.sleep(1.2)
-            texts: list[str] = await self.page.evaluate(
+            link_count = await self.page.evaluate(
                 r"""() => {
-                    const sel = '.sapMPopover, .sapMDialog, [role="dialog"], [role="tooltip"]';
-                    const visible = Array.from(document.querySelectorAll(sel))
-                        .filter(e => e.offsetParent !== null);
-                    const out = new Set();
-                    for (const p of visible) {
-                        const items = p.querySelectorAll('li, .sapMLIB, .sapMSLI, .sapMText');
-                        for (const it of items) {
-                            const t = (it.innerText || '').trim();
-                            if (t.length > 5) out.add(t);
+                    const trs = Array.from(document.querySelectorAll('table tbody tr'));
+                    let count = 0;
+                    for (const tr of trs) {
+                        const cells = Array.from(tr.querySelectorAll('td'));
+                        const errIdx = cells.findIndex(td => (td.innerText || '').trim().toUpperCase() === 'ERROR');
+                        if (errIdx < 0) continue;
+                        for (let i = errIdx + 1; i < cells.length; i++) {
+                            const td = cells[i];
+                            const hasLink = td.querySelector('a, span[role="link"], button, .sapMLnk');
+                            const isMsgCell = (td.innerText || '').trim().toLowerCase() === 'messages';
+                            if (hasLink || isMsgCell) { count++; break; }
                         }
-                        const root = (p.innerText || '').trim();
-                        if (root.length > 5) out.add(root);
                     }
-                    return Array.from(out);
+                    return count;
                 }"""
             )
+            logger.info("GESE row Messages 링크 발견: %d개", link_count)
             msg_map = {}
-            for t in texts:
-                m = container_re.search(t)
-                if not m:
-                    continue
-                unit = m.group(1)
-                if unit not in msg_map or len(t) > len(msg_map[unit]):
-                    msg_map[unit] = t
-            logger.info("GESE 메시지 캡처(View Messages 팝업): %d개", len(msg_map))
-            return msg_map
+            for idx in range(link_count):
+                await self.page.evaluate(
+                    r"""(targetIdx) => {
+                        const trs = Array.from(document.querySelectorAll('table tbody tr'));
+                        let cnt = 0;
+                        for (const tr of trs) {
+                            const cells = Array.from(tr.querySelectorAll('td'));
+                            const errIdx = cells.findIndex(td => (td.innerText || '').trim().toUpperCase() === 'ERROR');
+                            if (errIdx < 0) continue;
+                            for (let i = errIdx + 1; i < cells.length; i++) {
+                                const td = cells[i];
+                                const linkEl = td.querySelector('a, span[role="link"], button, .sapMLnk');
+                                const isMsgCell = (td.innerText || '').trim().toLowerCase() === 'messages';
+                                if (linkEl || isMsgCell) {
+                                    if (cnt === targetIdx) {
+                                        const target = linkEl || td;
+                                        target.scrollIntoView({ block: 'center' });
+                                        target.click();
+                                        return true;
+                                    }
+                                    cnt++;
+                                    break;
+                                }
+                            }
+                        }
+                        return false;
+                    }""",
+                    idx,
+                )
+                await asyncio.sleep(1.2)
+                popover_texts: list[str] = await self.page.evaluate(
+                    """(sel) => {
+                        const visible = Array.from(document.querySelectorAll(sel))
+                            .filter(e => e.offsetParent !== null);
+                        return visible.map(p => (p.innerText || '').trim()).filter(Boolean);
+                    }""",
+                    popover_sel,
+                )
+                logger.info("GESE row link %d 클릭 후 popover 텍스트 %d개", idx, len(popover_texts or []))
+                for t in popover_texts or []:
+                    m = container_re.search(t)
+                    if not m:
+                        continue
+                    unit = m.group(1)
+                    if unit not in msg_map or len(t) > len(msg_map[unit]):
+                        msg_map[unit] = t
+                try:
+                    await self.page.keyboard.press("Escape")
+                    await asyncio.sleep(0.4)
+                except Exception:
+                    pass
+            if msg_map:
+                logger.info("GESE 메시지 캡처(row 링크): %d개", len(msg_map))
+                return msg_map
+            if link_count > 0:
+                logger.info("GESE row 링크 클릭했으나 캡처 0개 — 툴바 폴백 시도")
+            else:
+                logger.info("GESE row 링크 0개 — 툴바 폴백 시도")
         except Exception as exc:
-            logger.warning("GESE View Messages 팝업 캡처 예외: %s", exc)
-            return {}
-        finally:
+            logger.warning("GESE row Messages 캡처 예외: %s", exc)
+
+        # 4) 툴바 View Messages 버튼 (최후 시도)
+        vm_btn = self.page.locator("button").filter(has_text="View Messages").first
+        if await vm_btn.count() == 0:
+            logger.warning("GESE View Messages 버튼 없음")
+        else:
             try:
-                await self.page.keyboard.press("Escape")
-                await asyncio.sleep(0.4)
-            except Exception:
-                pass
+                disabled = await vm_btn.evaluate(
+                    "e => e.classList.contains('sapMBtnDisabled')"
+                )
+                logger.info("GESE 툴바 View Messages disabled=%s", disabled)
+                await vm_btn.click()
+                await asyncio.sleep(1.5)
+                popover_texts = await self.page.evaluate(
+                    """(sel) => {
+                        const visible = Array.from(document.querySelectorAll(sel))
+                            .filter(e => e.offsetParent !== null);
+                        return visible.map(p => (p.innerText || '').trim()).filter(Boolean);
+                    }""",
+                    popover_sel,
+                )
+                logger.info("GESE 툴바 클릭 후 popover 텍스트 %d개", len(popover_texts or []))
+                msg_map = {}
+                for t in popover_texts or []:
+                    m = container_re.search(t)
+                    if not m:
+                        continue
+                    unit = m.group(1)
+                    if unit not in msg_map or len(t) > len(msg_map[unit]):
+                        msg_map[unit] = t
+                try:
+                    await self.page.keyboard.press("Escape")
+                    await asyncio.sleep(0.4)
+                except Exception:
+                    pass
+                if msg_map:
+                    logger.info("GESE 메시지 캡처(툴바): %d개", len(msg_map))
+                    return msg_map
+            except Exception as exc:
+                logger.warning("GESE 툴바 View Messages 캡처 예외: %s", exc)
+
+        # 5) 진단 dump
+        try:
+            sample = await self.page.evaluate(
+                "() => ((document.body && document.body.innerText) || '').substring(0, 500)"
+            )
+            logger.warning("GESE 모든 캡처 실패. innerText[0:500]: %s",
+                           (sample or "").replace("\n", " | "))
+        except Exception:
+            pass
+        return {}
 
     async def _parse_staging_table(self) -> list[dict]:
         """Validate 후 Staging Table 행 데이터 추출."""

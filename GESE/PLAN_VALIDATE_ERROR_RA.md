@@ -153,3 +153,38 @@ Railway 배포 후 실측 응답:
 
 - ERROR 분기 RA 추출 정규식 / `available=bool(ra)` / Submit 게이트 — 그대로.
 - `_parse_staging_table` — 그대로 (팝업 보조 소스).
+
+## 7. 4차 수정 — row Messages 링크 직접 클릭 (2026-05-15)
+
+### 7.1 관찰
+
+Railway 로그:
+```
+22.948  GESE MessageManager 캡처 결과 없음 — 폴백 시도
+22.950  GESE innerText 캡처 결과 없음 — 팝업 폴백 시도
+24.635  GESE Validate 결과 1행: [('CRXU9980434', 'ERROR')]
+```
+
+3차 단계의 결과 로그(`GESE 메시지 캡처(View Messages 팝업): N개`)가 누락 → 툴바 클릭으로 popover가 안 떴거나 셀렉터 미스. 1.7초 공백은 sleep+evaluate 시간에 부합.
+
+사용자가 이미지 #1에서 누른 것은 **row 안의 "Messages" 링크** (툴바 버튼 아님). 이게 사용자 동작과 정확히 일치하는 경로.
+
+### 7.2 목표
+
+`_capture_error_messages` 3차 단계를 row Messages 링크 클릭으로 교체. 툴바 클릭은 4차 폴백으로 강등. 모두 실패하면 진단용으로 `innerText[0:500]` 한 줄 dump.
+
+### 7.3 단계
+
+1. MessageManager (기존)
+2. innerText (기존)
+3. **신규**: 각 ERROR row 내부 Messages 셀/링크 찾아 순차 클릭 → popover 텍스트 수집 (popover 셀렉터 확장: `.sapMResponsivePopover`, `.sapMMessagePopover`, `.sapMMessageView`, `[role="alertdialog"]` 추가)
+4. **강등**: 툴바 View Messages 클릭 (disabled 여부 로그 + popover 개수 로그)
+5. **신규**: 모두 실패 시 `body.innerText[0:500]` WARNING 로그 → 다음 분석 자료
+
+### 7.4 진단 로그
+
+- `GESE row Messages 링크 발견: N개`
+- `GESE row link i 클릭 후 popover 텍스트 N개`
+- `GESE 툴바 View Messages disabled=true/false`
+- `GESE 툴바 클릭 후 popover 텍스트 N개`
+- `GESE 모든 캡처 실패. innerText[0:500]: ...`
