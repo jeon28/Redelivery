@@ -14,6 +14,7 @@ import asyncio
 import logging
 
 from scrapers.base import BaseScraper
+from scrapers._completed import detect_completed
 from config.credentials import get_credential
 
 logger = logging.getLogger(__name__)
@@ -109,10 +110,21 @@ class GoldScraper(BaseScraper):
                 logger.error("GOLD process %s error: %s", cont, exc)
                 results[cont] = self._error_row(cont, "조회 실패 (예외)")
 
-        # 안전장치
+        # 안전장치 + 3상태 status 도출
+        # (_process_one 의 신규 발급 성공 dict가 status 키를 안 채우므로 일괄 도출)
         for r in results.values():
-            if not r.get("available") and not r.get("reason"):
-                r["reason"] = "조회 실패 (사유 미상)"
+            if r.get("available"):
+                r["status"] = "available"
+                r["completed_date"] = None
+            elif detect_completed("GOLD", r.get("reason") or ""):
+                r["status"] = "completed"
+                r["completed_date"] = None  # 날짜 추출은 후속 작업
+                # reason은 원본 그대로 유지 (사유 컬럼에 노출)
+            else:
+                r["status"] = "unavailable"
+                r["completed_date"] = None
+                if not r.get("reason"):
+                    r["reason"] = "조회 실패 (사유 미상)"
 
         return [
             results.get((c or "").strip().upper()) or self._error_row(c, "결과 없음")
@@ -244,6 +256,8 @@ class GoldScraper(BaseScraper):
         return {
             "container_no": (container or "").strip().upper(),
             "available": False,
+            "status": "unavailable",
+            "completed_date": None,
             "depot": None,
             "booking_ref": None,
             "over_caps": None,

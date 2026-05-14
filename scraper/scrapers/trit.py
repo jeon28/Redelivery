@@ -16,6 +16,7 @@ import logging
 import re
 
 from scrapers.base import BaseScraper
+from scrapers._completed import detect_completed
 from config.credentials import get_credential
 
 logger = logging.getLogger(__name__)
@@ -187,10 +188,22 @@ class TritScraper(BaseScraper):
         except Exception as exc:
             logger.error("TRIT query error: %s", exc)
 
-        # 안전장치
+        # 안전장치 + 3상태 status 도출
+        # (_parse_invalid_tab / Stage2 / _parse_finish_table 의 update() 호출이
+        #  status 키를 갱신하지 않으므로 최종 available + reason 기준으로 일괄 도출)
         for r in results.values():
-            if not r.get("available") and not r.get("reason"):
-                r["reason"] = "조회 실패 (사유 미상)"
+            if r.get("available"):
+                r["status"] = "available"
+                r["completed_date"] = None
+            elif detect_completed("TRIT", r.get("reason") or ""):
+                r["status"] = "completed"
+                r["completed_date"] = None  # 날짜 추출은 후속 작업
+                # reason은 원본 그대로 유지 (사유 컬럼에 노출)
+            else:
+                r["status"] = "unavailable"
+                r["completed_date"] = None
+                if not r.get("reason"):
+                    r["reason"] = "조회 실패 (사유 미상)"
 
         # 입력 순서대로 반환 (중복 입력은 같은 결과를 가리킴)
         return [
@@ -207,6 +220,8 @@ class TritScraper(BaseScraper):
         return {
             "container_no": (container or "").strip().upper(),
             "available": False,
+            "status": "unavailable",
+            "completed_date": None,
             "depot": None,
             "booking_ref": None,
             "over_caps": None,
