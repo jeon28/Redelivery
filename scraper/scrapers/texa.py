@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 REGION_MAP = {
     "INCHON": {"country": "KOREA", "city": "INCHON"},
-    "BUSAN":  {"country": "KOREA", "city": "BUSAN"},
+    "BUSAN":  {"country": "KOREA", "city": "PUSAN"},  # TEXA 사이트는 옛 표기 PUSAN
     "GWANGYANG": {"country": "KOREA", "city": "GWANGYANG"},
 }
 
