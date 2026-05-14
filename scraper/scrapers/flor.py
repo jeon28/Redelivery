@@ -329,12 +329,12 @@ class FlorScraper(BaseScraper):
             except Exception as exc:
                 logger.warning("FLOR %s expand 실패: %s", container, exc)
 
-        depot     = details.get("depot_name") or None
-        expiry    = details.get("expiry_date") or None
-        open_qty  = details.get("open_rdlvry_qty")
+        depot    = details.get("depot_name") or None
+        expiry   = details.get("expiry_date") or None
+        open_cap = details.get("open_cap")  # Contracts 테이블의 Open CAP (잔여 캡)
 
         try:
-            over_caps = int(open_qty) if open_qty and str(open_qty).isdigit() else None
+            over_caps = int(open_cap) if open_cap and str(open_cap).isdigit() else None
         except (ValueError, TypeError):
             over_caps = None
 
@@ -440,18 +440,19 @@ class FlorScraper(BaseScraper):
                 return null;
             }
 
-            // Contracts 테이블에서 Open Rdlvry Qty 추출
-            let openQty = null;
+            // Contracts 테이블에서 Open CAP 추출 (잔여 캡)
+            // 주의: "Open CAP"과 "Open Rdlvry Qty" 두 컬럼이 있으니 구분 필요.
+            let openCap = null;
             for (const tbl of document.querySelectorAll('table')) {
                 const headers = Array.from(tbl.querySelectorAll('thead th, thead td'))
                     .map(th => (th.innerText || '').trim());
-                const idx = headers.findIndex(h => /open\s*rdlvry\s*qty/i.test(h));
+                const idx = headers.findIndex(h => /^open\s*cap$/i.test(h));
                 if (idx >= 0) {
                     const firstRow = tbl.querySelector('tbody tr');
                     if (firstRow) {
                         const cells = firstRow.querySelectorAll('td');
                         if (idx < cells.length) {
-                            openQty = (cells[idx].innerText || '').trim();
+                            openCap = (cells[idx].innerText || '').trim();
                         }
                     }
                     break;
@@ -461,7 +462,7 @@ class FlorScraper(BaseScraper):
             return {
                 expiry_date: valueByLabel('Expiry Date', 'EXPIRY DATE', 'Expiry'),
                 depot_name: valueByLabel('Depot Name', 'DEPOT NAME', 'Depot'),
-                open_rdlvry_qty: openQty,
+                open_cap: openCap,
             };
         }""")
 
