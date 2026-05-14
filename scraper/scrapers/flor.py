@@ -240,11 +240,46 @@ class FlorScraper(BaseScraper):
         i_qty     = col("Order Qty")
         i_equip   = col("Equip")      # Equip Type 컬럼 (참고용)
 
-        # 첫 행을 결과로 사용 (필요 시 최신순 정렬은 추후 보강)
-        row = rows[0]
+        def status_of(r: list) -> str:
+            return r[i_status].strip() if 0 <= i_status < len(r) else ""
+
+        def is_active(r: list) -> bool:
+            return "open" in status_of(r).lower()
+
+        def is_void(r: list) -> bool:
+            return "void" in status_of(r).lower() or "cancel" in status_of(r).lower()
+
+        # 같은 컨테이너에 PPR 기록이 여러 건일 수 있음 (Open 1 + VOID 다수).
+        # 우선순위: Open(BAL>0) → Open(BAL=0/없음) → Closed → VOID(제외) → 최신.
+        def row_priority(r: list) -> int:
+            s = status_of(r).lower()
+            if "open" in s:
+                return 0
+            if "closed" in s:
+                return 2
+            if "void" in s or "cancel" in s:
+                return 99
+            return 5
+
+        candidates = sorted(rows, key=row_priority)
+        active_rows = [r for r in candidates if not is_void(r)]
+
+        if not active_rows:
+            # 모든 기록이 VOID → 활성 예약 없음. 신청 가능 상태로 안내.
+            return {
+                "container_no": container,
+                "available": False,
+                "depot": None,
+                "booking_ref": None,
+                "over_caps": None,
+                "close_date": None,
+                "reason": "활성 예약 없음 (모두 VOID) — 신청 필요",
+            }
+
+        row = active_rows[0]
 
         def cell(i: int) -> str:
-            return row[i] if 0 <= i < len(row) else ""
+            return row[i].strip() if 0 <= i < len(row) else ""
 
         ref    = cell(i_ref)
         status = cell(i_status)
