@@ -2,11 +2,18 @@ import 'server-only'
 import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import type { Office } from './users'
 
 const secretKey = process.env.SESSION_SECRET!
 const encodedKey = new TextEncoder().encode(secretKey)
 
-export async function encrypt(payload: { userId: string; expiresAt: Date }) {
+export type SessionPayload = {
+  userId: string
+  office: Office
+  expiresAt: Date
+}
+
+export async function encrypt(payload: SessionPayload) {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -25,9 +32,9 @@ export async function decrypt(session: string | undefined = '') {
   }
 }
 
-export async function createSession(userId: string) {
+export async function createSession(userId: string, office: Office) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  const session = await encrypt({ userId, expiresAt })
+  const session = await encrypt({ userId, office, expiresAt })
   const cookieStore = await cookies()
   cookieStore.set('session', session, {
     httpOnly: true,
@@ -43,12 +50,16 @@ export async function deleteSession() {
   cookieStore.delete('session')
 }
 
-export async function verifySession() {
+export async function verifySession(): Promise<{ userId: string; office: Office }> {
   const cookieStore = await cookies()
   const cookie = cookieStore.get('session')?.value
   const session = await decrypt(cookie)
   if (!session?.userId) redirect('/login')
-  return { userId: session.userId as string }
+  return {
+    userId: session.userId as string,
+    // 레거시 세션(office 누락) 호환: 인천으로 폴백
+    office: ((session.office as Office) ?? '인천'),
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────

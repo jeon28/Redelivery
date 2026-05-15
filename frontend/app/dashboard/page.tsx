@@ -5,7 +5,7 @@ import SearchForm from '@/components/SearchForm'
 import HeaderOfficeSelector from '@/components/HeaderOfficeSelector'
 
 export default async function DashboardPage() {
-  await verifySession()
+  const { office } = await verifySession()
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -34,7 +34,7 @@ export default async function DashboardPage() {
           </nav>
         </div>
         <div className="flex items-center gap-6">
-          <HeaderOfficeSelector />
+          <HeaderOfficeSelector office={office} />
           <form action={logout}>
             <button
               type="submit"
@@ -46,7 +46,7 @@ export default async function DashboardPage() {
         </div>
       </header>
       <main className="max-w-5xl mx-auto px-6 py-8">
-        <SearchForm />
+        <SearchForm office={office} />
       </main>
     </div>
   )

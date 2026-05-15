@@ -4,7 +4,9 @@ import {
   deleteSession,
   createCredentialsUnlock,
   clearCredentialsUnlock,
+  verifySession,
 } from '@/lib/session'
+import { authenticate, pinForOffice } from '@/lib/users'
 import { redirect } from 'next/navigation'
 
 export async function login(
@@ -14,11 +16,9 @@ export async function login(
   const username = formData.get('username') as string
   const password = formData.get('password') as string
 
-  if (
-    username === process.env.APP_USER_ID &&
-    password === process.env.APP_USER_PW
-  ) {
-    await createSession('admin')
+  const office = authenticate(username, password)
+  if (office) {
+    await createSession(username, office)
     redirect('/dashboard')
   }
 
@@ -35,7 +35,8 @@ export async function unlockCredentials(
   formData: FormData
 ) {
   const pin = formData.get('pin') as string
-  const expected = process.env.ADMIN_PIN
+  const { office } = await verifySession()
+  const expected = pinForOffice(office)
 
   if (!expected) {
     return { error: '관리자 PIN이 설정되지 않았습니다.' }

@@ -6,7 +6,7 @@ import UnlockForm from '@/components/UnlockForm'
 import HeaderOfficeSelector from '@/components/HeaderOfficeSelector'
 
 export default async function CredentialsUnlockPage() {
-  await verifySession()
+  const { office } = await verifySession()
 
   // 이미 잠금 해제된 상태라면 바로 관리 페이지로
   if (await verifyCredentialsUnlock()) {
@@ -40,7 +40,7 @@ export default async function CredentialsUnlockPage() {
           </nav>
         </div>
         <div className="flex items-center gap-6">
-          <HeaderOfficeSelector />
+          <HeaderOfficeSelector office={office} />
           <form action={logout}>
             <button
               type="submit"

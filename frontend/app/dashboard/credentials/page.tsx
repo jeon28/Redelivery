@@ -6,7 +6,7 @@ import CredentialsManager from '@/components/CredentialsManager'
 import HeaderOfficeSelector from '@/components/HeaderOfficeSelector'
 
 export default async function CredentialsPage() {
-  await verifySession()
+  const { office } = await verifySession()
 
   // 잠금 해제 안 된 상태라면 PIN 입력 페이지로 이동
   if (!(await verifyCredentialsUnlock())) {
@@ -40,7 +40,7 @@ export default async function CredentialsPage() {
           </nav>
         </div>
         <div className="flex items-center gap-6">
-          <HeaderOfficeSelector />
+          <HeaderOfficeSelector office={office} />
           <form action={lockCredentials}>
             <button
               type="submit"

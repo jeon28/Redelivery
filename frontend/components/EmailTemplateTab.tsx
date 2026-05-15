@@ -24,7 +24,7 @@ const PLACEHOLDERS = [
   '{containers}',
 ]
 
-export default function EmailTemplateTab() {
+export default function EmailTemplateTab({ office }: { office: string }) {
   const [templates, setTemplates] = useState<Templates>({})
   const [selected, setSelected] = useState<string>('')
   const [draft, setDraft] = useState<Template | null>(null)
@@ -36,7 +36,7 @@ export default function EmailTemplateTab() {
   } | null>(null)
 
   useEffect(() => {
-    fetch('/api/email-templates')
+    fetch(`/api/email-templates?office=${encodeURIComponent(office)}`)
       .then((r) => r.json())
       .then((d) => {
         const t: Templates = d.templates ?? {}
@@ -47,7 +47,7 @@ export default function EmailTemplateTab() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [])
+  }, [office])
 
   const switchLessor = (code: string) => {
     setSelected(code)
@@ -66,7 +66,7 @@ export default function EmailTemplateTab() {
     setMessage(null)
     try {
       const res = await fetch(
-        `/api/email-templates/${encodeURIComponent(selected)}`,
+        `/api/email-templates/${encodeURIComponent(selected)}?office=${encodeURIComponent(office)}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -79,7 +79,7 @@ export default function EmailTemplateTab() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? '저장 실패')
       setTemplates((p) => ({ ...p, [selected]: draft }))
-      setMessage({ type: 'success', text: '저장되었습니다.' })
+      setMessage({ type: 'success', text: `${office} 사무소 양식이 저장되었습니다.` })
     } catch (e: unknown) {
       setMessage({
         type: 'error',
@@ -94,7 +94,7 @@ export default function EmailTemplateTab() {
     if (!selected) return
     if (
       !confirm(
-        `${selected} 템플릿을 기본값으로 되돌리시겠습니까? 현재 변경사항이 사라집니다.`
+        `${selected} 템플릿의 ${office} 사무소 수정사항을 비우시겠습니까? 공용 기본값으로 회귀합니다.`
       )
     )
       return
@@ -102,7 +102,7 @@ export default function EmailTemplateTab() {
     setMessage(null)
     try {
       const res = await fetch(
-        `/api/email-templates/${encodeURIComponent(selected)}/reset`,
+        `/api/email-templates/${encodeURIComponent(selected)}/reset?office=${encodeURIComponent(office)}`,
         { method: 'POST', headers: { 'Content-Type': 'application/json' } }
       )
       if (!res.ok) {
@@ -110,7 +110,9 @@ export default function EmailTemplateTab() {
         throw new Error(data.error ?? '복원 실패')
       }
       // 재로드
-      const fresh = await fetch('/api/email-templates').then((r) => r.json())
+      const fresh = await fetch(
+        `/api/email-templates?office=${encodeURIComponent(office)}`
+      ).then((r) => r.json())
       const newTpls: Templates = fresh.templates ?? {}
       setTemplates(newTpls)
       setDraft(newTpls[selected])

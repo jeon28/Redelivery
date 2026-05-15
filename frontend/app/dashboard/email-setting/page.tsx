@@ -5,7 +5,7 @@ import EmailSettingTabs from '@/components/EmailSettingTabs'
 import HeaderOfficeSelector from '@/components/HeaderOfficeSelector'
 
 export default async function EmailSettingPage() {
-  await verifySession()
+  const { office } = await verifySession()
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -34,7 +34,7 @@ export default async function EmailSettingPage() {
           </nav>
         </div>
         <div className="flex items-center gap-6">
-          <HeaderOfficeSelector />
+          <HeaderOfficeSelector office={office} />
           <form action={logout}>
             <button
               type="submit"
@@ -49,11 +49,12 @@ export default async function EmailSettingPage() {
         <div className="mb-4">
           <h2 className="text-xl font-semibold text-gray-800">Email Setting</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Manage Outlook email rules and templates
+            현재 편집 중: <span className="font-semibold">{office} 사무소</span>
+            {' · '}수정 사항은 이 사무소 계정에만 적용됩니다.
           </p>
         </div>
 
-        <EmailSettingTabs />
+        <EmailSettingTabs office={office} />
       </main>
     </div>
   )

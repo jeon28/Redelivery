@@ -21,8 +21,11 @@ export async function GET(req: NextRequest) {
   if (!(await authed(req)))
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
+  const office = req.nextUrl.searchParams.get('office') ?? ''
+  const qs = office ? `?office=${encodeURIComponent(office)}` : ''
+
   try {
-    const res = await fetch(`${scraperUrl()}/email-templates`, {
+    const res = await fetch(`${scraperUrl()}/email-templates${qs}`, {
       headers: { 'X-API-Key': apiKey() },
       cache: 'no-store',
     })

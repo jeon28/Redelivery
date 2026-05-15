@@ -3,7 +3,7 @@ import { useState } from 'react'
 import RecipientRulesTab from './RecipientRulesTab'
 import EmailTemplateTab from './EmailTemplateTab'
 
-export default function EmailSettingTabs() {
+export default function EmailSettingTabs({ office }: { office: string }) {
   const [tab, setTab] = useState<'rules' | 'template'>('rules')
 
   return (
@@ -33,7 +33,11 @@ export default function EmailSettingTabs() {
         </button>
       </div>
 
-      {tab === 'rules' ? <RecipientRulesTab /> : <EmailTemplateTab />}
+      {tab === 'rules' ? (
+        <RecipientRulesTab office={office} />
+      ) : (
+        <EmailTemplateTab office={office} />
+      )}
     </>
   )
 }

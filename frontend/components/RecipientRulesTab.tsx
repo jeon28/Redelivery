@@ -11,7 +11,7 @@ type Template = {
 }
 type Templates = Record<string, Template>
 
-export default function RecipientRulesTab() {
+export default function RecipientRulesTab({ office }: { office: string }) {
   const [templates, setTemplates] = useState<Templates>({})
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<string | null>(null)  // 편집중 임대사
@@ -24,14 +24,14 @@ export default function RecipientRulesTab() {
   } | null>(null)
 
   useEffect(() => {
-    fetch('/api/email-templates')
+    fetch(`/api/email-templates?office=${encodeURIComponent(office)}`)
       .then((r) => r.json())
       .then((d) => {
         setTemplates(d.templates ?? {})
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [])
+  }, [office])
 
   const startEdit = (lessor: string) => {
     const t = templates[lessor]
@@ -52,7 +52,7 @@ export default function RecipientRulesTab() {
     setSavingKey(editing)
     try {
       const res = await fetch(
-        `/api/email-templates/${encodeURIComponent(editing)}`,
+        `/api/email-templates/${encodeURIComponent(editing)}?office=${encodeURIComponent(office)}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -70,7 +70,7 @@ export default function RecipientRulesTab() {
         } as Template,
       }))
       setEditing(null)
-      setMessage({ type: 'success', text: `${editing} 저장되었습니다.` })
+      setMessage({ type: 'success', text: `${editing} · ${office} 사무소 저장되었습니다.` })
     } catch (e: unknown) {
       setMessage({
         type: 'error',
@@ -88,7 +88,9 @@ export default function RecipientRulesTab() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-gray-500">
-        Define who receives emails per lessor. 임대사별 To/Cc 수신자를 설정합니다.
+        임대사별 To/Cc 수신자를 설정합니다. 저장 시{' '}
+        <span className="font-semibold">{office} 사무소</span>에만 적용되며,
+        빈 항목은 공용 기본값을 그대로 사용합니다.
       </p>
 
       {message && (

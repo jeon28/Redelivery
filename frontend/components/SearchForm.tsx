@@ -61,9 +61,8 @@ function homepageFor(code: string): string | null {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 사무소 / 반납지역
+// 반납지역
 // ─────────────────────────────────────────────────────────────
-const OFFICES = ['본사', '부산', '인천', '평택', '광양', '울산']
 const REGIONS = [
   { label: '부산', value: 'BUSAN' },
   { label: '인천', value: 'INCHON' },
@@ -157,11 +156,11 @@ function parseContainerLines(
 }
 
 // ─────────────────────────────────────────────────────────────
-// localStorage 헬퍼 (사무소 마지막 값 저장)
+// localStorage 헬퍼 (선사·반납지역 마지막 값 저장. 사무소는 세션 고정)
 // ─────────────────────────────────────────────────────────────
 const LS_KEY = 'redelivery_ui_state_v1'
 
-function loadUIState(): { company?: string; office?: string; region?: string } {
+function loadUIState(): { company?: string; region?: string } {
   if (typeof window === 'undefined') return {}
   try {
     return JSON.parse(localStorage.getItem(LS_KEY) ?? '{}')
@@ -181,14 +180,16 @@ function saveUIState(state: Record<string, string>) {
 // ─────────────────────────────────────────────────────────────
 // 메인 컴포넌트
 // ─────────────────────────────────────────────────────────────
-export default function SearchForm() {
+export default function SearchForm({ office }: { office: string }) {
   const companies = Object.keys(LESSOR_CATALOG)
 
   const [company, setCompany] = useState(companies[0])
   const carrierLessors = LESSOR_CATALOG[company] ?? []
   const [lessor, setLessor] = useState(carrierLessors[0]?.code ?? '')
-  const [office, setOffice] = useState('인천')
-  const [region, setRegion] = useState('INCHON')
+  // 반납지역 초기값: 로그인 사무소가 REGIONS에 있으면 그걸로, 없으면 INCHON
+  const initialRegion =
+    REGIONS.find((r) => r.label === office)?.value ?? 'INCHON'
+  const [region, setRegion] = useState(initialRegion)
   const [containerText, setContainerText] = useState('')
 
   const [results, setResults] = useState<QueryResult[] | null>(null)
@@ -197,29 +198,18 @@ export default function SearchForm() {
 
   const [templates, setTemplates] = useState<Templates>({})
 
-  // 초기 마운트: localStorage 복원 + 템플릿 로드 + 헤더 사무소 변경 이벤트 리스너
+  // 초기 마운트: localStorage 복원 + 사무소 머지된 템플릿 로드
   useEffect(() => {
     const saved = loadUIState()
     if (saved.company && LESSOR_CATALOG[saved.company]) setCompany(saved.company)
-    if (saved.office && OFFICES.includes(saved.office)) setOffice(saved.office)
     if (saved.region && REGIONS.find((r) => r.value === saved.region))
       setRegion(saved.region)
 
-    fetch('/api/email-templates')
+    fetch(`/api/email-templates?office=${encodeURIComponent(office)}`)
       .then((r) => r.json())
       .then((d) => setTemplates(d.templates ?? {}))
       .catch(() => {})
-
-    // 헤더의 사무소 드롭다운이 바뀌면 동기화
-    const onOfficeChange = (e: Event) => {
-      const detail = (e as CustomEvent<string>).detail
-      if (typeof detail === 'string' && OFFICES.includes(detail)) {
-        setOffice(detail)
-      }
-    }
-    window.addEventListener('office-change', onOfficeChange)
-    return () => window.removeEventListener('office-change', onOfficeChange)
-  }, [])
+  }, [office])
 
   // 선사 변경 시 임대사 목록 갱신
   useEffect(() => {
@@ -229,20 +219,6 @@ export default function SearchForm() {
     }
     saveUIState({ company })
   }, [company, lessor])
-
-  // 사무소 변경 시 반납지역 자동 동기화 (본사 제외)
-  useEffect(() => {
-    if (office === '본사') {
-      saveUIState({ office })
-      return
-    }
-    // 사무소명 → REGION value 매칭
-    const matched = REGIONS.find((r) => r.label === office)
-    if (matched) {
-      setRegion(matched.value)
-    }
-    saveUIState({ office })
-  }, [office])
 
   // 반납지역 변경 별도 저장
   useEffect(() => {

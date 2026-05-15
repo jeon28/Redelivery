@@ -25,10 +25,12 @@ export async function PATCH(
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
   const { lessor } = await ctx.params
+  const office = req.nextUrl.searchParams.get('office') ?? ''
+  const qs = office ? `?office=${encodeURIComponent(office)}` : ''
   const body = await req.json()
   try {
     const res = await fetch(
-      `${scraperUrl()}/email-templates/${encodeURIComponent(lessor)}`,
+      `${scraperUrl()}/email-templates/${encodeURIComponent(lessor)}${qs}`,
       {
         method: 'PATCH',
         headers: {
