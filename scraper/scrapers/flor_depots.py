@@ -16,26 +16,32 @@ from __future__ import annotations
 # label: Element UI 옵션 텍스트. 일반 포맷: "(KRPUS07) YoungJin CY (KRPUS07)"
 # region 값은 SearchForm의 REGIONS value(UN/LOCODE 영문 도시): BUSAN/INCHON/GWANGYANG/PYEONGTAEK/ULSAN
 # 인천은 기존 `PORT_DEFAULT_DEPOT` 1개를 시드값으로 두어 fallback 호환.
+# 2026-05-15 수집 (장금상선 계정으로 사이트 직접 확인). 흥아라인도 동일 가정으로 공유.
+_BUSAN: list[dict[str, str]] = [
+    {"code": "KRPUS07", "name": "YoungJin CY",                       "label": "(KRPUS07) YoungJin CY (KRPUS07)"},
+    {"code": "KRPUS10", "name": "Kukdong CY Busan",                  "label": "(KRPUS10) Kukdong CY Busan (KRPUS10)"},
+    {"code": "KRPUS11", "name": "Hanta New Port CY",                 "label": "(KRPUS11) Hanta New Port CY (KRPUS11)"},
+    {"code": "KRPUS09", "name": "Seyang New Port CY",                "label": "(KRPUS09) Seyang New Port CY (KRPUS09)"},
+    {"code": "KRPUS06", "name": "New Daewon Co., Ltd.",              "label": "(KRPUS06) New Daewon Co., Ltd. (KRPUS06)"},
+    {"code": "KRPUS03", "name": "Seyang Logistics Co.,Ltd.",         "label": "(KRPUS03) Seyang Logistics Co.,Ltd. (KRPUS03)"},
+    {"code": "KRPUS12", "name": "Seyang Logistics Ind Noksan CY",    "label": "(KRPUS12) Seyang Logistics Ind Noksan CY (KRPUS12)"},
+]
+
+_INCHON: list[dict[str, str]] = [
+    {"code": "KRINC08", "name": "The Logis New Port CY",             "label": "(KRINC08) The Logis New Port CY (KRINC08)"},
+    {"code": "KRINC06", "name": "Dong Ju World Container",           "label": "(KRINC06) Dong Ju World Container (KRINC06)"},
+    {"code": "KRINC04", "name": "SeungJin Enterprise Co., Ltd.",     "label": "(KRINC04) SeungJin Enterprise Co., Ltd. (KRINC04)"},
+]
+
+
 FLOR_DEPOTS: dict[tuple[str, str], list[dict[str, str]]] = {
-    ("장금상선", "BUSAN"):     [],
-    ("장금상선", "INCHON"):    [
-        {
-            "code": "KRINC04",
-            "name": "SeungJin Enterprise Co., Ltd.",
-            "label": "(KRINC04) SeungJin Enterprise Co., Ltd. (KRINC04)",
-        },
-    ],
+    ("장금상선", "BUSAN"):     list(_BUSAN),
+    ("장금상선", "INCHON"):    list(_INCHON),
     ("장금상선", "GWANGYANG"): [],
     ("장금상선", "PYEONGTAEK"): [],
     ("장금상선", "ULSAN"):     [],
-    ("흥아라인", "BUSAN"):     [],
-    ("흥아라인", "INCHON"):    [
-        {
-            "code": "KRINC04",
-            "name": "SeungJin Enterprise Co., Ltd.",
-            "label": "(KRINC04) SeungJin Enterprise Co., Ltd. (KRINC04)",
-        },
-    ],
+    ("흥아라인", "BUSAN"):     list(_BUSAN),
+    ("흥아라인", "INCHON"):    list(_INCHON),
     ("흥아라인", "GWANGYANG"): [],
     ("흥아라인", "PYEONGTAEK"): [],
     ("흥아라인", "ULSAN"):     [],
