@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import ResultTable, { type QueryResult } from './ResultTable'
+import DepotPickerModal from './DepotPickerModal'
 
 // ─────────────────────────────────────────────────────────────
 // 임대사 카탈로그 (헌법: 프론트 하드코딩)
@@ -199,6 +200,10 @@ export default function SearchForm({ office }: { office: string }) {
 
   const [templates, setTemplates] = useState<Templates>({})
 
+  // FLOR 전용: 반납CY(Depot) 선택 (Element UI 옵션 label 그대로 저장)
+  const [depotLabel, setDepotLabel] = useState('')
+  const [depotModalOpen, setDepotModalOpen] = useState(false)
+
   // 초기 마운트: localStorage 복원 + 사무소 머지된 템플릿 로드
   useEffect(() => {
     const saved = loadUIState()
@@ -233,6 +238,13 @@ export default function SearchForm({ office }: { office: string }) {
 
   const carrierInfo = CARRIER_CODES[company]
   const regionInfo = REGIONS.find((r) => r.value === region) ?? REGIONS[1]
+
+  // FLOR/FLOR+DFIC 임대사일 때만 Depot 선택 활성
+  const isFlor = lessor ? templateKey(lessor) === 'FLOR' : false
+  // company / region / 임대사가 바뀌면 잘못된 depot 매칭 방지를 위해 초기화
+  useEffect(() => {
+    setDepotLabel('')
+  }, [company, region, isFlor])
 
   // 컨테이너 파싱
   const containers = useMemo(
@@ -290,8 +302,7 @@ export default function SearchForm({ office }: { office: string }) {
           lessor,
           region,
           containers: containers.map((c) => c.container_no),
-          // depot: FLOR Apply Redelivery 확장 슬롯. BUSAN/GWANGYANG 등 default 없는 Port에
-          // 사용자가 직접 선택할 수 있게 향후 드롭다운 UI 추가 시 여기서 전달.
+          depot: isFlor ? depotLabel : undefined,
         }),
       })
       const data = await res.json()
@@ -385,6 +396,28 @@ export default function SearchForm({ office }: { office: string }) {
           </div>
         </div>
 
+        {/* FLOR 전용 반납CY 선택 (모달) */}
+        {isFlor && (
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-gray-700">
+              반납CY
+            </label>
+            <button
+              type="button"
+              onClick={() => setDepotModalOpen(true)}
+              className={`flex-1 text-left px-3 py-2 border rounded-md text-sm transition-colors ${
+                depotLabel
+                  ? 'border-gray-300 bg-white text-gray-800 hover:bg-gray-50'
+                  : 'border-red-300 bg-red-50 text-red-600 hover:bg-red-100'
+              }`}
+            >
+              {depotLabel
+                ? `🏭 ${depotLabel}`
+                : `🏭 ${regionInfo.label} 반납CY 미선택 — 클릭하여 선택`}
+            </button>
+          </div>
+        )}
+
         {/* 컨테이너 입력 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -417,8 +450,9 @@ export default function SearchForm({ office }: { office: string }) {
             <button
               type="button"
               onClick={handleQuery}
-              disabled={loading || isWip}
-              className="bg-slate-800 text-white px-6 py-2 rounded-md text-sm font-medium hover:bg-slate-700 disabled:opacity-50 transition-colors"
+              disabled={loading || isWip || (isFlor && !depotLabel)}
+              className="bg-slate-800 text-white px-6 py-2 rounded-md text-sm font-medium hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title={isFlor && !depotLabel ? '반납CY를 먼저 선택하세요' : undefined}
             >
               {loading ? '조회 중...' : '🔍 조회하기'}
             </button>
@@ -443,6 +477,16 @@ export default function SearchForm({ office }: { office: string }) {
 
       {/* 조회 결과 */}
       {isQueryLessor && results && <ResultTable results={results} />}
+
+      <DepotPickerModal
+        open={depotModalOpen}
+        company={company}
+        region={region}
+        regionLabel={regionInfo.label}
+        value={depotLabel}
+        onSelect={setDepotLabel}
+        onClose={() => setDepotModalOpen(false)}
+      />
     </div>
   )
 }
