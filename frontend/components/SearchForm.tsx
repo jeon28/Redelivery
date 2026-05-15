@@ -344,7 +344,7 @@ export default function SearchForm({ office }: { office: string }) {
                   href={homepageFor(lessor) as string}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:underline font-normal"
+                  className="text-xs text-gray-300 hover:underline font-bold"
                   title={`${lessor} 홈페이지로 이동`}
                 >
                   🌐 홈페이지
@@ -389,16 +389,16 @@ export default function SearchForm({ office }: { office: string }) {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             컨테이너{' '}
-            <span className="text-gray-400 font-normal">
-              (한 줄에 「번호 사이즈」, 사이즈 생략 시 45GP)
+            <span className="text-gray-300 font-normal">
+              (수량 동시 조회 가능)
             </span>
           </label>
           <textarea
             value={containerText}
             onChange={(e) => setContainerText(e.target.value)}
-            placeholder={'ABCD1234567 45GP\nEFGH8901234 22GP\nIJKL5678901'}
+            placeholder={'SKLU1234567 45GP\n메일 발송시 형식 입니다.'}
             rows={6}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-slate-500 resize-y"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-slate-500 resize-y"
           />
         </div>
 
