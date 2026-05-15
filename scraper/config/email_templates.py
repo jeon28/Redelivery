@@ -109,6 +109,14 @@ DEFAULT_TEMPLATES_FLAT: dict = {
         "subject": "[{carrier_name}] {first_container} 요청 {date}",
         "body": _BODY_KR.replace("{agent_label}", "CAI / 정준혁 담당님"),
     },
+    "MWSC": {
+        "name": "MWSC (CALT 대행, 흥아 전용)",
+        "language": "ko",
+        "to": "",
+        "cc": INTERNAL_CC,
+        "subject": "[{carrier_name}] {first_container} 요청 {date}",
+        "body": _BODY_KR.replace("{agent_label}", "MWSC / 담당자님"),
+    },
     "CARL": {
         "name": "Seacube",
         "language": "en",

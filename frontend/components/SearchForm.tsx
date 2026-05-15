@@ -31,6 +31,7 @@ const LESSOR_CATALOG: Record<string, LessorEntry[]> = {
     { code: 'BCON',       mode: 'email' },
     { code: 'CARL',       mode: 'email' },
     { code: 'BLUE',       mode: 'email' },
+    { code: 'MWSC+CALT',  mode: 'email' },
   ],
 }
 
