@@ -17,9 +17,13 @@ Status 탭 기반 헬퍼(`_search_one`, `_expand_and_extract`)는 Phase B 보조
 """
 import asyncio
 import logging
+import os
 import random
 import re
 import traceback
+from pathlib import Path
+
+from playwright.async_api import async_playwright
 
 from scrapers.base import BaseScraper
 from config.credentials import get_credential
@@ -28,6 +32,16 @@ logger = logging.getLogger(__name__)
 
 LOGIN_URL    = "https://www.florens.com/official-pc/login#/"
 REDELIV_URL  = "https://www.florens.com/func/redelivery#/"
+
+# Playwright storage_state 저장 디렉토리 (쿠키 + localStorage).
+# 회사별로 파일을 분리하여 SK/HA 세션 충돌 방지.
+# Railway Volume `/data/` 와 같은 영구 디스크에 두어야 워커 재시작 후에도 유지됨.
+FLOR_SESSION_DIR = Path(os.getenv("FLOR_SESSION_DIR", "/data"))
+
+
+def _session_file_for(company: str) -> Path:
+    suffix = {"장금상선": "SK", "흥아라인": "HA"}.get(company, "OTHER")
+    return FLOR_SESSION_DIR / f"flor_session_{suffix}.json"
 
 
 # Port → Default Depot 옵션 문자열 (사용자 명시 depot 없을 때 fallback).
@@ -66,6 +80,41 @@ class FlorScraper(BaseScraper):
     def __init__(self, company: str, lessor: str):
         super().__init__(company, lessor)
         self.cred = get_credential(company, lessor)
+        # storage_state 적용을 위해 context를 직접 보관 (base.py 는 page 만 보유)
+        self.context = None
+
+    # ------------------------------------------------------------------ #
+    # Browser start — storage_state 복원으로 로그인·캡차 빈도 최소화
+    # ------------------------------------------------------------------ #
+
+    async def start(self, headless: bool = True):
+        """저장된 storage_state 가 있으면 복원해 브라우저 컨텍스트를 만든다."""
+        browsers_path = os.getenv("PLAYWRIGHT_BROWSERS_PATH")
+        if browsers_path:
+            os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browsers_path
+
+        self._playwright = await async_playwright().start()
+        self.browser = await self._playwright.chromium.launch(
+            headless=headless,
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+            ],
+        )
+
+        sess = _session_file_for(self.company)
+        storage_arg = None
+        if sess.exists():
+            try:
+                storage_arg = str(sess)
+                logger.info("FLOR(%s): storage_state 복원 시도 %s", self.company, sess)
+            except Exception as exc:
+                logger.warning("FLOR(%s): storage_state 복원 실패: %s", self.company, exc)
+                storage_arg = None
+
+        self.context = await self.browser.new_context(storage_state=storage_arg)
+        self.page = await self.context.new_page()
 
     # ------------------------------------------------------------------ #
     # Login (슬라이드 캡차 + Sign-in)
@@ -102,6 +151,53 @@ class FlorScraper(BaseScraper):
         return True
 
     async def login(self) -> bool:
+        """
+        저장된 storage_state 가 있으면 세션 유효성부터 확인.
+        - redeliv 페이지로 곧장 진입 시 URL 이 `/login` 으로 튕기지 않으면 OK.
+        - 만료/누락이면 신규 로그인 → 성공 시 storage_state 저장.
+        """
+        sess = _session_file_for(self.company)
+        if sess.exists():
+            try:
+                await self.page.goto(
+                    REDELIV_URL, wait_until="domcontentloaded", timeout=20_000
+                )
+                try:
+                    await self.page.wait_for_load_state("networkidle", timeout=10_000)
+                except Exception:
+                    pass
+                await asyncio.sleep(1.0)
+                if "/login" not in self.page.url:
+                    logger.info(
+                        "FLOR(%s): existing session valid → skip login (%s)",
+                        self.company, self.page.url,
+                    )
+                    return True
+                logger.info(
+                    "FLOR(%s): stored session expired → fresh login (%s)",
+                    self.company, self.page.url,
+                )
+            except Exception as exc:
+                logger.info(
+                    "FLOR(%s): session check failed → fresh login: %s",
+                    self.company, exc,
+                )
+
+        ok = await self._fresh_login()
+        if ok:
+            await self._save_session()
+        return ok
+
+    async def _save_session(self) -> None:
+        sess = _session_file_for(self.company)
+        try:
+            sess.parent.mkdir(parents=True, exist_ok=True)
+            await self.context.storage_state(path=str(sess))
+            logger.info("FLOR(%s): storage_state 저장 %s", self.company, sess)
+        except Exception as exc:
+            logger.warning("FLOR(%s): storage_state 저장 실패: %s", self.company, exc)
+
+    async def _fresh_login(self) -> bool:
         try:
             await self.page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=30_000)
             try:
