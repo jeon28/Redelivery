@@ -362,11 +362,47 @@ class FlorScraper(BaseScraper):
                 pass  # 이미 활성이면 클릭 실패해도 무방
 
     async def _select_customer_id(self, cust_id: str) -> None:
-        """Step1 Customer ID 라디오 클릭 (SINOKOR / HALINE)."""
-        radio = self.page.locator(f"text={cust_id}").first
-        if await radio.count() == 0:
+        """Step1 Customer ID 라디오.
+
+        Element UI radio는 `<label class="el-radio">…<span class="el-radio__label">TEXT</span></label>`
+        구조. `<span>` 자체는 텍스트가 보여도 visibility 판정으로 Playwright click 이 timeout 됨.
+        또한 사용자에 따라 옵션이 1개라 이미 선택돼 있는 케이스가 많음 (HA → HALINE 단독).
+        → JS evaluate 로 (1) is-checked 확인 → 이미면 skip, (2) 아니면 label 클릭.
+        """
+        result = await self.page.evaluate(
+            r"""(target) => {
+                const targetU = target.toUpperCase();
+                // 1) Element UI radio
+                const labels = Array.from(document.querySelectorAll('label.el-radio, label.el-radio-button'));
+                for (const lbl of labels) {
+                    const text = (lbl.innerText || '').trim().toUpperCase();
+                    if (text === targetU || text.includes(targetU)) {
+                        const checked = lbl.classList.contains('is-checked')
+                            || lbl.classList.contains('is-active');
+                        if (!checked) lbl.click();
+                        return { ok: true, already: checked, text };
+                    }
+                }
+                // 2) Fallback: 일반 button/role=radio 텍스트 매칭
+                const all = Array.from(document.querySelectorAll('button, [role="radio"], label'));
+                for (const el of all) {
+                    if (el.offsetParent === null) continue;
+                    const text = (el.innerText || '').trim().toUpperCase();
+                    if (text === targetU) {
+                        el.click();
+                        return { ok: true, already: false, text, via: 'fallback' };
+                    }
+                }
+                return { ok: false };
+            }""",
+            cust_id,
+        )
+        if not result.get("ok"):
             raise RuntimeError(f"Customer ID '{cust_id}' 옵션 없음")
-        await radio.click()
+        logger.info(
+            "FLOR customer_id %r → %s (already=%s)",
+            cust_id, result.get("text"), result.get("already"),
+        )
         await asyncio.sleep(0.5)
 
     async def _select_port(self, port_substr: str) -> None:
