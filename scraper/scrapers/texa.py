@@ -196,29 +196,42 @@ class TexaScraper(BaseScraper):
                 "booking_ref": None,
                 "over_caps": None,
                 "close_date": None,
-                "reason": "조회 실패",
+                "reason": None,
             }
             for cno in containers
         }
 
+        # Preview 응답에서 세 case 중 하나라도 매칭됐는지 추적.
+        # 셋 다 미매칭이면 세션 만료/사이트 변경 가능성을 사용자에게 안내.
+        preview_matched = False
+
         try:
-            await self._navigate_to_redelivery()
+            try:
+                await self._navigate_to_redelivery()
+            except Exception as exc:
+                logger.error("Navigate to Request Redelivery failed: %s", exc)
+                self._fill_reason(results, "TEXA 포털 메뉴 진입 실패 (사이트 응답 지연 가능)")
+                return list(results.values())
             await asyncio.sleep(3)
 
             # ── Find the frame that holds the redelivery form ──────────
             form_frame = await self._frame_containing("Country")
             if form_frame is None:
                 logger.error("Cannot find redelivery form frame")
+                self._fill_reason(results, "반납 신청 화면 로드 실패")
                 return list(results.values())
             logger.info("Form frame: %s", form_frame.url)
 
-            # ── Fill Country dropdown ──────────────────────────────────
-            await self._select_containing(form_frame, 0, region_info["country"])
-            await asyncio.sleep(3)   # wait for ASP.NET postback → city options
-
-            # ── Fill City dropdown ─────────────────────────────────────
-            await self._select_containing(form_frame, 1, region_info["city"])
-            await asyncio.sleep(1)
+            # ── Fill Country / City dropdowns ──────────────────────────
+            try:
+                await self._select_containing(form_frame, 0, region_info["country"])
+                await asyncio.sleep(3)   # wait for ASP.NET postback → city options
+                await self._select_containing(form_frame, 1, region_info["city"])
+                await asyncio.sleep(1)
+            except Exception as exc:
+                logger.error("Region dropdown select failed: %s", exc)
+                self._fill_reason(results, "지역 선택 실패 (사이트 UI 변경 가능)")
+                return list(results.values())
 
             # ── Container IDs ─────────────────────────────────────────
             await form_frame.locator("textarea").fill("\n".join(containers))
@@ -240,6 +253,7 @@ class TexaScraper(BaseScraper):
 
             # ── Case 1: cannot be redelivered ─────────────────────────
             if "cannot be redelivered" in page_text_lower:
+                preview_matched = True
                 logger.info("Found: cannot be redelivered")
                 try:
                     # Find the first <table> that follows the heading text
@@ -267,14 +281,15 @@ class TexaScraper(BaseScraper):
                             if not eqp:
                                 continue
                             logger.info("Cannot-redeliver: eqp=%s reason=%s", eqp, reason)
-                            for cno in list(results.keys()):
-                                if cno == eqp or cno.startswith(eqp):
-                                    results[cno]["reason"] = reason
+                            match_key = self._find_result_key(results, eqp)
+                            if match_key:
+                                results[match_key]["reason"] = reason
                 except Exception as exc:
                     logger.error("Cannot-redeliver parse error: %s", exc)
 
             # ── Case 2: can be booked (new booking) ───────────────────
             if "can be booked" in page_text_lower:
+                preview_matched = True
                 logger.info("Found: can be booked")
                 checkboxes = form_frame.locator("input[type='checkbox']")
                 cb_count = await checkboxes.count()
@@ -290,16 +305,25 @@ class TexaScraper(BaseScraper):
 
             # ── Case 3: already booked ─────────────────────────────────
             if "are booked" in page_text_lower:
+                preview_matched = True
                 logger.info("Found: already booked")
                 await self._parse_booked_table(form_frame, results, region_info["city"])
 
+            if not preview_matched:
+                logger.error("Preview page matched none of the 3 known cases")
+                self._fill_reason(
+                    results,
+                    "Preview 응답 해석 불가 (세션 만료 또는 사이트 변경 의심)",
+                )
+
         except Exception as exc:
             logger.error("TEXA query error: %s", exc)
+            self._fill_reason(results, f"TEXA 조회 오류: {type(exc).__name__}")
 
-        # 불가(available=False)인데 사유가 비어 있으면 안전장치로 기본 사유 채움
+        # 어떤 테이블에도 등장하지 않은 컨테이너: 사이트에 정보 없음으로 단정
         for r in results.values():
-            if not r.get("available") and not r.get("reason"):
-                r["reason"] = "조회 실패 (사유 미상)"
+            if not r.get("available") and r["reason"] is None:
+                r["reason"] = "임대사 시스템에 해당 컨테이너 정보 없음"
 
         return list(results.values())
 
@@ -339,9 +363,10 @@ class TexaScraper(BaseScraper):
                         bk_ref = (await cells.nth(0).inner_text()).strip()
                         eqp_id = self._norm_eqp((await cells.nth(1).inner_text()).strip())
                         depot  = (await cells.nth(4).inner_text()).strip() if n > 4 else ""
-                        if eqp_id in results:
-                            container_rows.append((eqp_id, bk_ref, depot))
-                            logger.info("EqpID row: %s → %s depot=%s", eqp_id, bk_ref, depot)
+                        match_key = self._find_result_key(results, eqp_id)
+                        if match_key:
+                            container_rows.append((match_key, bk_ref, depot))
+                            logger.info("EqpID row: %s → %s depot=%s", match_key, bk_ref, depot)
             except Exception as exc:
                 logger.warning("Eqp ID table parse failed: %s", exc)
 
@@ -437,6 +462,28 @@ class TexaScraper(BaseScraper):
     def _norm_eqp(texa_id: str) -> str:
         """TEMU790765-8  →  TEMU7907658  (remove TEXA check-digit dash)."""
         return texa_id.replace("-", "")
+
+    @staticmethod
+    def _fill_reason(results: dict, reason: str) -> None:
+        """reason이 아직 비어있는 항목 전체에 동일 사유 채움."""
+        for r in results.values():
+            if r["reason"] is None:
+                r["reason"] = reason
+
+    @staticmethod
+    def _find_result_key(results: dict, eqp_id: str) -> str | None:
+        """
+        사용자 입력 키와 TEXA 반환 ID 사이의 체크디짓 누락을 양방향으로 흡수.
+        예: 입력 'TEMU790765' / TEXA 'TEMU7907658' 둘 다 매칭.
+        """
+        if not eqp_id:
+            return None
+        if eqp_id in results:
+            return eqp_id
+        for k in results:
+            if k.startswith(eqp_id) or eqp_id.startswith(k):
+                return k
+        return None
 
     async def _collect_and_visit_bookings(
         self, frame, results: dict, list_url: str
