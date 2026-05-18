@@ -1,12 +1,29 @@
 import asyncio
 import logging
+import os
 import re
+from pathlib import Path
 from urllib.parse import urljoin
+
+from playwright.async_api import async_playwright
 
 from scrapers.base import BaseScraper
 from config.credentials import get_credential
 
 logger = logging.getLogger(__name__)
+
+PORTAL_URL = "https://tex.textainer.com/Customer/CustomerMenu.aspx"
+
+# Playwright storage_state 저장 디렉토리 (쿠키 + localStorage).
+# 회사별로 파일 분리, Railway Volume `/data/` 같은 영구 디스크에 두어야
+# 워커 재시작 후에도 세션이 유지됨. FLOR와 같은 디렉토리, prefix만 다름.
+TEXA_SESSION_DIR = Path(os.getenv("TEXA_SESSION_DIR", "/data"))
+
+
+def _session_file_for(company: str) -> Path:
+    suffix = {"장금상선": "SK", "흥아라인": "HA"}.get(company, "OTHER")
+    return TEXA_SESSION_DIR / f"texa_session_{suffix}.json"
+
 
 REGION_MAP = {
     "INCHON": {"country": "KOREA", "city": "INCHON"},
@@ -32,12 +49,94 @@ class TexaScraper(BaseScraper):
     def __init__(self, company: str, lessor: str):
         super().__init__(company, lessor)
         self.cred = get_credential(company, lessor)
+        # storage_state 적용을 위해 context를 직접 보관 (base.py는 page만 보유)
+        self.context = None
+
+    # ------------------------------------------------------------------ #
+    # Browser start — storage_state 복원으로 로그인 빈도 최소화                  #
+    # ------------------------------------------------------------------ #
+
+    async def start(self, headless: bool = True):
+        """저장된 storage_state가 있으면 복원해 브라우저 컨텍스트를 만든다."""
+        browsers_path = os.getenv("PLAYWRIGHT_BROWSERS_PATH")
+        if browsers_path:
+            os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browsers_path
+
+        self._playwright = await async_playwright().start()
+        # --no-sandbox / --disable-dev-shm-usage: Chromium in Docker
+        self.browser = await self._playwright.chromium.launch(
+            headless=headless,
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+            ],
+        )
+
+        sess = _session_file_for(self.company)
+        storage_arg = str(sess) if sess.exists() else None
+        if storage_arg:
+            logger.info("TEXA(%s): storage_state 복원 시도 %s", self.company, sess)
+
+        self.context = await self.browser.new_context(storage_state=storage_arg)
+        self.page = await self.context.new_page()
 
     # ------------------------------------------------------------------ #
     # Login                                                                #
     # ------------------------------------------------------------------ #
 
     async def login(self) -> bool:
+        """
+        저장된 storage_state가 있으면 portal 직접 진입으로 유효성부터 확인.
+        - portal URL로 goto했을 때 tex.textainer.com 도메인에 머물면 OK.
+        - 만료/누락이면 _fresh_login → _save_session.
+        """
+        sess = _session_file_for(self.company)
+        if sess.exists():
+            try:
+                await self.page.goto(
+                    PORTAL_URL, wait_until="domcontentloaded", timeout=20_000
+                )
+                # 짧은 대기 후 URL 도메인 확인
+                try:
+                    await self.page.wait_for_function(
+                        "window.location.href.includes('tex.textainer.com')",
+                        timeout=5_000,
+                    )
+                except Exception:
+                    pass
+                if "tex.textainer.com" in self.page.url:
+                    await asyncio.sleep(2)  # frameset 안정화
+                    logger.info(
+                        "TEXA(%s): existing session valid → skip login (%s)",
+                        self.company, self.page.url,
+                    )
+                    return True
+                logger.info(
+                    "TEXA(%s): stored session expired → fresh login (%s)",
+                    self.company, self.page.url,
+                )
+            except Exception as exc:
+                logger.info(
+                    "TEXA(%s): session check failed → fresh login: %s",
+                    self.company, exc,
+                )
+
+        ok = await self._fresh_login()
+        if ok:
+            await self._save_session()
+        return ok
+
+    async def _save_session(self) -> None:
+        sess = _session_file_for(self.company)
+        try:
+            sess.parent.mkdir(parents=True, exist_ok=True)
+            await self.context.storage_state(path=str(sess))
+            logger.info("TEXA(%s): storage_state 저장 %s", self.company, sess)
+        except Exception as exc:
+            logger.warning("TEXA(%s): storage_state 저장 실패: %s", self.company, exc)
+
+    async def _fresh_login(self) -> bool:
         try:
             await self.page.goto(
                 "https://www.textainer.com",
@@ -70,11 +169,11 @@ class TexaScraper(BaseScraper):
             )
             await asyncio.sleep(3)  # Give frameset frames time to settle
 
-            logger.info("TEXA login OK: %s", self.page.url)
+            logger.info("TEXA fresh login OK: %s", self.page.url)
             return True
 
         except Exception as exc:
-            logger.error("TEXA login failed: %s", exc)
+            logger.error("TEXA fresh login failed: %s", exc)
             return False
 
     # ------------------------------------------------------------------ #
