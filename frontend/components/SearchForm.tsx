@@ -260,7 +260,7 @@ export default function SearchForm({ office }: { office: string }) {
   const tpl = templates[tplKey]
 
   const mailto = useMemo(() => {
-    if (!tpl || containers.length === 0) return ''
+    if (!tpl || !tpl.subject || !tpl.body || containers.length === 0) return ''
     const { subject, body } = renderTemplate(tpl, {
       carrier_name: company,
       carrier_code: carrierInfo.code,
@@ -476,7 +476,15 @@ export default function SearchForm({ office }: { office: string }) {
       </div>
 
       {/* 조회 결과 */}
-      {isQueryLessor && results && <ResultTable results={results} />}
+      {isQueryLessor && results && (
+        <ResultTable
+          results={results}
+          company={company}
+          lessor={lessor}
+          region={region}
+          onResultsChange={setResults}
+        />
+      )}
 
       <DepotPickerModal
         open={depotModalOpen}

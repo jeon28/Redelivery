@@ -584,6 +584,205 @@ class TexaScraper(BaseScraper):
                 return k
         return None
 
+    # ------------------------------------------------------------------ #
+    # Cancel flow (ANALYSIS.md "취소(Cancel) 흐름" 그대로 구현)            #
+    # ------------------------------------------------------------------ #
+
+    async def cancel(self, items: list[dict], region: str) -> list[dict]:
+        region_info = REGION_MAP.get(region, REGION_MAP["INCHON"])
+
+        # booking_ref 별 그룹핑 (입력 순서 보존을 위해 별도 order 리스트 유지)
+        groups: dict[str, list[str]] = {}
+        order: list[tuple[str, str]] = []
+        for it in items:
+            cn = it["container_no"]
+            bk = it["booking_ref"]
+            groups.setdefault(bk, []).append(cn)
+            order.append((cn, bk))
+
+        outcomes: dict[tuple[str, str], tuple[bool, str | None]] = {}
+
+        for bk_ref, containers in groups.items():
+            try:
+                group_outcome = await self._cancel_group(region_info, bk_ref, containers)
+            except Exception as exc:
+                logger.error("Cancel group %s error: %s", bk_ref, exc)
+                group_outcome = {cn: (False, f"오류: {exc}") for cn in containers}
+            for cn in containers:
+                outcomes[(cn, bk_ref)] = group_outcome.get(cn, (False, "처리 결과 미확인"))
+
+        out: list[dict] = []
+        for cn, bk in order:
+            ok, reason = outcomes[(cn, bk)]
+            out.append({
+                "container_no": cn,
+                "booking_ref": bk,
+                "cancelled": ok,
+                "reason": None if ok else reason,
+            })
+        return out
+
+    async def _cancel_group(
+        self, region_info: dict, bk_ref: str, containers: list[str]
+    ) -> dict[str, tuple[bool, str | None]]:
+        """단일 booking_ref 그룹을 1회 Preview → 체크 → X → Yes 로 처리."""
+        await self._navigate_to_redelivery()
+        await asyncio.sleep(3)
+
+        form_frame = await self._frame_containing("Country")
+        if form_frame is None:
+            return {cn: (False, "폼 화면 진입 실패") for cn in containers}
+
+        await self._select_containing(form_frame, 0, region_info["country"])
+        await asyncio.sleep(3)
+        await self._select_containing(form_frame, 1, region_info["city"])
+        await asyncio.sleep(1)
+
+        await form_frame.locator("textarea").fill("\n".join(containers))
+
+        eq_radio = form_frame.get_by_label("Equipment Query")
+        if await eq_radio.count() > 0:
+            await eq_radio.check()
+
+        logger.info("Cancel[%s]: Preview…", bk_ref)
+        await form_frame.get_by_role("button", name="Preview").click()
+        await asyncio.sleep(5)
+
+        page_text_lower = (await form_frame.inner_text("body")).lower()
+        if "can be deleted" not in page_text_lower:
+            logger.warning("Cancel[%s]: 'Can be deleted' 패널 미노출", bk_ref)
+            return {cn: (False, "이미 취소되었거나 예약 없음") for cn in containers}
+
+        panel_heading = form_frame.locator("text=Containers are booked").first
+        panel_table = panel_heading.locator("xpath=following::table[1]")
+        if await panel_table.count() == 0:
+            return {cn: (False, "취소 패널 테이블 미발견") for cn in containers}
+
+        norm_to_orig = {self._norm_eqp(cn): cn for cn in containers}
+        matched: set[str] = set()
+
+        rows = panel_table.locator("tr")
+        row_count = await rows.count()
+        for i in range(row_count):
+            cells = rows.nth(i).locator("td")
+            if await cells.count() < 2:
+                continue
+            row_bk = (await cells.nth(0).inner_text()).strip()
+            row_eqp = self._norm_eqp((await cells.nth(1).inner_text()).strip())
+            if row_bk != bk_ref or row_eqp not in norm_to_orig:
+                continue
+            row_cb = rows.nth(i).locator("input[type='checkbox']")
+            if await row_cb.count() == 0:
+                continue
+            await row_cb.first.check()
+            matched.add(norm_to_orig[row_eqp])
+            logger.info("Cancel[%s]: 행 체크 Eqp=%s", bk_ref, row_eqp)
+
+        if not matched:
+            return {cn: (False, "사이트에서 해당 컨테이너 행 미발견") for cn in containers}
+
+        if not await self._click_delete_x(form_frame, panel_table):
+            return {cn: (False, "삭제(X) 버튼 미발견") for cn in containers}
+        await asyncio.sleep(1)
+
+        if not await self._click_confirm_yes(form_frame):
+            return {cn: (False, "확인 다이얼로그 처리 실패") for cn in containers}
+        await asyncio.sleep(5)
+
+        return await self._verify_cancel_result(
+            form_frame, bk_ref, containers, matched, norm_to_orig
+        )
+
+    async def _click_delete_x(self, frame, panel_table) -> bool:
+        """패널 우하단 빨간 X(삭제) 버튼 클릭. 다양한 셀렉터를 순차 시도."""
+        candidates = [
+            panel_table.locator("img[src*='delete' i]"),
+            panel_table.locator("img[src*='cancel' i]"),
+            panel_table.locator("img[src*='_x' i]"),
+            panel_table.locator("input[type='image']"),
+            panel_table.locator("a[onclick*='delete' i]"),
+            panel_table.locator("a[onclick*='remove' i]"),
+            frame.locator("img[title='Delete']"),
+            frame.locator("img[alt*='Delete' i]"),
+            frame.locator("input[type='image'][src*='delete' i]"),
+        ]
+        for loc in candidates:
+            try:
+                if await loc.count() > 0:
+                    await loc.first.click()
+                    logger.info("Cancel: X(delete) 버튼 클릭")
+                    return True
+            except Exception as exc:
+                logger.debug("X locator 시도 실패: %s", exc)
+        return False
+
+    async def _click_confirm_yes(self, frame) -> bool:
+        """in-page Confirm Box 의 [Yes] 버튼 클릭."""
+        candidates = [
+            frame.get_by_role("button", name="Yes"),
+            frame.locator("input[type='button'][value='Yes']"),
+            frame.locator("input[type='submit'][value='Yes']"),
+            frame.locator("button:has-text('Yes')"),
+            frame.locator("a:has-text('Yes')"),
+        ]
+        for loc in candidates:
+            try:
+                if await loc.count() > 0:
+                    await loc.first.click()
+                    logger.info("Cancel: Confirm [Yes] 클릭")
+                    return True
+            except Exception as exc:
+                logger.debug("Yes locator 시도 실패: %s", exc)
+        return False
+
+    async def _verify_cancel_result(
+        self,
+        frame,
+        bk_ref: str,
+        containers: list[str],
+        matched: set[str],
+        norm_to_orig: dict[str, str],
+    ) -> dict[str, tuple[bool, str | None]]:
+        """취소 직후 화면을 재검사해 컨테이너별 성공/실패 판정."""
+        body_text = (await frame.inner_text("body")).lower()
+        outcome: dict[str, tuple[bool, str | None]] = {}
+
+        if "can be booked" in body_text and "can be deleted" not in body_text:
+            for cn in containers:
+                outcome[cn] = (True, None) if cn in matched else (False, "사이트에서 해당 컨테이너 행 미발견")
+            logger.info("Cancel[%s]: 전체 성공 (can be booked 전환)", bk_ref)
+            return outcome
+
+        if "can be deleted" in body_text:
+            remaining: set[str] = set()
+            try:
+                heading = frame.locator("text=Containers are booked").first
+                table = heading.locator("xpath=following::table[1]")
+                rows = table.locator("tr")
+                row_count = await rows.count()
+                for i in range(row_count):
+                    cells = rows.nth(i).locator("td")
+                    if await cells.count() < 2:
+                        continue
+                    row_eqp = self._norm_eqp((await cells.nth(1).inner_text()).strip())
+                    if row_eqp in norm_to_orig:
+                        remaining.add(norm_to_orig[row_eqp])
+            except Exception as exc:
+                logger.warning("Cancel[%s]: 잔존 행 스캔 실패: %s", bk_ref, exc)
+
+            for cn in containers:
+                if cn not in matched:
+                    outcome[cn] = (False, "사이트에서 해당 컨테이너 행 미발견")
+                elif cn in remaining:
+                    outcome[cn] = (False, "사이트에서 취소되지 않음")
+                else:
+                    outcome[cn] = (True, None)
+            logger.info("Cancel[%s]: 부분 결과 — 잔존 %s", bk_ref, remaining)
+            return outcome
+
+        logger.warning("Cancel[%s]: 결과 화면 판정 불가", bk_ref)
+        return {cn: (False, "취소 결과 확인 불가") for cn in containers}
+
     async def _collect_and_visit_bookings(
         self, frame, results: dict, list_url: str
     ):

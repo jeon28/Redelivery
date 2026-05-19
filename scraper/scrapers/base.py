@@ -53,6 +53,10 @@ class BaseScraper(ABC):
     async def query(self, containers: list[str], region: str, depot: Optional[str] = None) -> list[dict]:
         pass
 
+    async def cancel(self, items: list[dict], region: str) -> list[dict]:
+        # 미지원 임대사는 NotImplementedError → 라우터가 501로 변환.
+        raise NotImplementedError(f"{self.lessor} cancel not implemented")
+
     async def run(
         self,
         containers: list[str],
@@ -65,6 +69,20 @@ class BaseScraper(ABC):
             if not await self.login():
                 raise RuntimeError(f"{self.lessor} 로그인 실패")
             return await self.query(containers, region, depot)
+        finally:
+            await self.close()
+
+    async def run_cancel(
+        self,
+        items: list[dict],
+        region: str,
+        headless: bool = True,
+    ) -> list[dict]:
+        try:
+            await self.start(headless=headless)
+            if not await self.login():
+                raise RuntimeError(f"{self.lessor} 로그인 실패")
+            return await self.cancel(items, region)
         finally:
             await self.close()
 

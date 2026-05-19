@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>TEXA 반납 취소(Cancel) 기능 개발 계획 (개정 2차)</title>
+<style>
+  :root {
+    --fg: #1f2937;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --bg: #ffffff;
+    --bg-soft: #f9fafb;
+    --accent: #2563eb;
+    --warn-bg: #fef3c7;
+    --warn-border: #f59e0b;
+    --ok-bg: #dcfce7;
+    --ok-border: #16a34a;
+    --code-bg: #f3f4f6;
+    --danger: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", "Noto Sans KR", sans-serif;
+    color: var(--fg);
+    background: var(--bg);
+    line-height: 1.65;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 24px 80px; }
+  header.doc-head {
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 16px;
+    margin-bottom: 28px;
+  }
+  header.doc-head h1 { margin: 0 0 8px; font-size: 26px; }
+  header.doc-head .meta { color: var(--muted); font-size: 13px; }
+  header.doc-head .meta span + span::before { content: " · "; }
+  .status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--ok-bg);
+    border: 1px solid var(--ok-border);
+    border-radius: 12px;
+    font-size: 12px;
+    color: #14532d;
+    font-weight: 600;
+  }
+  .decision-box {
+    background: var(--ok-bg);
+    border: 1px solid var(--ok-border);
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 16px 0 28px;
+  }
+  .decision-box h2 {
+    margin: 0 0 8px;
+    border: none;
+    padding: 0;
+    font-size: 15px;
+    color: #14532d;
+  }
+  h2 {
+    margin-top: 36px;
+    margin-bottom: 12px;
+    font-size: 19px;
+    border-left: 4px solid var(--accent);
+    padding-left: 10px;
+  }
+  h3 {
+    margin-top: 20px;
+    margin-bottom: 8px;
+    font-size: 15px;
+    color: #111827;
+  }
+  p, li { font-size: 14.5px; }
+  ul, ol { padding-left: 22px; }
+  li { margin-bottom: 4px; }
+  code, pre, .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; font-size: 13px; }
+  pre {
+    background: var(--code-bg);
+    padding: 14px 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0 16px;
+    font-size: 14px;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--bg-soft); font-weight: 600; }
+  .callout {
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    background: var(--bg-soft);
+    padding: 12px 14px;
+    border-radius: 4px;
+    margin: 12px 0;
+    font-size: 14px;
+  }
+  .callout.warn { border-left-color: var(--warn-border); background: var(--warn-bg); }
+  .q-list li { margin-bottom: 6px; }
+  .q-list .qid {
+    display: inline-block;
+    min-width: 40px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .q-list .qid.done { color: #14532d; }
+  .q-list .qid.todo { color: var(--warn-border); }
+  .toc {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin-bottom: 28px;
+  }
+  .toc h2 {
+    margin: 0 0 8px;
+    border: none;
+    padding: 0;
+    font-size: 14px;
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .toc ol { margin: 0; padding-left: 22px; font-size: 14px; }
+  .toc a { color: var(--fg); text-decoration: none; }
+  .toc a:hover { color: var(--accent); text-decoration: underline; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+  footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .mockup {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    padding: 0;
+    margin: 12px 0;
+    overflow: hidden;
+    font-size: 13px;
+  }
+  .mockup-bar {
+    background: var(--bg-soft);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .mockup table { margin: 0; }
+  .mockup th, .mockup td { border-left: none; border-right: none; }
+  .mockup .row-disabled { color: var(--muted); background: var(--bg-soft); }
+  .modal-mock {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    padding: 18px 20px;
+    width: 380px;
+    margin: 12px 0;
+    font-size: 14px;
+  }
+  .modal-mock .title { font-weight: 600; margin-bottom: 8px; }
+  .modal-mock .actions {
+    margin-top: 14px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .btn {
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 4px;
+    padding: 5px 12px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .site-flow {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 12px 0;
+  }
+  .site-flow .step {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    background: var(--bg-soft);
+    font-size: 13px;
+  }
+  .site-flow .step .num {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 12px;
+    padding: 1px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .site-flow .step h4 { margin: 0 0 4px; font-size: 14px; }
+  .site-flow .step p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="doc-head">
+    <h1>TEXA 반납 취소(Cancel) 기능 개발 계획 <span style="font-weight: 400; color: var(--muted);">(개정 2차 — 사이트 캡처 검증 반영)</span></h1>
+    <div class="meta">
+      <span>작성일 2026-05-18</span>
+      <span><span class="status-badge">사이트 분석 완료 · 최종 합의 단계 · 코딩 미시작</span></span>
+      <span>범위: TEXA 우선</span>
+    </div>
+  </header>
+
+  <div class="decision-box">
+    <h2>0. 사용자 1차 결정 (2026-05-18) — 사이트 캡처로 정합 검증 완료</h2>
+    <table>
+      <tr><th style="width: 30%;">취소 단위</th><td><strong>컨테이너 1개 단위</strong> (다중 선택 가능) — 사이트도 동일하게 행별 체크박스 제공</td></tr>
+      <tr><th>Move/사용 완료 컨테이너</th><td><strong>취소 불가</strong> (서버에서 사전 차단)</td></tr>
+      <tr><th>트리거 UI</th><td><strong>결과 조회 화면(ResultTable)의 행별 체크박스</strong>로 선택</td></tr>
+      <tr><th>확인 팝업</th><td>클릭 시 <code>"승인번호 *** 을 취소합니다"</code> 확인 모달 → 확인 후 실행</td></tr>
+    </table>
+  </div>
+
+  <nav class="toc">
+    <h2>목차</h2>
+    <ol>
+      <li><a href="#s1">목표</a></li>
+      <li><a href="#s2">사이트 측 동작 (캡처 검증)</a></li>
+      <li><a href="#s3">입력/식별 (확정)</a></li>
+      <li><a href="#s4">아키텍처 (의도)</a></li>
+      <li><a href="#s5">응답 모델 (의도)</a></li>
+      <li><a href="#s6">TEXA 스크래퍼 구현 흐름 (확정)</a></li>
+      <li><a href="#s7">프론트엔드 변경 (의도) + UI 목업</a></li>
+      <li><a href="#s8">안전장치</a></li>
+      <li><a href="#s9">테스트 계획</a></li>
+      <li><a href="#s10">작업 순서</a></li>
+      <li><a href="#s11">타 임대사 분석 (병행)</a></li>
+    </ol>
+  </nav>
+
+  <section id="s1">
+    <h2>1. 목표</h2>
+    <p>
+      이미 발급된 TEXA 반납 예약(Booking Reference)에 묶인 컨테이너 중
+      <strong>사용자가 결과 화면에서 체크한 컨테이너</strong>들을 사이트 자동화로 취소한다.
+      현재 <code>/query</code>가 발급/조회까지만 처리하므로, 잘못 잡힌 예약을 사람이 사이트에
+      직접 들어가 지우는 흐름을 자동화한다.
+    </p>
+  </section>
+
+  <section id="s2">
+    <h2>2. 사이트 측 동작 (캡처 검증 완료, 2026-05-18)</h2>
+    <p>상세 흐름은 <code>TEXA/ANALYSIS.md</code> 의 "취소(Cancel) 흐름" 섹션 참고. 핵심 요약:</p>
+
+    <table>
+      <thead>
+        <tr><th style="width: 10%;">항목</th><th style="width: 25%;">질문</th><th>결과</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="q-list"><span class="qid done">Q1 ✓</span></span></td>
+          <td>취소 UI 위치</td>
+          <td>Preview 결과의 <strong>"Containers are booked (Can be deleted)"</strong> 테이블 — 행별 체크박스 + 우하단 빨간 ✗ 버튼</td>
+        </tr>
+        <tr>
+          <td><span class="q-list"><span class="qid done">Q2′ ✓</span></span></td>
+          <td>컨테이너 단위 부분 취소</td>
+          <td><strong>지원</strong> (행마다 체크박스, 동일 Bk Ref 안에서도 부분 선택 가능)</td>
+        </tr>
+        <tr>
+          <td><span class="q-list"><span class="qid done">Q3 ✓</span></span></td>
+          <td>확인 다이얼로그</td>
+          <td>in-page <strong>Confirm Box</strong>("Are you sure you want to delete the containers you selected?" / Yes·No) — HTML 모달이므로 Playwright <code>dialog.accept()</code> 아님. <strong>Yes 버튼 직접 클릭</strong></td>
+        </tr>
+        <tr>
+          <td><span class="q-list"><span class="qid todo">Q4 ⚠</span></span></td>
+          <td>이메일 자동 발송</td>
+          <td><strong>미확정</strong> — 첫 실 운영 시 확인 (Book 과 동일 패턴 가정)</td>
+        </tr>
+        <tr>
+          <td><span class="q-list"><span class="qid done">Q5 ✓</span></span></td>
+          <td>Move 완료 컨테이너</td>
+          <td>취소 불가, 서버에서 사전 차단</td>
+        </tr>
+        <tr>
+          <td>—</td>
+          <td>취소 성공 시그널</td>
+          <td>Yes 클릭 후 동일 컨테이너로 Preview 자동 재실행 → <strong>"Containers can be booked"</strong> 패널로 전환</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>사이트 동작 3단계 (캡처 기반)</h3>
+    <div class="site-flow">
+      <div class="step">
+        <span class="num">1</span>
+        <h4>Preview 결과</h4>
+        <p>"Containers are booked (Can be deleted)" 패널 — 행별 체크박스 + 우하단 빨간 ✗ 버튼.</p>
+      </div>
+      <div class="step">
+        <span class="num">2</span>
+        <h4>체크 + ✗ → Confirm Box</h4>
+        <p>"Are you sure you want to delete the containers you selected?" — Yes / No (in-page HTML 모달).</p>
+      </div>
+      <div class="step">
+        <span class="num">3</span>
+        <h4>취소 완료</h4>
+        <p>화면이 자동으로 "Containers can be booked" 결과로 전환 (Caps Left +1).</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>정합 확인:</strong> 사이트가 컨테이너 단위 부분 취소(Q2′=O)를 지원하므로,
+      사용자가 결정한 "컨테이너 1개 단위 UX" 와 사이트 동작이 그대로 매칭됨. 운영 정책 재합의 불필요.
+    </div>
+  </section>
+
+  <section id="s3">
+    <h2>3. 입력 / 식별 (확정)</h2>
+    <p>프론트는 <strong>컨테이너 다건</strong>을 한 번에 요청으로 보낸다. 서버는 booking_ref 단위로 그룹핑해 사이트 자동화를 수행한다.</p>
+    <h3>요청 페이로드</h3>
+<pre>POST /cancel
+{
+  "company": "SK",
+  "lessor":  "TEXA",
+  "region":  "INCHON",
+  "items": [
+    { "container_no": "TEMU0013087", "booking_ref": "TKE6E25" },
+    { "container_no": "TCNU7654321", "booking_ref": "TKE6E03" }
+  ]
+}</pre>
+    <ul>
+      <li>프론트는 ResultTable의 현재 행 정보를 그대로 전달하므로 <code>booking_ref</code>가 함께 들어온다(서버 재조회 불필요).</li>
+      <li>동일 <code>booking_ref</code>가 여러 행에 걸쳐 있으면 서버에서 자동 그룹핑 → 한 번의 Preview/✗ 클릭으로 일괄 처리.</li>
+    </ul>
+  </section>
+
+  <section id="s4">
+    <h2>4. 아키텍처 (의도)</h2>
+<pre>[Frontend ResultTable]
+    └─ 행마다 체크박스 (booking_ref 있고 status="available" 인 행에만 노출)
+        └─ 하단 "선택 항목 취소" 버튼
+            ↓ 모달: "승인번호 TKE6E25 을 취소합니다. 진행할까요?" (확인/취소)
+            ↓ POST /cancel { company, lessor, region, items }
+[FastAPI routers/cancel.py]   ← 신규 라우터
+            ↓
+[scrapers/base.py]  BaseScraper.cancel(...)   (추상 메서드, 미구현 임대사는 NotImplementedError)
+            ↓
+[scrapers/texa.py]  TexaScraper.cancel(...)   ← 이번 작업 범위</pre>
+
+    <h3>합의 포인트 (남은 디테일)</h3>
+    <ul class="q-list">
+      <li><span class="qid">D1</span> 라우터 신규 분리 — <code>routers/cancel.py</code>로 분리 (선호).</li>
+      <li><span class="qid">D2</span> <code>BaseScraper.cancel</code> 시그니처 — <code>async def cancel(self, items: list[CancelItem], region: str) -&gt; list[CancelResult]</code></li>
+      <li><span class="qid">D3</span> 응답 모델 — 아래 §5 참고.</li>
+    </ul>
+  </section>
+
+  <section id="s5">
+    <h2>5. 응답 모델 (의도)</h2>
+<pre>{
+  "results": [
+    {
+      "container_no": "TEMU0013087",
+      "booking_ref":  "TKE6E25",
+      "cancelled":    true,
+      "reason":       null
+    },
+    {
+      "container_no": "TCNU0000000",
+      "booking_ref":  "TKE6E03",
+      "cancelled":    false,
+      "reason":       "이미 Move 완료 — 취소 불가"
+    }
+  ]
+}</pre>
+    <ul>
+      <li>한 건이 실패해도 다른 건은 계속 시도 (부분 성공 허용).</li>
+      <li><code>reason</code>은 한국어로 사용자 화면 표시용.</li>
+    </ul>
+  </section>
+
+  <section id="s6">
+    <h2>6. TEXA 스크래퍼 구현 흐름 (확정)</h2>
+<pre>1. login()
+2. _navigate_to_redelivery()
+3. items 를 (region, booking_ref) 로 그룹핑
+
+4. 그룹별로 1회 처리:
+   a. Country/City 드롭다운 선택 (region 사용)
+   b. Container ID textarea 에 그룹 내 모든 container 입력
+   c. Equipment Query 라디오 체크 → Preview 클릭
+   d. "Containers are booked (Can be deleted)" 패널 대기
+   e. 패널 테이블에서 (Bk Ref, Eqp ID) 매칭 행의 행별 체크박스 체크
+      ※ Eqp ID 의 dash 차이는 _norm_eqp 로 정규화 비교
+   f. 우하단 빨간 ✗ 버튼 클릭
+   g. Confirm Box 의 [Yes] 버튼 클릭
+      (브라우저 dialog 가 아닌 HTML 모달 — locator 로 텍스트 매칭)
+   h. 페이지 갱신 대기 후 결과 파싱:
+        - "can be booked" 패널이 보이면 → 그룹 전체 취소 성공
+        - "are booked (Can be deleted)" 가 그대로면 → 매칭되지 않은 row 만 잔존
+          → 잔존 행에 들어있는 컨테이너만 실패로 마킹
+   i. 그룹 다음으로 이동 (다음 그룹은 다시 Redelivery Request 페이지로 복귀 후 a~h 반복)
+
+5. 결과 list[dict] 반환 (item 입력 순서 보존)</pre>
+
+    <h3>구현 세부</h3>
+    <ul>
+      <li>같은 <code>booking_ref</code>의 다중 컨테이너는 한 번의 Preview/✗ 클릭으로 일괄 처리해 사이트 부하·시간 최소화.</li>
+      <li>서로 다른 <code>booking_ref</code> 그룹 사이에는 Redelivery Request 페이지로 다시 진입 (textarea 새로 채우기).</li>
+      <li>Move 완료 컨테이너는 <code>/cancel</code> 진입 시 서버에서 이미 차단되므로, 스크래퍼는 들어온 item 만 그대로 처리.</li>
+      <li>Confirm Box 의 Yes 버튼 셀렉터는 first run 시 DOM 캡처해 정확한 locator 확정 (텍스트 매칭 우선).</li>
+    </ul>
+  </section>
+
+  <section id="s7">
+    <h2>7. 프론트엔드 변경 (의도) + UI 목업</h2>
+    <ul>
+      <li><strong>체크박스 컬럼 추가</strong> — <code>available === true &amp;&amp; booking_ref != null</code>인 행에만 체크박스 렌더.</li>
+      <li><strong>선택 카운터 + 액션 바</strong> — "N개 선택됨 / [선택 항목 취소]" 버튼을 테이블 상단 또는 하단에 표시.</li>
+      <li><strong>확인 모달 문구</strong>
+        <ul>
+          <li>1건: <code>"승인번호 TKE6E25 을 취소합니다. 진행할까요?"</code></li>
+          <li>N건(동일 ref): <code>"승인번호 TKE6E25 의 컨테이너 N개를 취소합니다. 진행할까요?"</code></li>
+          <li>N건(다중 ref): <code>"승인번호 TKE6E25 외 M건을 취소합니다. 진행할까요?"</code></li>
+        </ul>
+      </li>
+      <li><strong>확인 시</strong> — <code>/cancel</code> 호출, 응답에 따라 행 상태 갱신(취소 성공 행은 회색 처리 또는 제거, 실패 행은 사유 표시).</li>
+    </ul>
+
+    <h3>UI 목업 — ResultTable</h3>
+    <div class="mockup">
+      <div class="mockup-bar">조회 결과 · 총 3개 · 가능 2개 · 불가 1개 · <strong>1개 선택됨</strong> &nbsp;&nbsp;<button class="btn primary">선택 항목 취소</button></div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 36px;"><input type="checkbox" disabled></th>
+            <th>컨테이너 번호</th>
+            <th>가능여부</th>
+            <th>반납지</th>
+            <th>승인번호</th>
+            <th>유효기간</th>
+            <th>사유</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input type="checkbox" checked></td>
+            <td class="mono">TEMU0013087</td>
+            <td style="color: #15803d;">✅ 가능</td>
+            <td>INC05 - SEUNG JIN ENTERPRISES</td>
+            <td class="mono" style="color: #1d4ed8;">TKE6E25</td>
+            <td>2026-MAY-31</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td><input type="checkbox"></td>
+            <td class="mono">TCNU7654321</td>
+            <td style="color: #15803d;">✅ 가능</td>
+            <td>INC05 - SEUNG JIN ENTERPRISES</td>
+            <td class="mono" style="color: #1d4ed8;">TKE6E03</td>
+            <td>2026-MAY-31</td>
+            <td>-</td>
+          </tr>
+          <tr class="row-disabled">
+            <td><input type="checkbox" disabled title="Move 완료 — 취소 불가"></td>
+            <td class="mono">TEMU9999999</td>
+            <td style="color: #b91c1c;">❌ 불가</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td style="color: #b91c1c;">CONTAINERS NOT HIRED BY SINOK1</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>UI 목업 — 확인 모달</h3>
+    <div class="modal-mock">
+      <div class="title">반납 취소 확인</div>
+      <div>승인번호 <code>TKE6E25</code> 을 취소합니다.<br>진행할까요?</div>
+      <div class="actions">
+        <button class="btn">취소</button>
+        <button class="btn danger">확인</button>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <strong>주의:</strong> <code>frontend/AGENTS.md</code>에
+      "This is NOT the Next.js you know" 경고. 프론트 코드 작성 전
+      <code>node_modules/next/dist/docs/</code> 가이드를 먼저 확인.
+    </div>
+  </section>
+
+  <section id="s8">
+    <h2>8. 안전장치</h2>
+    <ul>
+      <li><strong>Move/완료 컨테이너 사전 차단</strong> — 프론트에서 해당 행에 체크박스 자체를 비활성화 (서버에서도 한 번 더 검증).</li>
+      <li><strong>확인 모달 1회 필수.</strong></li>
+      <li>취소 진행 중 버튼 disable + 스피너 → 더블 클릭 방지.</li>
+      <li>백엔드 동일 <code>booking_ref</code> 중복 요청 락(in-memory) — 옵션, 추후 결정.</li>
+      <li>취소 이메일 사전 안내 — Q4 결과에 따라 모달 문구에 "사이트에서 자동 이메일이 발송됩니다" 추가.</li>
+    </ul>
+  </section>
+
+  <section id="s9">
+    <h2>9. 테스트 계획</h2>
+    <ul>
+      <li>단위 테스트는 사이트 mock 없이는 어려움 → 기존 <code>scraper/test_texa.py</code>와 동일하게 실 사이트 수동 검증.</li>
+    </ul>
+    <h3>시나리오</h3>
+    <ol>
+      <li>방금 Book한 신규 예약 1건의 컨테이너 1개 취소 (정상 케이스)</li>
+      <li>동일 Bk Ref에 묶인 컨테이너 2개 중 1개만 취소 (부분 취소)</li>
+      <li>서로 다른 Bk Ref의 컨테이너 2건 동시 취소 (다중 그룹)</li>
+      <li>Move 완료된 컨테이너를 강제로 요청에 포함 (서버 차단 동작 확인)</li>
+      <li>존재하지 않는 booking_ref (잘못된 입력 처리)</li>
+      <li>동일 컨테이너 연속 2회 취소 (멱등성 / 에러 처리)</li>
+      <li><strong>Q4 검증</strong>: 취소 후 사이트 이메일 발송 여부 실측</li>
+    </ol>
+  </section>
+
+  <section id="s10">
+    <h2>10. 작업 순서</h2>
+    <ol>
+      <li>✅ 사이트 캡처 확인 → <code>ANALYSIS.md</code> "취소 흐름" 섹션 갱신 완료</li>
+      <li><strong>본 계획 최종 합의</strong> (현재 단계)</li>
+      <li><code>BaseScraper.cancel</code> 추상 메서드 + 요청/응답 모델 + <code>routers/cancel.py</code> 골격</li>
+      <li><code>TexaScraper.cancel</code> 구현 (위 §6 흐름 그대로)</li>
+      <li>실 사이트 수동 테스트 (테스트용 신규 Book → 즉시 취소, Q4 이메일 발송 여부도 함께 확인)</li>
+      <li>프론트 체크박스 / 액션 바 / 확인 모달 + <code>/cancel</code> 연동</li>
+      <li>회고/주의사항을 <code>TEXA/ANALYSIS.md</code> 또는 별도 RETROSPECTIVE에 기록</li>
+    </ol>
+  </section>
+
+  <section id="s11">
+    <h2>11. 타 임대사 분석 (병행)</h2>
+    <p>
+      본 작업 중 타 임대사는 <strong>분석만</strong> 한다. 각 폴더에
+      <code>CANCEL_ANALYSIS.md</code>(또는 <code>ANALYSIS.md</code> 안 섹션 추가)로
+      사이트별 취소 UI/플로우를 별도 정리. 구현은 TEXA 완료 후 임대사 단위로 별도 계획서.
+    </p>
+  </section>
+
+  <hr>
+
+  <section>
+    <h2>합의 요청 (마지막 남은 항목)</h2>
+    <ul class="q-list">
+      <li><span class="qid">D1~D3</span> 라우터 분리 · <code>BaseScraper.cancel</code> 시그니처 · 응답 모델 — 위 §4·§5 안에 큰 이견 없으시면 그대로 진행.</li>
+      <li><span class="qid">Q4</span> 이메일 발송 — 코딩 후 첫 실 운영 시 함께 확인. 발송 확인되면 §7 모달 문구에 "사이트에서 자동 이메일이 발송됩니다" 추가.</li>
+      <li><span class="qid">+</span> 취소 사유 입력 필요 여부 — 별도 입력 받지 않고 진행 가정. 필요하면 알려주세요.</li>
+      <li><span class="qid">+</span> 운영 로그 별도 기록 — 현재 로깅 수준으로 충분 가정. 별도 DB/파일 기록이 필요하면 알려주세요.</li>
+    </ul>
+    <p>위 항목 OK 면 §10 의 3단계부터 코딩 들어가겠습니다.</p>
+  </section>
+
+  <footer>
+    원본 마크다운: <code>TEXA/CANCEL_PLAN.md</code> · 본 HTML: <code>TEXA/CANCEL_PLAN.html</code> · 사이트 분석: <code>TEXA/ANALYSIS.md</code>
+  </footer>
+
+</div>
+</body>
+</html>
