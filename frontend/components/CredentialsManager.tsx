@@ -142,6 +142,13 @@ export default function CredentialsManager() {
         >
           {saving ? '저장 중...' : '저장'}
         </button>
+        <a
+          href="/api/credentials/export"
+          download
+          className="text-sm text-slate-600 hover:text-slate-900 underline"
+        >
+          📥 CSV 다운로드
+        </a>
         {message && (
           <span
             className={
