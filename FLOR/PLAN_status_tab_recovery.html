@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>FLOR Status 탭 회수 + VOID 캔슬 (체크박스 연동)</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+                 "Noto Sans KR", sans-serif;
+    line-height: 1.6;
+    max-width: 980px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+    color: #222;
+    background: #fff;
+  }
+  h1 { border-bottom: 2px solid #334155; padding-bottom: .4rem; }
+  h2 { border-bottom: 1px solid #cbd5e1; padding-bottom: .3rem; margin-top: 2.2rem; }
+  h3 { margin-top: 1.6rem; color: #1e293b; }
+  code, pre {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 0.9em;
+  }
+  code { background: #f1f5f9; padding: 0.1em 0.35em; border-radius: 3px; }
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+  }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td {
+    border: 1px solid #cbd5e1;
+    padding: 0.45rem 0.7rem;
+    text-align: left;
+    vertical-align: top;
+    font-size: 0.94rem;
+  }
+  th { background: #f1f5f9; }
+  tr:nth-child(even) td { background: #fafbfc; }
+  ul, ol { padding-left: 1.4rem; }
+  li { margin: 0.25rem 0; }
+  blockquote {
+    border-left: 4px solid #94a3b8;
+    margin: 1rem 0;
+    padding: 0.5rem 1rem;
+    color: #475569;
+    background: #f8fafc;
+  }
+  .flow-box {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    padding: 1rem 1.2rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+  }
+  .warn-box {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    padding: 0.8rem 1.1rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+    color: #7f1d1d;
+  }
+  .ok-box {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    padding: 0.8rem 1.1rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+    color: #166534;
+  }
+  .tag { display: inline-block; padding: 0.05rem 0.5rem; border-radius: 3px; font-size: 0.78em; font-weight: 600; margin-right: 0.3rem; }
+  .tag.S1 { background: #dbeafe; color: #1e40af; }
+  .tag.S2 { background: #fef3c7; color: #92400e; }
+  .tag.S3 { background: #ede9fe; color: #5b21b6; }
+  .tag.V1 { background: #fce7f3; color: #9d174d; }
+  .tag.V2 { background: #ccfbf1; color: #115e59; }
+  .tag.V3 { background: #fee2e2; color: #991b1b; }
+  .tag.ok { background: #dcfce7; color: #166534; }
+</style>
+</head>
+<body>
+
+<h1>FLOR Status 탭 회수 + VOID 캔슬</h1>
+<p><em>2026-05-20 · Stage 1 (Status 탭 안정화) → Stage 2 (VOID 캔슬, 체크박스 연동)</em></p>
+
+<h2>0. 전체 목표</h2>
+
+<ol>
+  <li><strong>Status 탭</strong>에서 행을 정확히 가져오고 <code>+ More</code> 확장으로
+      Expiry Date / Depot Name / Open CAP 까지 추출 (A 경로 단독 성공).</li>
+  <li>같은 안정 경로 위에서 <strong>VOID 캔슬</strong>을 구현해 결과 테이블 체크박스 흐름과 연동.</li>
+</ol>
+
+<div class="ok-box">
+<strong>기존 인프라 (이미 완성된 부분):</strong>
+<ul style="margin-bottom: 0;">
+  <li>프론트 <code>ResultTable.tsx</code> — 체크박스 + "선택 항목 취소" 버튼 + 컴펌 모달 + 결과 갱신.
+      취소 가능 조건: <code>available && booking_ref</code>.</li>
+  <li>백엔드 <code>routers/cancel.py</code> — <code>POST /cancel</code>, schema 고정.</li>
+  <li><code>BaseScraper.cancel(items, region)</code> 인터페이스 — 기본은 <code>NotImplementedError</code> → 501.</li>
+  <li>TEXA 참조 구현(<code>texa.py:631 cancel()</code>, <code>_cancel_group</code>) — booking_ref 별 그룹핑 패턴.</li>
+</ul>
+→ 즉 <strong>FLOR <code>cancel()</code> 메서드만 추가</strong>하면 자동 연동.
+</div>
+
+<h2>1. 진행 게이트 (Stage 1 → Stage 2 직렬)</h2>
+
+<p>Stage 2 (VOID) 는 Stage 1 의 Status 탭 행 회수가 안정화되지 않으면 시작 자체가 불가능.
+하나라도 막히면 다음 단계는 잠금.</p>
+
+<table>
+  <thead><tr><th>단계</th><th>완료 조건</th><th>막힐 때</th></tr></thead>
+  <tbody>
+    <tr><td>S1 진단</td><td>Status 탭 진입 직후 DOM/Vue 상태 캡처 → 원인 가설 좁힘</td><td>가설 정리 후 S2 진입 보류</td></tr>
+    <tr><td>S2 입력/검색 안정화</td><td>DFSU7597484 검색 시 <code>rows&gt;0</code> 로그 + 행 cells 정상</td><td>S1 재캡처 또는 가설 추가</td></tr>
+    <tr><td>S3 + More 확장</td><td>Expiry / Depot Name / Open CAP 추출 로그 + UI 표시</td><td>라벨 후보 보강 또는 DOM 구조 재분석</td></tr>
+    <tr><td>V1 VOID 분석</td><td>Status 탭에서 VOID 트리거 위치·컴펌·결과 검증 경로 캡처</td><td>분석 미완료 시 V2 진입 보류</td></tr>
+    <tr><td>V2 구현</td><td>FlorScraper.cancel 구현 + /cancel 연동 동작</td><td>안전성 확인 전까지 운영 미배포</td></tr>
+    <tr><td>V3 검증</td><td>R-cases 통과 + 사용자 라이브 합의 후 운영</td><td>실패 시 V2 회귀</td></tr>
+  </tbody>
+</table>
+
+<h2>2. Stage 1 — Status 탭 회수 (이전 계획 유지)</h2>
+
+<h3>2.1 <span class="tag S1">S1</span> 진단 캡처</h3>
+
+<p>임시 디버그 메서드 <code>_dump_status_tab()</code> 추가, 환경변수 <code>FLOR_STATUS_DUMP=1</code> gating.
+<code>query()</code> 진입 직후 1회 실행 후 다음을 로그로:</p>
+
+<ol>
+  <li>Status 탭 wrapper <code>innerHTML</code> 첫 2000자</li>
+  <li><code>input[placeholder="Unit Number"]</code> 의 부모 체인 <code>display</code>·<code>visibility</code>·<code>offsetWidth</code>·<code>offsetHeight</code></li>
+  <li>같은 input 의 <code>el.value</code> vs Vue instance <code>__vue__.value</code> 비교</li>
+  <li>"Advanced Options" / "Search By" 라벨 존재 여부</li>
+  <li>입력 없이 Search 만 눌렀을 때 기본 결과 행 수</li>
+</ol>
+
+<h3>2.2 <span class="tag S2">S2</span> 입력/검색 안정화 (식별 원인별 패치)</h3>
+
+<table>
+  <thead><tr><th>가설</th><th>패치</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>① Vue v-model 동기화</td>
+      <td><code>_fill_unit_input</code> JS fallback 에 <code>blur</code> 이벤트 추가 + <code>__vue__.value</code> best-effort 직접 set + Python 측 <code>sleep(0.5)</code></td>
+    </tr>
+    <tr>
+      <td>② 폼 collapsed/hidden</td>
+      <td><code>_navigate_to_status</code> 후 wrapper 의 <code>el-collapse-item__header</code> / "Advanced" / "More options" 등 토글 클릭</td>
+    </tr>
+    <tr>
+      <td>③ Default filter 결과 제외</td>
+      <td>탭 진입 시 status/날짜 필터를 ALL 로 재설정</td>
+    </tr>
+    <tr>
+      <td>④ Search By 라디오/탭 잘못 선택</td>
+      <td>"Unit No." 라디오/탭 강제 선택 (이미 선택이면 skip)</td>
+    </tr>
+    <tr>
+      <td>⑤ 렌더 race condition</td>
+      <td>Search 클릭 후 <code>tbody tr</code> 출현까지 <code>wait_for_function</code> 대기</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>2.3 <span class="tag S3">S3</span> + More 확장 검증</h3>
+
+<p>기존 <code>_expand_and_extract</code> (flor.py:865) 의 expand 셀렉터 + 텍스트 fallback 으로 대부분 동작 예상.
+S2 통과 후 다음 확인:</p>
+<ul>
+  <li><code>FLOR expand result: {ok: true, ...}</code> 로그</li>
+  <li>Expiry Date / Depot Name / Open CAP 채워짐</li>
+  <li>실패 시 라벨 후보 보강 ("Valid Until", "Validity", "Expiry" 등)</li>
+</ul>
+
+<h2>3. Stage 2 — VOID 캔슬 (체크박스 연동)</h2>
+
+<h3>3.1 <span class="tag V1">V1</span> VOID 트리거 분석 (라이브 캡처)</h3>
+
+<p>Stage 1 안정화 후 PPR 행이 잡힌 상태에서 다음을 확인:</p>
+
+<ol>
+  <li>+ More 확장 패널 내부 또는 행 옆 <strong>VOID/Cancel 버튼·메뉴 위치</strong>. 가능성:
+    <ul>
+      <li>확장 패널 안 액션 영역 (예: "Cancel", "Void", "삭제" 라벨)</li>
+      <li>행 오른쪽 끝 케밥(<code>⋮</code>) 메뉴 → "Cancel Redelivery"</li>
+      <li>전용 컬럼 (예: "Actions") 의 아이콘 버튼</li>
+    </ul>
+  </li>
+  <li>클릭 후 <strong>컴펌 다이얼로그</strong> 텍스트와 "Yes/No" 버튼 라벨</li>
+  <li>VOID 후 <strong>해당 행 status 변화</strong> — Open → VOID/Cancelled 로 바뀌는지, 사라지는지</li>
+  <li>여러 컨테이너가 한 PPR 아래 묶인 경우 — 단건 VOID vs 전체 VOID 동작 차이</li>
+  <li>권한 / 정책상 VOID 불가 케이스 (예: 시한 경과, Closed 상태) 의 에러 메시지</li>
+</ol>
+
+<p>분석 결과는 <code>ANALYSIS.md</code> 의 "취소(Cancel) 흐름" 섹션에 기록 (TEXA ANALYSIS 처럼).</p>
+
+<div class="warn-box">
+<strong>안전 원칙:</strong> V1 분석 단계에선 <strong>VOID 버튼을 실제로 클릭하지 않는다</strong>.
+DOM 셀렉터 / 라벨 / 컴펌 텍스트만 캡처. 첫 실 클릭은 V3 검증 단계에서 사용자 명시 승인 + 1건 한정 테스트.
+</div>
+
+<h3>3.2 <span class="tag V2">V2</span> <code>FlorScraper.cancel()</code> 구현</h3>
+
+<p>인터페이스 (<code>base.py:56</code>):</p>
+<pre><code>async def cancel(self, items: list[dict], region: str) -> list[dict]:
+    """
+    items: [{container_no, booking_ref}, ...]
+    return: [{container_no, booking_ref, cancelled, reason}, ...]
+    """
+</code></pre>
+
+<p>FLOR 구현 골격 (TEXA 의 booking_ref 그룹핑 패턴 + Status 탭 단건 처리):</p>
+
+<pre><code>async def cancel(self, items, region):
+    # 입력 순서 보존을 위한 order 리스트 + outcomes 매핑
+    order = [(it["container_no"], it["booking_ref"]) for it in items]
+    outcomes: dict[tuple[str, str], tuple[bool, str | None]] = {}
+
+    # FLOR 은 PPR 단위로 VOID — booking_ref 별 그룹핑
+    groups: dict[str, list[str]] = {}
+    for cn, bk in order:
+        groups.setdefault(bk, []).append(cn)
+
+    await self._navigate_to_status()
+
+    for bk_ref, containers in groups.items():
+        try:
+            grp = await self._void_ppr(bk_ref, containers)
+        except Exception as exc:
+            logger.error("FLOR VOID %s 실패: %s", bk_ref, exc)
+            grp = {cn: (False, f"오류: {exc}") for cn in containers}
+        for cn in containers:
+            outcomes[(cn, bk_ref)] = grp.get(cn, (False, "처리 결과 미확인"))
+
+    return [
+        {
+            "container_no": cn,
+            "booking_ref": bk,
+            "cancelled": ok,
+            "reason": None if ok else reason,
+        }
+        for (cn, bk), (ok, reason) in
+        ((k, outcomes[k]) for k in order)
+    ]
+
+async def _void_ppr(self, bk_ref, containers):
+    """단일 PPR 의 VOID. Search → 행 찾기 → 확장 → VOID 클릭 → 컴펌 → 결과 검증."""
+    # 1) Search by Redelivery No. 로 PPR 행 찾기 (Unit No. 보다 정확)
+    # 2) status 확인 — Open 이 아니면 즉시 reject
+    # 3) + More 확장 → VOID 버튼 클릭 → 컴펌 다이얼로그 Yes
+    # 4) 행 status 가 VOID/Cancelled 로 변했는지 확인 (재검색 또는 row reload)
+    # 5) PPR 아래 모든 컨테이너에 대해 동일 outcome 반영
+    ...
+</code></pre>
+
+<h3>3.3 <span class="tag V3">V3</span> 안전장치</h3>
+
+<ul>
+  <li><strong>사용자 컴펌은 프론트에서 이미 처리</strong> (취소 모달 + "확인" 버튼).
+      백엔드는 컴펌된 요청만 받아서 실행. 추가 백엔드 컴펌 불필요.</li>
+  <li><strong>드라이런 모드</strong> (선택): <code>FLOR_VOID_DRYRUN=1</code> 환경변수로 행 찾기/확장까지만 하고 VOID 클릭 직전 abort. 운영 첫 배포 직후 1~2일만 활성 후 끔.</li>
+  <li><strong>idempotency</strong>: 이미 VOID/Cancelled 인 행 발견 시 <code>cancelled=True, reason="이미 취소됨"</code> 으로 처리 (중복 클릭 보호).</li>
+  <li><strong>다중 컨테이너 동일 PPR</strong>: PPR 단위로 한 번에 VOID 되므로 그룹 전체 동일 outcome.
+      프론트에서 일부만 체크해 요청 보내도 같은 PPR 의 나머지 컨테이너에 대한 결과는 "함께 취소됨" 으로 표시할지 정책 결정 필요 (V1 분석 결과 보고 확정).</li>
+  <li><strong>실패 분류</strong>: 시한 경과 / 권한 / 네트워크 / VOID 직후 검증 실패 — reason 텍스트 명확화.</li>
+</ul>
+
+<h2>4. 검증 케이스</h2>
+
+<table>
+  <thead><tr><th>케이스</th><th>입력</th><th>기대 결과</th></tr></thead>
+  <tbody>
+    <tr><td>R1 (S3)</td><td>Confirmed PPR 보유 컨테이너 조회</td><td>A 경로 단독 — PPR + Expiry + Depot Name. Apply 폴백 미발동.</td></tr>
+    <tr><td>R2 (S3)</td><td>이미 반납된 컨테이너 (Closed)</td><td>A 경로 → 완료(completed) + 반납일자</td></tr>
+    <tr><td>R3 (S3)</td><td>모든 기록 VOID 인 컨테이너</td><td>A 경로 → "재신청 가능" → 신규 후보 → Apply 폴백</td></tr>
+    <tr><td>R4 (S3)</td><td>신규 컨테이너</td><td>A 경로 rows=0 → Apply 폴백 → "가능"</td></tr>
+    <tr><td>C1 (V3)</td><td>R1 후 그 컨테이너 1건 체크 → 취소</td><td>VOID 성공 → 결과 테이블 자동 갱신 (가능 → 불가, 반납번호 비움, reason="취소 완료")</td></tr>
+    <tr><td>C2 (V3)</td><td>같은 PPR 아래 컨테이너 2건 체크 → 취소</td><td>PPR 단위 VOID 1회로 둘 다 처리</td></tr>
+    <tr><td>C3 (V3)</td><td>이미 VOID 인 PPR 재시도</td><td><code>cancelled=True, reason="이미 취소됨"</code> (idempotent)</td></tr>
+    <tr><td>C4 (V3)</td><td>VOID 불가 status (Closed 등) 행</td><td><code>cancelled=False, reason="..."</code> 명확한 사유</td></tr>
+    <tr><td>C5 (V3)</td><td>존재하지 않는 booking_ref</td><td><code>cancelled=False, reason="PPR 행 미발견"</code></td></tr>
+  </tbody>
+</table>
+
+<h2>5. 작업 순서</h2>
+
+<div class="flow-box">
+<ol>
+  <li>본 계획서 사용자 승인.</li>
+  <li><span class="tag S1">S1</span> <code>_dump_status_tab</code> 추가, env gated. 커밋·배포·로그 수집.</li>
+  <li>가설 좁힌 뒤 <span class="tag S2">S2</span> 패치 (1~3 가지). 커밋·배포·검증.</li>
+  <li><span class="tag S3">S3</span> + More 확장 결과 확인. 부족하면 라벨 후보 보강.</li>
+  <li>R1~R4 통과 확인 → <strong>Stage 1 게이트 통과</strong>.</li>
+  <li><span class="tag V1">V1</span> 라이브 캡처 — VOID 트리거·컴펌·status 변화 분석. <code>ANALYSIS.md</code> 업데이트.</li>
+  <li><span class="tag V2">V2</span> <code>FlorScraper.cancel()</code> + <code>_void_ppr()</code> 구현. 드라이런 모드 옵션 포함. 커밋·배포.</li>
+  <li><span class="tag V3">V3</span> 사용자 입회 라이브 검증 — 단건부터 → 그룹 → idempotent → 실패 케이스. 통과 시 운영 활성화.</li>
+</ol>
+</div>
+
+<h2>6. 비변경 / 위험 통제</h2>
+
+<ul>
+  <li><strong>프론트 (ResultTable.tsx) 변경 없음</strong> — 체크박스/모달/취소 흐름 그대로.</li>
+  <li><strong>백엔드 cancel 라우터 변경 없음</strong> — schema 그대로.</li>
+  <li><strong>다른 임대사 (TEXA/TRIT/GOLD/GESE) 무관</strong>.</li>
+  <li><strong>B 경로 (Apply Step3 split-match) 유지</strong> — A 가 잡으면 호출 자체가 줄어듦, 안전망.</li>
+  <li><strong>Phase B (Apply Confirm 클릭) 정책 변경 없음</strong> — 신규 PPR 자동 발급 금지.</li>
+  <li>S1 디버그는 env gated, 운영에서 자동 작동 안 함.</li>
+  <li>V1 분석 단계엔 실 VOID 클릭 금지. V3 검증도 사용자 입회 + 단건부터.</li>
+  <li>드라이런 모드는 V2 첫 배포 직후 1~2일 활성 후 끔 (또는 영구 유지 — V3 합의에 따름).</li>
+</ul>
+
+</body>
+</html>

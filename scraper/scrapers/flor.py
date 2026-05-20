@@ -90,7 +90,7 @@ class FlorScraper(BaseScraper):
     async def start(self, headless: bool = True):
         """저장된 storage_state 가 있으면 복원해 브라우저 컨텍스트를 만든다."""
         # Deploy marker — Railway 활성 commit 검증용. 이 로그가 보이면 새 코드 실행 중.
-        logger.info("FLOR scraper start [marker=precleared-recovery-v1]")
+        logger.info("FLOR scraper start [marker=status-dump-s1]")
         browsers_path = os.getenv("PLAYWRIGHT_BROWSERS_PATH")
         if browsers_path:
             os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browsers_path
@@ -286,6 +286,12 @@ class FlorScraper(BaseScraper):
             new_candidates: list[str] = []
             try:
                 await self._navigate_to_status()
+                # S1 진단 — 환경변수 gated. 1회용 진단 후 끄기.
+                if os.getenv("FLOR_STATUS_DUMP") == "1":
+                    try:
+                        await self._dump_status_tab()
+                    except Exception as exc:
+                        logger.warning("FLOR Status dump 실패: %s", exc)
             except Exception as exc:
                 logger.warning(
                     "FLOR Status 탭 진입 실패 — 모든 컨테이너를 Apply 흐름으로: %s", exc
@@ -409,6 +415,123 @@ class FlorScraper(BaseScraper):
             )
         except Exception as exc:
             logger.warning("FLOR Status 탭: Unit Number input attach 대기 실패: %s", exc)
+
+    async def _dump_status_tab(self) -> None:
+        """S1 진단: Status 탭 진입 직후 DOM/Vue 상태를 로그로 캡처.
+
+        환경변수 FLOR_STATUS_DUMP=1 일 때만 호출. 1회 사용 후 비활성화 권장.
+        Status 탭에서 행이 안 잡히는 원인 가설을 좁히기 위함:
+          ① Vue v-model 동기화 ② 폼 collapsed ③ default filter
+          ④ Search By 라디오 잘못 선택 ⑤ 렌더 race condition
+        """
+        logger.info("FLOR [DUMP] Status 탭 진단 시작")
+        dump = await self.page.evaluate(
+            r"""() => {
+                const out = {};
+                // 1) 활성 탭 wrapper 의 innerHTML 첫 2000자
+                const tabPanes = Array.from(document.querySelectorAll(
+                    '.el-tabs__content .el-tab-pane, .tab-pane, [role="tabpanel"]'
+                ));
+                const activePane = tabPanes.find(el => {
+                    const s = getComputedStyle(el);
+                    return s.display !== 'none' && s.visibility !== 'hidden';
+                }) || tabPanes[0];
+                out.active_pane_html = activePane
+                    ? activePane.innerHTML.slice(0, 2000)
+                    : '(no active pane)';
+
+                // 2) Unit Number input 의 부모 체인 가시성 (10단계)
+                const input = document.querySelector('input[placeholder="Unit Number"]');
+                if (input) {
+                    out.input_value = input.value;
+                    out.input_chain = [];
+                    let el = input, depth = 0;
+                    while (el && depth < 10) {
+                        const s = getComputedStyle(el);
+                        out.input_chain.push({
+                            tag: el.tagName,
+                            cls: (el.className || '').toString().slice(0, 80),
+                            display: s.display,
+                            visibility: s.visibility,
+                            opacity: s.opacity,
+                            w: el.offsetWidth,
+                            h: el.offsetHeight,
+                        });
+                        el = el.parentElement;
+                        depth++;
+                    }
+                    // Vue 인스턴스 value 비교 (Vue 2 / Vue 3 둘 다 시도)
+                    const v2 = input.__vue__;
+                    const v3 = input.__vueParentComponent;
+                    out.vue_value = null;
+                    try {
+                        if (v2 && 'value' in v2) out.vue_value = v2.value;
+                        else if (v3 && v3.proxy && 'value' in v3.proxy)
+                            out.vue_value = v3.proxy.value;
+                    } catch (e) { out.vue_value = '(err: ' + e.message + ')'; }
+                } else {
+                    out.input_value = '(input not found)';
+                }
+
+                // 3) "Advanced Options" / "Search By" 류 라벨 검색
+                const allText = (document.body.innerText || '').slice(0, 50000);
+                out.has_advanced = /advanced\s*options?/i.test(allText);
+                out.has_search_by = /search\s*by/i.test(allText);
+                out.has_unit_no_label = /unit\s*(no\.?|number)/i.test(allText);
+                out.has_redelivery_no_label = /redelivery\s*(no\.?|number)/i.test(allText);
+
+                // 4) 라디오/탭 후보 (Unit No 선택 여부)
+                const radios = Array.from(document.querySelectorAll(
+                    'label.el-radio, label.el-radio-button, .el-tabs__item, [role="radio"], [role="tab"]'
+                )).map(el => ({
+                    text: (el.innerText || '').trim().slice(0, 50),
+                    cls: (el.className || '').toString().slice(0, 80),
+                    checked: el.classList.contains('is-checked')
+                          || el.classList.contains('is-active')
+                          || el.getAttribute('aria-selected') === 'true',
+                }));
+                out.radios = radios.slice(0, 20);
+
+                // 5) 현재 보이는 결과 테이블 행 수
+                const tbodyRows = Array.from(document.querySelectorAll('table tbody tr'));
+                out.visible_rows = tbodyRows.length;
+                out.first_row_cells = tbodyRows[0]
+                    ? Array.from(tbodyRows[0].querySelectorAll('td')).map(td => (td.innerText || '').trim())
+                    : null;
+
+                // 6) collapse / panel 후보 — 펼침 가능 wrapper
+                const panels = Array.from(document.querySelectorAll(
+                    '.el-collapse-item, .panel, [aria-expanded]'
+                )).map(el => ({
+                    cls: (el.className || '').toString().slice(0, 80),
+                    expanded: el.getAttribute('aria-expanded'),
+                    is_active: el.classList.contains('is-active'),
+                    text: (el.innerText || '').trim().slice(0, 60),
+                })).slice(0, 10);
+                out.panels = panels;
+
+                return out;
+            }"""
+        )
+
+        # 큰 덩어리는 잘라서 로그 (Railway 한 줄 제한 회피)
+        logger.info("FLOR [DUMP] input_value=%r vue_value=%r", dump.get("input_value"), dump.get("vue_value"))
+        logger.info("FLOR [DUMP] visible_rows=%s first_row=%s",
+                    dump.get("visible_rows"), dump.get("first_row_cells"))
+        logger.info("FLOR [DUMP] has_advanced=%s has_search_by=%s has_unit_no_label=%s has_redelivery_no_label=%s",
+                    dump.get("has_advanced"), dump.get("has_search_by"),
+                    dump.get("has_unit_no_label"), dump.get("has_redelivery_no_label"))
+        for i, link in enumerate(dump.get("input_chain") or []):
+            logger.info("FLOR [DUMP] input_chain[%d]=%s", i, link)
+        for i, r in enumerate(dump.get("radios") or []):
+            logger.info("FLOR [DUMP] radio[%d]=%s", i, r)
+        for i, p in enumerate(dump.get("panels") or []):
+            logger.info("FLOR [DUMP] panel[%d]=%s", i, p)
+        pane = dump.get("active_pane_html") or ""
+        # 2000자를 500자씩 4줄로 분할
+        for i in range(0, len(pane), 500):
+            logger.info("FLOR [DUMP] pane_html[%d:%d]=%s", i, i + 500, pane[i:i + 500])
+        logger.info("FLOR [DUMP] Status 탭 진단 끝")
 
     async def _select_customer_id(self, cust_id: str) -> None:
         """Step1 Customer ID 라디오.
