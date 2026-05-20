@@ -18,7 +18,8 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      return NextResponse.json(await res.json())
+      const data = await res.json()
+      return NextResponse.json(data, { status: res.status })
     } catch {
       return NextResponse.json(
         { error: 'Railway 서버 연결 실패' },

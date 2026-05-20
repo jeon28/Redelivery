@@ -67,7 +67,10 @@ class BaseScraper(ABC):
         try:
             await self.start(headless=headless)
             if not await self.login():
-                raise RuntimeError(f"{self.lessor} 로그인 실패")
+                # 스크래퍼가 _login_error 속성에 구체 사유를 담았으면 그걸 사용.
+                # 다른 스크래퍼처럼 속성 없으면 generic 메시지로 폴백.
+                detail = getattr(self, "_login_error", None)
+                raise RuntimeError(detail or f"{self.lessor} 로그인 실패")
             return await self.query(containers, region, depot)
         finally:
             await self.close()

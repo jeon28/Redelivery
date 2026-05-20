@@ -51,6 +51,8 @@ class TexaScraper(BaseScraper):
         self.cred = get_credential(company, lessor)
         # storage_state 적용을 위해 context를 직접 보관 (base.py는 page만 보유)
         self.context = None
+        # 로그인 실패 시 구체적 사유. base.py가 RuntimeError 메시지로 사용.
+        self._login_error: str | None = None
 
     # ------------------------------------------------------------------ #
     # Browser start — storage_state 복원으로 로그인 빈도 최소화                  #
@@ -105,16 +107,22 @@ class TexaScraper(BaseScraper):
                     )
                 except Exception:
                     pass
-                if "tex.textainer.com" in self.page.url:
+                url = self.page.url
+                url_low = url.lower()
+                # 도메인이 맞아도 path가 로그인 마커를 포함하면 만료로 단정.
+                # 예: tex.textainer.com/.../Login.aspx
+                login_markers = ("login.aspx", "/login", "signin")
+                is_login_page = any(m in url_low for m in login_markers)
+                if "tex.textainer.com" in url_low and not is_login_page:
                     await asyncio.sleep(2)  # frameset 안정화
                     logger.info(
                         "TEXA(%s): existing session valid → skip login (%s)",
-                        self.company, self.page.url,
+                        self.company, url,
                     )
                     return True
                 logger.info(
                     "TEXA(%s): stored session expired → fresh login (%s)",
-                    self.company, self.page.url,
+                    self.company, url,
                 )
             except Exception as exc:
                 logger.info(
@@ -137,44 +145,76 @@ class TexaScraper(BaseScraper):
             logger.warning("TEXA(%s): storage_state 저장 실패: %s", self.company, exc)
 
     async def _fresh_login(self) -> bool:
+        # 자격증명 사전 체크 — 빈 값이면 30초 대기 없이 즉시 실패
+        if not self.cred.get("id") or not self.cred.get("pw"):
+            self._login_error = f"TEXA 자격증명 미설정 ({self.company})"
+            logger.error(self._login_error)
+            return False
+
+        # ① 메인 페이지 진입
         try:
             await self.page.goto(
                 "https://www.textainer.com",
                 wait_until="domcontentloaded",
                 timeout=30_000,
             )
+        except Exception as exc:
+            self._login_error = "TEXA 메인 페이지 진입 실패 (네트워크 또는 사이트 다운)"
+            logger.error("%s: %s", self._login_error, exc)
+            return False
 
-            # Open login modal — use JS click to bypass Foundation overlay intercept
+        # ② 로그인 모달 열기 — JS click 으로 Foundation overlay intercept 우회
+        try:
             await self.page.evaluate(
                 "document.querySelector('a[data-reveal-id]').click()"
             )
             await self.page.wait_for_selector("select", state="visible", timeout=10_000)
+        except Exception as exc:
+            self._login_error = "TEXA 로그인 모달 열기 실패 (사이트 UI 변경 가능)"
+            logger.error("%s: %s", self._login_error, exc)
+            return False
 
-            # Select "Leasing Customer" (value = Customer_Desktop)
+        # ③ 사용자 유형 선택 (Leasing Customer = Customer_Desktop)
+        try:
             await self.page.select_option("select", value="Customer_Desktop")
+        except Exception as exc:
+            self._login_error = "TEXA 사용자 유형 선택 실패"
+            logger.error("%s: %s", self._login_error, exc)
+            return False
 
-            # Fill credentials
+        # ④ 자격증명 입력
+        try:
             await self.page.get_by_label("Login Name").fill(self.cred["id"])
             await self.page.get_by_label("Password").fill(self.cred["pw"])
+        except Exception as exc:
+            self._login_error = "TEXA 로그인 양식 입력 필드 누락"
+            logger.error("%s: %s", self._login_error, exc)
+            return False
 
-            # Submit
+        # ⑤ Login 버튼 클릭
+        try:
             await self.page.get_by_role("button", name="Login").click()
+        except Exception as exc:
+            self._login_error = "TEXA Login 버튼 클릭 실패"
+            logger.error("%s: %s", self._login_error, exc)
+            return False
 
-            # Wait for redirect to TEXA portal.
-            # CustomerMenu.aspx is a frameset — wait_for_url hangs waiting
-            # for load state on a frameset. Use wait_for_function instead.
+        # ⑥ portal redirect 대기 (frameset 이므로 wait_for_url 대신 wait_for_function)
+        try:
             await self.page.wait_for_function(
                 "window.location.href.includes('tex.textainer.com')",
                 timeout=30_000,
             )
-            await asyncio.sleep(3)  # Give frameset frames time to settle
-
-            logger.info("TEXA fresh login OK: %s", self.page.url)
-            return True
-
+            await asyncio.sleep(3)  # frameset frames 안정화
         except Exception as exc:
-            logger.error("TEXA fresh login failed: %s", exc)
+            self._login_error = (
+                "TEXA 자격증명 거부됨 또는 사이트 응답 지연 (portal 진입 30초 timeout)"
+            )
+            logger.error("%s: %s (url=%s)", self._login_error, exc, self.page.url)
             return False
+
+        logger.info("TEXA fresh login OK: %s", self.page.url)
+        return True
 
     # ------------------------------------------------------------------ #
     # Navigation helpers                                                   #

@@ -306,7 +306,13 @@ export default function SearchForm({ office }: { office: string }) {
         }),
       })
       const data = await res.json()
-      if (data.error) throw new Error(data.error)
+      // 백엔드(FastAPI) 표준 에러는 data.detail, 자체 라우트는 data.error.
+      // status 코드도 같이 확인해 500/422 등 비정상 응답을 사용자에게 노출.
+      if (!res.ok || data.error || data.detail) {
+        throw new Error(
+          data.detail || data.error || `조회 실패 (HTTP ${res.status})`
+        )
+      }
       setResults(data.results)
     } catch (err: unknown) {
       setError(
