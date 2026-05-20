@@ -620,20 +620,36 @@ class FlorScraper(BaseScraper):
     async def _sweep_precleared(self, containers: list[str]) -> dict[str, dict]:
         """페이지 본문 텍스트에서 컨테이너별 'Redelivery number: PPR####' 추출.
 
-        Apply Step 3 의 Unit Detail 영역에 텍스트가 있는데 el-table 구조 때문에
-        표 단위 파싱이 못 잡는 경우의 안전망. 한 컨테이너 번호 뒤 300자 이내에
-        PPR 패턴이 있으면 매칭.
+        Element UI el-table 의 fixed column 기능 때문에 한 시각적 행이 두 개의
+        별도 <table> (좌측 fixed / 메인 body) 로 분리되어 렌더링되는 경우 대응.
+        DOM 순서상 컨테이너 번호와 PPR 텍스트가 서로 앞뒤 어느 쪽이든 올 수
+        있으므로, 위치 기반 양방향 거리 매칭으로 가장 가까운 PPR 을 연결.
         """
         page_text = await self.page.evaluate("() => document.body.innerText || ''")
         out: dict[str, dict] = {}
+
+        ppr_pattern = re.compile(r"Redelivery\s+number:\s*(PP[RF]\d+)", re.DOTALL)
+        ppr_matches = list(ppr_pattern.finditer(page_text))
+        if not ppr_matches:
+            logger.info("FLOR sweep: PPR 패턴 없음 (page_text len=%d)", len(page_text))
+            return out
+
         for c in containers:
-            m = re.search(
-                rf"{re.escape(c)}.{{0,300}}?Redelivery\s+number:\s*(PP[RF]\d+)",
-                page_text,
-                re.DOTALL,
-            )
-            if m:
-                out[c] = {"ppr": m.group(1)}
+            container_positions = [m.span() for m in re.finditer(re.escape(c), page_text)]
+            if not container_positions:
+                continue
+            best: tuple[str, int] | None = None  # (ppr, distance)
+            for c_start, c_end in container_positions:
+                for p_match in ppr_matches:
+                    p_start, p_end = p_match.span()
+                    dist = min(abs(c_start - p_start), abs(c_end - p_end))
+                    if dist > 500:
+                        continue
+                    if best is None or dist < best[1]:
+                        best = (p_match.group(1), dist)
+            if best:
+                out[c] = {"ppr": best[0]}
+                logger.info("FLOR sweep: %s ↔ %s (distance=%d)", c, best[0], best[1])
         return out
 
     def _classify_reject(self, unit: str, reason: str) -> dict:
