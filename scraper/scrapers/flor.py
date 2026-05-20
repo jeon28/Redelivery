@@ -277,58 +277,62 @@ class FlorScraper(BaseScraper):
         results: dict[str, dict] = {c: self._error_row(c, "조회 실패") for c in deduped}
 
         try:
-            # 1. Depot 결정 (사용자 명시 > Port 별 default fallback)
-            depot_str = self._resolve_depot(region, depot)
+            # ── Phase 1: Status 탭 우선 조회 ──────────────────────────────
+            # 권위 있는 Redelivery Status 탭에서 컨테이너별 현 PPR 상태를 직접 확인.
+            #  Open 행 (active PPR) 또는 Closed (이미 반납됨) → 결과 채택
+            #  결과 없음 / 모두 VOID → 신규 후보로 보관 → Phase 2 에서 Apply 흐름
+            new_candidates: list[str] = []
+            try:
+                await self._navigate_to_status()
+            except Exception as exc:
+                logger.warning(
+                    "FLOR Status 탭 진입 실패 — 모든 컨테이너를 Apply 흐름으로: %s", exc
+                )
+                new_candidates = list(deduped)
+            else:
+                for c in deduped:
+                    try:
+                        row = await self._search_one(c)
+                    except Exception as exc:
+                        logger.warning("FLOR %s status lookup 실패 — Apply 후보로: %s", c, exc)
+                        new_candidates.append(c)
+                        continue
+                    if self._status_row_is_new_candidate(row):
+                        new_candidates.append(c)
+                        logger.info("FLOR %s: Status 결과 없음/VOID → 신규 후보", c)
+                    else:
+                        results[c].update({
+                            "container_no": c,
+                            "available": row.get("available", False),
+                            "depot": row.get("depot"),
+                            "booking_ref": row.get("booking_ref"),
+                            "over_caps": row.get("over_caps"),
+                            "close_date": row.get("close_date"),
+                            "reason": row.get("reason"),
+                        })
+                        logger.info(
+                            "FLOR %s: Status 채택 (booking_ref=%s, reason=%s)",
+                            c, row.get("booking_ref"), row.get("reason"),
+                        )
 
-            # 2. Customer ID + Port substring 결정
-            cust_id = COMPANY_CUSTOMER_ID.get(self.company)
-            if not cust_id:
-                raise RuntimeError(f"지원하지 않는 선사: {self.company}")
-            port_substr = PORT_OPTION_SUBSTR.get((region or "").upper())
-            if not port_substr:
-                raise RuntimeError(f"지원하지 않는 region: {region}")
+            # ── Phase 2: 신규 후보 Apply 흐름 ────────────────────────────
+            if new_candidates:
+                depot_str = self._resolve_depot(region, depot)
+                cust_id = COMPANY_CUSTOMER_ID.get(self.company)
+                if not cust_id:
+                    raise RuntimeError(f"지원하지 않는 선사: {self.company}")
+                port_substr = PORT_OPTION_SUBSTR.get((region or "").upper())
+                if not port_substr:
+                    raise RuntimeError(f"지원하지 않는 region: {region}")
 
-            # 3. Redelivery 페이지 진입 (Apply 탭 기본 활성)
-            await self._navigate_to_apply()
-
-            # 4. Step 1: Customer ID / Port / Depot
-            await self._select_customer_id(cust_id)
-            await self._select_port(port_substr)
-            await self._select_depot(depot_str)
-
-            # 5. Next → Step 2
-            await self._step_next()
-
-            # 6. Step 2: Unit Numbers 일괄 입력
-            await self._step2_fill_units(deduped)
-
-            # 7. Next → Step 3 (사전 검증)
-            await self._step_next()
-
-            # 8. Step 3 파싱 (거부/유효 분리)
-            await self._parse_step3(results, depot_str)
-
-            # 9. 이미 PPR 발급된 컨테이너 대상 Status 탭에서 Expiry Date / Depot / Open CAP 보강.
-            #    신규(booking_ref None) 컨테이너는 enrichment 미발동 → 시간 비용 없음.
-            to_enrich = [c for c, r in results.items() if r.get("booking_ref")]
-            if to_enrich:
-                try:
-                    await self._navigate_to_status()
-                    for c in to_enrich:
-                        try:
-                            row = await self._search_one(c)
-                            if row.get("close_date"):
-                                results[c]["close_date"] = row["close_date"]
-                            if row.get("depot"):
-                                results[c]["depot"] = row["depot"]
-                            if row.get("over_caps") is not None:
-                                results[c]["over_caps"] = row["over_caps"]
-                            if row.get("booking_ref"):
-                                results[c]["booking_ref"] = row["booking_ref"]
-                        except Exception as exc:
-                            logger.warning("FLOR %s enrich 실패: %s", c, exc)
-                except Exception as exc:
-                    logger.warning("FLOR Status 탭 진입 실패 (enrichment 스킵): %s", exc)
+                await self._navigate_to_apply()
+                await self._select_customer_id(cust_id)
+                await self._select_port(port_substr)
+                await self._select_depot(depot_str)
+                await self._step_next()
+                await self._step2_fill_units(new_candidates)
+                await self._step_next()
+                await self._parse_step3(results, depot_str)
 
             # Phase B (예정): Confirm Redelivery Order 클릭 → 신규 PPR 캡처
 
@@ -608,62 +612,20 @@ class FlorScraper(BaseScraper):
                 "reason": None,
             })
 
-        # Sweep fallback — 테이블 파싱이 못 잡은 already precleared 케이스
-        # (Element UI el-table 가 비표준 구조로 렌더되어 JS table 스캔이 누락한 경우).
-        # 페이지 본문 텍스트에서 컨테이너별로 "Redelivery number: PPR####" 직접 추출.
-        try:
-            sweep = await self._sweep_precleared(list(results.keys()))
-        except Exception as exc:
-            logger.warning("FLOR Step3 sweep 실패: %s", exc)
-            sweep = {}
-        for unit, info in sweep.items():
-            if results.get(unit, {}).get("booking_ref"):
-                continue  # 이미 §5-3 으로 추출돼 있음
-            logger.info("FLOR %s: sweep 으로 PPR 감지 → %s", unit, info["ppr"])
-            results[unit].update({
-                "available": True,
-                "status": "available",
-                "completed_date": None,
-                "depot": depot_str,
-                "booking_ref": info["ppr"],
-                "reason": None,
-                # close_date 는 후속 Status 탭 enrichment 에서 Expiry Date 로 채움
-            })
+    @staticmethod
+    def _status_row_is_new_candidate(row: dict) -> bool:
+        """Status 탭 search 결과가 '신규 후보' 인지 판정.
 
-    async def _sweep_precleared(self, containers: list[str]) -> dict[str, dict]:
-        """페이지 본문 텍스트에서 컨테이너별 'Redelivery number: PPR####' 추출.
-
-        Element UI el-table 의 fixed column 기능 때문에 한 시각적 행이 두 개의
-        별도 <table> (좌측 fixed / 메인 body) 로 분리되어 렌더링되는 경우 대응.
-        DOM 순서상 컨테이너 번호와 PPR 텍스트가 서로 앞뒤 어느 쪽이든 올 수
-        있으므로, 위치 기반 양방향 거리 매칭으로 가장 가까운 PPR 을 연결.
+        - booking_ref 있음 (active Open PPR) → False (Status 결과 채택)
+        - reason 에 '이미 반납됨' (Closed) → False (Status 결과 채택)
+        - 그 외 (결과 없음 / 모두 VOID / 알 수 없음) → True (Apply 흐름으로 검증 필요)
         """
-        page_text = await self.page.evaluate("() => document.body.innerText || ''")
-        out: dict[str, dict] = {}
-
-        ppr_pattern = re.compile(r"Redelivery\s+number:\s*(PP[RF]\d+)", re.DOTALL)
-        ppr_matches = list(ppr_pattern.finditer(page_text))
-        if not ppr_matches:
-            logger.info("FLOR sweep: PPR 패턴 없음 (page_text len=%d)", len(page_text))
-            return out
-
-        for c in containers:
-            container_positions = [m.span() for m in re.finditer(re.escape(c), page_text)]
-            if not container_positions:
-                continue
-            best: tuple[str, int] | None = None  # (ppr, distance)
-            for c_start, c_end in container_positions:
-                for p_match in ppr_matches:
-                    p_start, p_end = p_match.span()
-                    dist = min(abs(c_start - p_start), abs(c_end - p_end))
-                    if dist > 500:
-                        continue
-                    if best is None or dist < best[1]:
-                        best = (p_match.group(1), dist)
-            if best:
-                out[c] = {"ppr": best[0]}
-                logger.info("FLOR sweep: %s ↔ %s (distance=%d)", c, best[0], best[1])
-        return out
+        if row.get("booking_ref"):
+            return False
+        reason = row.get("reason") or ""
+        if "이미 반납됨" in reason:
+            return False
+        return True
 
     def _classify_reject(self, unit: str, reason: str) -> dict:
         """거부 reason 텍스트를 분류 (§5-3 / §5-4 / 일반).

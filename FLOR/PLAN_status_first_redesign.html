@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>FLOR 흐름 재설계: Status 우선 → Apply 폴백</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+                 "Noto Sans KR", sans-serif;
+    line-height: 1.6;
+    max-width: 920px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+    color: #222;
+    background: #fff;
+  }
+  h1 { border-bottom: 2px solid #334155; padding-bottom: .4rem; }
+  h2 { border-bottom: 1px solid #cbd5e1; padding-bottom: .3rem; margin-top: 2.2rem; }
+  h3 { margin-top: 1.6rem; color: #1e293b; }
+  code, pre {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 0.9em;
+  }
+  code { background: #f1f5f9; padding: 0.1em 0.35em; border-radius: 3px; }
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+  }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td {
+    border: 1px solid #cbd5e1;
+    padding: 0.45rem 0.7rem;
+    text-align: left;
+    vertical-align: top;
+    font-size: 0.95rem;
+  }
+  th { background: #f1f5f9; }
+  tr:nth-child(even) td { background: #fafbfc; }
+  ul, ol { padding-left: 1.4rem; }
+  li { margin: 0.25rem 0; }
+  blockquote {
+    border-left: 4px solid #94a3b8;
+    margin: 1rem 0;
+    padding: 0.4rem 1rem;
+    color: #475569;
+    background: #f8fafc;
+  }
+  .flow-box {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    padding: 1rem 1.2rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+  }
+  .tag { display: inline-block; padding: 0.05rem 0.45rem; border-radius: 3px; font-size: 0.78em; font-weight: 600; margin-right: 0.3rem; }
+  .tag.ok { background: #dcfce7; color: #166534; }
+  .tag.risk { background: #fee2e2; color: #991b1b; }
+  .tag.del { background: #ffedd5; color: #9a3412; }
+</style>
+</head>
+<body>
+
+<h1>FLOR 흐름 재설계: Status 우선 → Apply 폴백</h1>
+
+<blockquote>
+같은 컨테이너 (<code>DFSU7597484 / PPR78148</code>) 에 대해 Apply Step 3
+파싱이 한 번은 잡고 한 번은 못 잡는 불안정성을 두 차례 패치(bidirectional
+sweep + wait_for_function) 했지만 근본적 한계 잔존. 본 작업은
+<strong>Apply 가 아니라 Redelivery Status 탭을 권위 있는 소스로 두는
+재설계</strong>.
+</blockquote>
+
+<h2>1. 현재 접근의 한계 정리</h2>
+
+<table>
+  <thead><tr><th>#</th><th>원인</th><th>현 대응</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>Element UI <em>fixed column</em> → 한 시각적 행이 두 개의 <code>&lt;table&gt;</code> 로 쪼개져 렌더링.
+          컨테이너 번호 / PPR 텍스트가 다른 row 에 분포.</td>
+      <td>bidirectional sweep regex 추가 (커밋 <code>f3a259d</code>)</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Unit Detail 영역이 Step 3 진입 후 가변 지연으로 그려짐.
+          같은 컨테이너인데 한번은 나오고 한번은 안 나옴.</td>
+      <td><code>wait_for_function</code> 으로 "Redelivery number:" 대기 (커밋 <code>e9c4c1d</code>)</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Apply Redelivery 는 본질적으로 <strong>신규 신청</strong> 화면 — 이미 발급된 PPR 조회의
+          정식 진입점이 아님. 추가 패치를 해도 표면적 대응.</td>
+      <td><strong>본 작업으로 해결</strong></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Redelivery Status 탭은 사이트가 명시한 PPR 상태 조회 화면이고,
+Redelivery No. / Status / Expiry Date / Depot Name 을 모두 단일 뷰에서
+제공한다 (사용자 캡처 Image #5 확인). 이게 정답.</p>
+
+<h2>2. 새 흐름</h2>
+
+<div class="flow-box">
+<ol>
+  <li>login (세션 재사용)</li>
+  <li><strong>Redelivery Status 탭 진입</strong></li>
+  <li>각 컨테이너 <code>Search by Unit No.</code>
+    <ul>
+      <li><span class="tag ok">Open</span> 행 발견 → <code>✅ 가능</code> + PPR + Expiry Date + Depot (Status row + Expand)</li>
+      <li><span class="tag risk">Closed/Void</span> → 분류에 따라 <code>completed</code> 또는 <code>unavailable</code></li>
+      <li>결과 없음 → 신규 후보로 별도 보관</li>
+    </ul>
+  </li>
+  <li>신규 후보가 있으면 <strong>Apply Redelivery 1회 실행</strong> (현재 Step 1~3 흐름)
+    <ul>
+      <li>Step 3 valid → <code>✅ 가능</code> (booking_ref None — FLOR 사이트에서 Confirm 시 PPR 발급됨)</li>
+      <li>Step 3 invalid → <code>❌</code> + 사유 (over caps 등)</li>
+    </ul>
+  </li>
+</ol>
+</div>
+
+<h2>3. 코드 변경</h2>
+
+<table>
+  <thead><tr><th>위치</th><th>변경</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>flor.py</code> <code>query()</code> 본문</td>
+      <td>재구성 — Status 1단계 → Apply 2단계 (필요시만)</td>
+    </tr>
+    <tr>
+      <td><code>flor.py</code> 신규 helper</td>
+      <td><code>_status_lookup_one(container)</code> — Status 탭에서 단건 조회 후 분류 (Open / Closed / Void / None 반환)</td>
+    </tr>
+    <tr>
+      <td><code>flor.py</code> <code>_parse_step3</code></td>
+      <td><span class="tag del">제거</span> sweep fallback (<code>_sweep_precleared</code>) — Status 우선으로 더 이상 불필요</td>
+    </tr>
+    <tr>
+      <td><code>flor.py</code> <code>_parse_step3</code> wait_for_function</td>
+      <td>유지 (방어용 — Apply 폴백에서 혹시 precleared 행 보일 수 있음)</td>
+    </tr>
+    <tr>
+      <td>기존 helper 본체</td>
+      <td>변경 없음 — <code>_search_one</code> / <code>_expand_and_extract</code> /
+          <code>_navigate_to_status</code> / <code>_navigate_to_apply</code> / Step1~3 헬퍼 그대로 활용</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>3.1 새 <code>query()</code> 골격</h3>
+
+<pre><code>async def query(self, containers, region, depot=None):
+    deduped = ...  # 기존과 동일
+    results = {c: self._error_row(c, "조회 실패") for c in deduped}
+
+    try:
+        # === Phase 1: Status 탭 우선 조회 ===
+        await self._navigate_to_status()
+        new_candidates = []
+        for c in deduped:
+            try:
+                row = await self._search_one(c)  # Open/Closed/Void/Empty 처리 포함
+                if row.get("booking_ref") or row.get("close_date") or row.get("reason"):
+                    # Status 에서 의미있는 정보 발견 → 채택
+                    results[c].update(row)
+                else:
+                    # 결과 행이 없거나 빈 응답 → 신규 후보
+                    new_candidates.append(c)
+            except Exception as exc:
+                logger.warning("FLOR %s status lookup 실패: %s", c, exc)
+                new_candidates.append(c)
+
+        # === Phase 2: 신규 후보들만 Apply 흐름 ===
+        if new_candidates:
+            depot_str = self._resolve_depot(region, depot)
+            cust_id = COMPANY_CUSTOMER_ID.get(self.company)
+            port_substr = PORT_OPTION_SUBSTR.get((region or "").upper())
+            await self._navigate_to_apply()
+            await self._select_customer_id(cust_id)
+            await self._select_port(port_substr)
+            await self._select_depot(depot_str)
+            await self._step_next()
+            await self._step2_fill_units(new_candidates)
+            await self._step_next()
+            await self._parse_step3(results, depot_str)
+
+    except Exception as exc:
+        logger.error("FLOR query error: %s\n%s", exc, traceback.format_exc())
+
+    # 기존 안전장치 + 3상태 status 일괄 도출 (그대로)
+    ...
+</code></pre>
+
+<h3>3.2 신규 후보 판정 기준</h3>
+
+<p><code>_search_one</code> 의 반환값 해석:</p>
+<ul>
+  <li><code>booking_ref</code> 가 있고 status 가 Open → 정식 채택 (precleared)</li>
+  <li><code>reason</code> 에 "재신청 가능 (이전 예약 모두 VOID)" 또는 "이미 반납됨" → 채택</li>
+  <li>그 외 빈 행 / "발급된 반납번호 없음 (신청 필요)" → 신규 후보로 분류</li>
+</ul>
+
+<p>위 분류는 <code>_search_one</code> 내부에서 이미 처리됨. <code>query()</code> 에서는
+<code>booking_ref / close_date / reason</code> 중 하나라도 의미있는 값이면 채택,
+아니면 신규 후보로 push.</p>
+
+<h2>4. 시간 영향</h2>
+
+<table>
+  <thead><tr><th>케이스</th><th>현재 (Apply 우선)</th><th>변경 후 (Status 우선)</th></tr></thead>
+  <tbody>
+    <tr><td>precleared 1건</td><td>~25s (Apply 15s + enrichment 6s + 파싱 불안정)</td><td><strong>~8s</strong> (Status 한 번만)</td></tr>
+    <tr><td>신규 1건</td><td>~15s</td><td>~22s (Status 6s + Apply 15s)</td></tr>
+    <tr><td>precleared 5 + 신규 5</td><td>~45s</td><td>~45s (Status 10×6s + Apply 1회 묶음)</td></tr>
+    <tr><td>precleared 10</td><td>~80s (불안정)</td><td>~60s</td></tr>
+    <tr><td>신규 10</td><td>~15s</td><td>~75s</td></tr>
+  </tbody>
+</table>
+
+<p>신규 다건이 최악 — 6개 이상 경고문은 그대로 유효.</p>
+
+<h2>5. 비변경</h2>
+<ul>
+  <li>다른 임대사 (TEXA / TRIT / GOLD / GESE) — 무관</li>
+  <li>세션 재사용 (storage_state) 로직 — 그대로</li>
+  <li>슬라이더 캡차, Element UI 옵션 클릭 등 기존 helper 본체 — 그대로</li>
+  <li>Phase B 의 Confirm 미클릭 정책 — 그대로 (신규 PPR 자동 발급 X)</li>
+  <li>프론트 6개 이상 안내문 — 유지</li>
+</ul>
+
+<h2>6. 검증</h2>
+<ol>
+  <li><strong>DFSU7597484</strong> 1건 조회 → Status 경로로 즉시 <code>✅ 가능</code> + 반납번호 <code>PPR78148</code> + 유효기간 <code>2026-07-19</code>. Apply 흐름 미발동.</li>
+  <li>신규 컨테이너 1건 조회 → Status 결과 없음 → Apply 흐름 → Step 3 valid → <code>✅ 가능</code> (booking_ref None).</li>
+  <li>의도적 invalid 케이스 (over caps 컨테이너) → Status 결과 없음 → Apply Step 3 invalid → <code>❌</code> + 사유.</li>
+  <li>혼합 5+5 (precleared + 신규) → 각각 올바른 경로로 분류.</li>
+  <li>Status 탭 진입 실패 (네트워크) → query 흐름 전체 catch 에서 잡혀 사용자에게 detail 메시지 전달.</li>
+</ol>
+
+<h2>7. 작업 순서</h2>
+<ol>
+  <li>본 계획 사용자 승인</li>
+  <li><code>flor.py</code> 수정 (query 재구성, sweep 제거)</li>
+  <li>커밋 → 푸시 → Railway 배포</li>
+  <li>DFSU7597484 재조회로 1번 검증 → 즉시 PPR/Expiry 표시 확인</li>
+  <li>로그에서 Status 경로 진입 / Apply 폴백 미발동 확인</li>
+</ol>
+
+</body>
+</html>
