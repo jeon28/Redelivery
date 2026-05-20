@@ -526,6 +526,19 @@ class FlorScraper(BaseScraper):
             가 있으면 거부 행으로 분류.
           - 그 외 컨테이너 패턴(`[A-Z]{4}\\d{6,7}`) 가진 행은 유효 행.
         """
+        # Unit Detail (precleared) 영역은 Step 3 진입 후 가변 지연으로 그려질 수
+        # 있어 _step_next 의 sleep(1.5) 만으로 부족한 경우가 있음. 페이지에
+        # "Redelivery number:" 텍스트가 나타날 때까지 최대 4초 대기.
+        # 끝까지 안 보이면 precleared 행이 없는 정상 케이스로 간주 → 통과.
+        try:
+            await self.page.wait_for_function(
+                "() => (document.body.innerText || '').includes('Redelivery number:')",
+                timeout=4_000,
+            )
+            logger.info("FLOR Step3: precleared 'Redelivery number:' 텍스트 감지됨")
+        except Exception:
+            logger.info("FLOR Step3: precleared 텍스트 없음 (4s timeout) — 신규 케이스로 진행")
+
         data = await self.page.evaluate(
             r"""() => {
                 const out = { invalid: [], valid: [], dump: [] };
