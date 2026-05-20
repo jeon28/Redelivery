@@ -89,6 +89,8 @@ class FlorScraper(BaseScraper):
 
     async def start(self, headless: bool = True):
         """저장된 storage_state 가 있으면 복원해 브라우저 컨텍스트를 만든다."""
+        # Deploy marker — Railway 활성 commit 검증용. 이 로그가 보이면 새 코드 실행 중.
+        logger.info("FLOR scraper start [marker=status-first-v2]")
         browsers_path = os.getenv("PLAYWRIGHT_BROWSERS_PATH")
         if browsers_path:
             os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browsers_path
