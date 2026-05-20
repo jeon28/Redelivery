@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>FLOR precleared PPR 회수: Status 진입 안정화 + Apply Step3 분리행 매칭</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+                 "Noto Sans KR", sans-serif;
+    line-height: 1.6;
+    max-width: 960px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+    color: #222;
+    background: #fff;
+  }
+  h1 { border-bottom: 2px solid #334155; padding-bottom: .4rem; }
+  h2 { border-bottom: 1px solid #cbd5e1; padding-bottom: .3rem; margin-top: 2.2rem; }
+  h3 { margin-top: 1.6rem; color: #1e293b; }
+  code, pre {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 0.9em;
+  }
+  code { background: #f1f5f9; padding: 0.1em 0.35em; border-radius: 3px; }
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+  }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td {
+    border: 1px solid #cbd5e1;
+    padding: 0.45rem 0.7rem;
+    text-align: left;
+    vertical-align: top;
+    font-size: 0.94rem;
+  }
+  th { background: #f1f5f9; }
+  tr:nth-child(even) td { background: #fafbfc; }
+  ul, ol { padding-left: 1.4rem; }
+  li { margin: 0.25rem 0; }
+  blockquote {
+    border-left: 4px solid #94a3b8;
+    margin: 1rem 0;
+    padding: 0.5rem 1rem;
+    color: #475569;
+    background: #f8fafc;
+  }
+  .flow-box {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    padding: 1rem 1.2rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+  }
+  .warn-box {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    padding: 0.8rem 1.1rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+    color: #7f1d1d;
+  }
+  .tag { display: inline-block; padding: 0.05rem 0.5rem; border-radius: 3px; font-size: 0.78em; font-weight: 600; margin-right: 0.3rem; }
+  .tag.A { background: #dbeafe; color: #1e40af; }
+  .tag.B { background: #fef3c7; color: #92400e; }
+  .tag.ok { background: #dcfce7; color: #166534; }
+  .tag.del { background: #ffedd5; color: #9a3412; }
+</style>
+</head>
+<body>
+
+<h1>FLOR precleared PPR 회수</h1>
+<p><em>2026-05-20 · DFSU7597484 → PPR78148 회수 실패 케이스 대응</em></p>
+
+<h2>0. 배경 (Railway 로그 진단 결과)</h2>
+
+<p>현재 활성 코드는 <code>status-first-v2</code> (commit <code>cf64e37</code>) 이지만, 다음 두 결함으로 인해
+사이트가 보유한 PPR 정보가 결과에 반영되지 않음.</p>
+
+<h3>0.1 Status 탭 입력 가시성 타임아웃</h3>
+<pre><code>WARNING scrapers.flor: FLOR DFSU7597484 status lookup 실패 — Apply 후보로:
+  Locator.fill: Timeout 30000ms exceeded.
+  - waiting for locator("input[placeholder=\"Unit Number\"]").first
+    - locator resolved to &lt;input ... placeholder="Unit Number"/&gt;
+    - fill("DFSU7597484")
+    - 60 × waiting for element to be visible, enabled and editable
+      - element is not visible
+</code></pre>
+<p>DOM 에 input 은 존재하나 Playwright "visible" 판정 실패 (display:none / 높이 0 / 부모 hidden 등으로 추정).
+→ Status 탭 조회 자체가 30초 후 폴백.</p>
+
+<h3>0.2 Apply Step3 분리행 매칭 실패</h3>
+<pre><code>Step3 row: ['', '', 'DF-HNGA20008', 'D4H',
+            'Unit has been already precleared ( Redelivery number: PPR78148, Order Date: 2026-05-20, Depot Code: KRPUS03 )',
+            '']
+Step3 row: ['', 'DFSU7597484', '', '', '', '']
+Step3 row: ['', '', '', '', '', '']
+Step3 parsed: invalid=0 valid=1
+</code></pre>
+<p>Element UI <em>fixed column</em> 으로 한 시각적 행이 두 <code>&lt;table&gt;</code> 로 쪼개짐:
+  reason 텍스트만 든 행과 <code>DFSU7597484</code> 만 든 행이 분리됨.
+  현 <code>_parse_step3</code> 는 한 <code>cells</code> 배열 내부에서만 unit+reason 동시 매칭 →
+  unit-only 행을 <strong>valid</strong> 로 잘못 분류 → Phase A 라서 <code>booking_ref=None</code> 으로 처리.</p>
+
+<div class="warn-box">
+<strong>결과:</strong> 사이트는 <code>PPR78148, 2026-05-20</code> 를 명시했는데 우리 화면엔 "가능 / 반납번호 -" 로 표시.
+사용자가 "유효기간 조회해줘" 요청해도 빈칸. 동일 패턴은 precleared 된 모든 컨테이너에 발생 가능.
+</div>
+
+<h2>1. 목표</h2>
+<ol>
+  <li>Status 탭 경로가 안정적으로 PPR/Expiry/Depot 을 반환하도록 가시성 대기 보강 — <span class="tag A">A</span></li>
+  <li>Apply 폴백이 발동돼도 precleared 분리행에서 PPR 을 회수하도록 매칭 보강 — <span class="tag B">B</span></li>
+  <li>두 경로 어느 쪽이 먼저 성공해도 결과 일관성 유지 (PPR + Expiry + Depot).</li>
+</ol>
+
+<h2>2. 변경 범위</h2>
+
+<table>
+  <thead><tr><th>태그</th><th>위치</th><th>변경</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><span class="tag A">A</span></td>
+      <td><code>flor.py</code> <code>_search_one</code> 진입부</td>
+      <td>
+        <code>input[placeholder="Unit Number"]</code> 에 대해
+        <code>scrollIntoView</code> → <code>wait_for</code> visible 시도.
+        실패 시 JS <code>evaluate</code> 로 직접 <code>value</code> 주입 후
+        <code>input</code> 이벤트 dispatch — Element UI 가시성 회피 (FLOR 메모리 §How to apply 의
+        "Element UI 드롭다운은 JS evaluate 권장" 원칙과 동일).
+      </td>
+    </tr>
+    <tr>
+      <td><span class="tag A">A</span></td>
+      <td><code>flor.py</code> <code>_navigate_to_status</code> 직후</td>
+      <td>
+        탭 클릭 후 <code>page.wait_for_selector('input[placeholder="Unit Number"]', state="attached")</code> 보강.
+        attached 만 보장 (visible 대기는 §A 본체에서 우회 처리).
+      </td>
+    </tr>
+    <tr>
+      <td><span class="tag B">B</span></td>
+      <td><code>flor.py</code> <code>_parse_step3</code> JS evaluate</td>
+      <td>
+        precleared reason 행과 unit-only 행을 <strong>인접 위치로 매칭</strong>하는 로직 추가.
+        패턴: <code>Unit has been already precleared</code> 또는
+        <code>Redelivery number:&nbsp;PP[RF]\d+</code> 를 가진 행을 발견하면,
+        같은 테이블/형제 테이블의 인접 ±N rows 에서 컨테이너 패턴 행을 찾아 매칭.
+        매칭되면 <code>{unit, reason}</code> 으로 invalid 리스트에 push.
+      </td>
+    </tr>
+    <tr>
+      <td><span class="tag B">B</span></td>
+      <td><code>flor.py</code> <code>_classify_reject</code></td>
+      <td>
+        기존 §5-3 (활성 PPR) 분기가 이미 <code>PPR\d+</code> + active 키워드 매칭 함.
+        precleared reason 텍스트는 <code>"already precleared"</code> 포함 → 키워드 목록에
+        <code>"precleared"</code> 추가.
+        <strong>Expiry/Order Date</strong> 도 reason 텍스트의 <code>Order Date:&nbsp;YYYY-MM-DD</code> 에서 추출해
+        <code>close_date</code> 채움. <code>Depot Code:&nbsp;KRPUS03</code> 도 가능하면 추출.
+      </td>
+    </tr>
+    <tr>
+      <td><span class="tag del">변경 없음</span></td>
+      <td>다른 임대사 / 세션 / 슬라이더 / Apply Phase B 정책</td>
+      <td>그대로.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3. 상세 의사코드</h2>
+
+<h3>3.1 <span class="tag A">A</span> Status 입력 가시성 우회</h3>
+<pre><code>async def _fill_unit_input(self, container: str) -&gt; bool:
+    """Unit Number 입력란에 값 주입. visible 실패 시 JS 직접 주입으로 대체."""
+    sel = 'input[placeholder="Unit Number"]'
+    # 1) attached 까지 대기 (탭 전환 직후 DOM 아직 안 붙은 경우)
+    try:
+        await self.page.wait_for_selector(sel, state="attached", timeout=10_000)
+    except Exception:
+        return False
+
+    # 2) scrollIntoView 후 visible 시도 (짧게)
+    try:
+        loc = self.page.locator(sel).first
+        await loc.scroll_into_view_if_needed(timeout=3_000)
+        await loc.fill(container, timeout=5_000)
+        return True
+    except Exception:
+        pass
+
+    # 3) JS evaluate fallback — Vue/Element UI input 이벤트로 v-model 갱신
+    ok = await self.page.evaluate(r"""(args) =&gt; {
+        const el = document.querySelector(args.sel);
+        if (!el) return false;
+        el.focus();
+        const setter = Object.getOwnPropertyDescriptor(
+            window.HTMLInputElement.prototype, 'value').set;
+        setter.call(el, args.val);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+    }""", {"sel": sel, "val": container})
+    return bool(ok)
+</code></pre>
+<p><code>_search_one</code> 의 <code>await unit_input.fill(container)</code> 호출을
+<code>await self._fill_unit_input(container)</code> 로 교체.</p>
+
+<h3>3.2 <span class="tag B">B</span> Step3 분리행 매칭</h3>
+<pre><code>// _parse_step3 의 evaluate 본체 — 기존 단일 패스 위에 인접 매칭 추가
+const allRows = [];  // {tbl_idx, row_idx, cells}
+for (let ti = 0; ti &lt; tables.length; ti++) {
+    const rows = Array.from(tables[ti].querySelectorAll('tbody tr'));
+    rows.forEach((tr, ri) =&gt; {
+        const cells = Array.from(tr.querySelectorAll('td'))
+            .map(td =&gt; (td.innerText || '').trim());
+        allRows.push({ ti, ri, cells });
+    });
+}
+
+const PRECLEARED_RE = /already\s+precleared|Redelivery\s+number:\s*PP[RF]\d+/i;
+const UNIT_RE = /^[A-Z]{4}\d{6,7}$/;
+
+// 1차 패스: cells 자체에 unit + reason 둘 다 있으면 기존 로직 그대로
+// (단일 테이블 케이스 호환)
+//   ... existing pass ...
+
+// 2차 패스: 분리행 매칭
+for (let i = 0; i &lt; allRows.length; i++) {
+    const cells = allRows[i].cells;
+    const reason = cells.find(c =&gt; PRECLEARED_RE.test(c) || c.length &gt;= 40);
+    if (!reason) continue;
+    if (cells.some(c =&gt; UNIT_RE.test(c))) continue;  // 1차에서 처리됨
+
+    // 인접 ±3 rows 에서 unit-only 행 검색 (같은 시각적 행 후보)
+    let found = null;
+    for (const d of [0, 1, -1, 2, -2, 3, -3]) {
+        const j = i + d;
+        if (j &lt; 0 || j &gt;= allRows.length || j === i) continue;
+        const u = allRows[j].cells.find(c =&gt; UNIT_RE.test(c));
+        if (u) { found = u; break; }
+    }
+    if (found) {
+        out.invalid.push({ unit: found, reason, cells });
+    }
+}
+</code></pre>
+
+<h3>3.3 <span class="tag B">B</span> <code>_classify_reject</code> precleared 분기</h3>
+<pre><code>def _classify_reject(self, unit: str, reason: str) -&gt; dict:
+    r_lower = reason.lower()
+    ppr_match = re.search(r"PP[RF]\d+", reason)
+
+    # §5-3 확장: 'precleared' 키워드 인식
+    active_kw = any(k in r_lower for k in (
+        "already", "active", "open redelivery", "existing redelivery",
+        "precleared",   # ← 추가
+    ))
+    if ppr_match and active_kw:
+        # Depot Code 만 추출. Order Date 는 신청일이라 유효기간(Expiry)과 다른 값 →
+        # close_date 에 넣지 않음. 유효기간은 Status 경로(_expand_and_extract)에서만 채움.
+        depot_m = re.search(r"Depot\s+Code:\s*([A-Z0-9]+)", reason, re.IGNORECASE)
+        return {
+            "available": True,
+            "status": "available",
+            "completed_date": None,
+            "booking_ref": ppr_match.group(0),
+            "close_date": None,             # Apply 폴백에선 유효기간 알 수 없음
+            "depot": depot_m.group(1) if depot_m else None,
+            "reason": None,
+        }
+    # ... §5-4 / 일반 분기 그대로 ...
+</code></pre>
+
+<blockquote>
+<strong>Order Date ≠ Expiry Date:</strong> Step3 텍스트엔 <code>Order Date</code>(신청일) 만 노출됨.
+UI 의 "유효기간" 열은 <strong>만료일(Expiry Date)</strong> 이므로 Order Date 를 매핑하지 않음.
+유효기간은 Status 경로(<code>_expand_and_extract</code>)가 성공해야 채워짐.
+B 경로는 PPR 번호·Depot 만 회수하고 <code>close_date=None</code> 유지.
+</blockquote>
+
+<h2>4. 작업 순서</h2>
+<ol>
+  <li>본 계획서 사용자 승인.</li>
+  <li><code>flor.py</code> 수정 — <span class="tag A">A</span> + <span class="tag B">B</span> 같은 커밋(또는 두 커밋 분리).</li>
+  <li>커밋 → 푸시 → Railway 재배포.</li>
+  <li><code>FLOR scraper start [marker=precleared-recovery-v1]</code> 같은 신규 marker 로 활성 코드 검증.</li>
+  <li>DFSU7597484 재조회.
+    <ul>
+      <li><strong>기대 결과 1 (A 성공)</strong>: Status 경로 즉시 적중 → PPR78148, Expiry 표시. Apply 폴백 미발동.</li>
+      <li><strong>기대 결과 2 (A 실패 · B 성공)</strong>: Apply Step3 분리행 매칭으로 PPR78148 표시. <strong>유효기간 칸은 비어있음</strong> (만료일 알 수 없음, 신청일은 매핑 안 함).</li>
+    </ul>
+  </li>
+  <li>로그에서 어느 경로로 갔는지 확인 후 사용자에게 보고.</li>
+</ol>
+
+<h2>5. 검증 케이스</h2>
+<table>
+  <thead><tr><th>케이스</th><th>입력</th><th>기대 결과</th></tr></thead>
+  <tbody>
+    <tr><td>P1-A</td><td>DFSU7597484 (Status 경로 성공 시)</td><td>가능 + PPR78148 + <strong>Expiry Date</strong> (실 유효기간)</td></tr>
+    <tr><td>P1-B</td><td>DFSU7597484 (Status 실패 · Apply 폴백 시)</td><td>가능 + PPR78148, 유효기간 빈칸 (Order Date 는 신청일이므로 매핑 안 함)</td></tr>
+    <tr><td>P2</td><td>신규 컨테이너 (PPR 없음)</td><td>가능 + 반납번호 빈칸 (Apply Phase A 정상 흐름)</td></tr>
+    <tr><td>P3</td><td>이미 반납된 컨테이너 (Closed)</td><td>완료(completed) + 반납일자</td></tr>
+    <tr><td>P4</td><td>over caps 등 invalid 컨테이너</td><td>불가 + 사유</td></tr>
+  </tbody>
+</table>
+
+<h2>6. 위험 / 비변경</h2>
+<ul>
+  <li><strong>Apply Phase B (Confirm 클릭) 정책 변경 없음</strong> — 신규 PPR 자동 발급 X 그대로.</li>
+  <li>다른 임대사 무관.</li>
+  <li>JS 직접 value 주입 (3.1) 은 일부 사이트에서 v-model 동기화 실패 가능 — 실패 시 로그 남기고 기존 fill 시도값 유지.</li>
+  <li>인접 ±3 rows 매칭 (3.2) 은 fixed column 구조 전제. 사이트가 단일 테이블로 바뀌면 1차 패스에서 잡힘.</li>
+</ul>
+
+</body>
+</html>

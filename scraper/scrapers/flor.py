@@ -90,7 +90,7 @@ class FlorScraper(BaseScraper):
     async def start(self, headless: bool = True):
         """저장된 storage_state 가 있으면 복원해 브라우저 컨텍스트를 만든다."""
         # Deploy marker — Railway 활성 commit 검증용. 이 로그가 보이면 새 코드 실행 중.
-        logger.info("FLOR scraper start [marker=status-first-v2]")
+        logger.info("FLOR scraper start [marker=precleared-recovery-v1]")
         browsers_path = os.getenv("PLAYWRIGHT_BROWSERS_PATH")
         if browsers_path:
             os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browsers_path
@@ -402,6 +402,13 @@ class FlorScraper(BaseScraper):
         except Exception:
             pass
         await asyncio.sleep(1.5)
+        # Unit Number input 이 DOM 에 붙을 때까지 대기 (visible 은 _fill_unit_input 가 처리).
+        try:
+            await self.page.wait_for_selector(
+                'input[placeholder="Unit Number"]', state="attached", timeout=10_000
+            )
+        except Exception as exc:
+            logger.warning("FLOR Status 탭: Unit Number input attach 대기 실패: %s", exc)
 
     async def _select_customer_id(self, cust_id: str) -> None:
         """Step1 Customer ID 라디오.
@@ -547,44 +554,100 @@ class FlorScraper(BaseScraper):
 
         data = await self.page.evaluate(
             r"""() => {
-                const out = { invalid: [], valid: [], dump: [] };
+                const out = { invalid: [], valid: [], dump: [], matched_split: [] };
                 const REJECT_KEYWORDS = [
                     'incapable', 'cannot', 'over caps', 'over_caps',
-                    'already', 'reject', 'invalid', 'previously'
+                    'already', 'reject', 'invalid', 'previously', 'precleared'
                 ];
+                const UNIT_RE = /^[A-Z]{4}\d{6,7}$/;
+                const PRECLEARED_RE = /already\s+precleared|Redelivery\s+number:\s*PP[RF]\d+/i;
+
+                // 모든 테이블의 모든 행을 한 스트림으로 수집 (순서 보존).
+                // fixed column 으로 행이 두 <table> 로 쪼개진 경우에도 인덱스 인접성이
+                // 시각적 동일 행을 가리킬 확률이 높음.
+                const allRows = [];
                 for (const tbl of document.querySelectorAll('table')) {
                     const rows = Array.from(tbl.querySelectorAll('tbody tr'));
                     for (const tr of rows) {
                         const cells = Array.from(tr.querySelectorAll('td'))
                             .map(td => (td.innerText || '').trim());
                         if (cells.length === 0) continue;
-                        out.dump.push(cells);
-                        const unit = cells.find(c => /^[A-Z]{4}\d{6,7}$/.test(c)) || '';
-                        if (!unit) continue;
-                        // 거부 사유 후보: 긴 문장 또는 키워드 포함
-                        const reasonCell = cells.find(c => {
-                            if (c === unit) return false;
-                            const cl = c.toLowerCase();
-                            if (c.length >= 40) return true;
-                            return REJECT_KEYWORDS.some(k => cl.includes(k));
-                        });
-                        if (reasonCell) {
-                            out.invalid.push({ unit, reason: reasonCell, cells });
-                        } else {
-                            out.valid.push({ unit, cells });
-                        }
+                        allRows.push(cells);
                     }
                 }
+
+                const handled = new Set();  // 인덱스 — 1차 패스 처리된 row
+                // === 1차 패스: 같은 행에 unit + (reason or 그냥 valid) ===
+                for (let i = 0; i < allRows.length; i++) {
+                    const cells = allRows[i];
+                    out.dump.push(cells);
+                    const unit = cells.find(c => UNIT_RE.test(c)) || '';
+                    if (!unit) continue;
+                    const reasonCell = cells.find(c => {
+                        if (c === unit) return false;
+                        const cl = c.toLowerCase();
+                        if (c.length >= 40) return true;
+                        return REJECT_KEYWORDS.some(k => cl.includes(k));
+                    });
+                    if (reasonCell) {
+                        out.invalid.push({ unit, reason: reasonCell, cells });
+                    } else {
+                        out.valid.push({ unit, cells });
+                    }
+                    handled.add(i);
+                }
+
+                // === 2차 패스: reason-only 행 ↔ unit-only 행 분리행 매칭 ===
+                // Element UI fixed column 구조에서 한 시각적 행이 두 <table> 로
+                // 쪼개져 reason 과 unit 이 서로 다른 row 에 분포하는 케이스.
+                // 매칭된 unit 이 1차에서 valid 로 잘못 분류돼 있으면 invalid 로 승격.
+                for (let i = 0; i < allRows.length; i++) {
+                    const cells = allRows[i];
+                    if (cells.some(c => UNIT_RE.test(c))) continue;  // unit 가진 행은 1차 담당
+                    const reason = cells.find(c => {
+                        if (!c) return false;
+                        if (PRECLEARED_RE.test(c)) return true;
+                        const cl = c.toLowerCase();
+                        if (c.length >= 40 && REJECT_KEYWORDS.some(k => cl.includes(k))) return true;
+                        return false;
+                    });
+                    if (!reason) continue;
+
+                    // 인접 ±3 rows 에서 unit-only 행 검색.
+                    let foundUnit = null;
+                    for (const d of [0, 1, -1, 2, -2, 3, -3]) {
+                        const j = i + d;
+                        if (j < 0 || j >= allRows.length || j === i) continue;
+                        const u = allRows[j].find(c => UNIT_RE.test(c));
+                        // unit-only 후보: unit 있고 길이 40+ cell 없음
+                        if (u && !allRows[j].some(c => c.length >= 40)) {
+                            foundUnit = u;
+                            break;
+                        }
+                    }
+                    if (!foundUnit) continue;
+
+                    // 이미 1차에서 valid 로 분류된 unit 이면 valid 에서 제거
+                    const vIdx = out.valid.findIndex(v => v.unit === foundUnit);
+                    if (vIdx >= 0) out.valid.splice(vIdx, 1);
+                    out.invalid.push({ unit: foundUnit, reason, cells });
+                    out.matched_split.push({ unit: foundUnit, reason });
+                }
+
                 return out;
             }"""
         )
 
         invalid = data.get("invalid") or []
         valid = data.get("valid") or []
+        matched_split = data.get("matched_split") or []
         logger.info(
-            "FLOR Step3 parsed: invalid=%d valid=%d (depot=%s)",
-            len(invalid), len(valid), depot_str,
+            "FLOR Step3 parsed: invalid=%d valid=%d split_matched=%d (depot=%s)",
+            len(invalid), len(valid), len(matched_split), depot_str,
         )
+        for ms in matched_split:
+            logger.info("FLOR Step3 split-match: unit=%s reason=%s",
+                        ms.get("unit"), (ms.get("reason") or "")[:120])
         for row in (data.get("dump") or [])[:10]:
             logger.info("FLOR Step3 row: %s", row)
 
@@ -638,20 +701,26 @@ class FlorScraper(BaseScraper):
         """
         r_lower = reason.lower()
 
-        # §5-3: 활성 PPR 추출
+        # §5-3: 활성 PPR 추출 (이미 발급된 케이스 — precleared 포함)
         ppr_match = re.search(r"PP[RF]\d+", reason)
         active_kw = any(k in r_lower for k in (
-            "already", "active", "open redelivery", "existing redelivery"
+            "already", "active", "open redelivery", "existing redelivery", "precleared"
         ))
         if ppr_match and active_kw:
-            logger.info("FLOR %s: §5-3 활성 PPR 감지 → %s", unit, ppr_match.group(0))
+            # Depot Code 만 추출. Order Date 는 신청일이므로 유효기간(close_date)에 매핑하지 않음.
+            depot_m = re.search(r"Depot\s+Code:\s*([A-Z0-9]+)", reason, re.IGNORECASE)
+            logger.info(
+                "FLOR %s: §5-3 활성 PPR 감지 → %s (depot=%s)",
+                unit, ppr_match.group(0), depot_m.group(1) if depot_m else None,
+            )
             return {
                 "available": True,
                 "status": "available",
                 "completed_date": None,
                 "booking_ref": ppr_match.group(0),
+                "depot": depot_m.group(1) if depot_m else None,
+                "close_date": None,   # Apply 폴백에선 만료일 알 수 없음 (Status 경로가 채움)
                 "reason": None,
-                # depot/over_caps/close_date 은 Phase B Status enrichment 에서 채움
             }
 
         # §5-4: 이전 완료 (날짜 패턴 검출)
@@ -677,12 +746,49 @@ class FlorScraper(BaseScraper):
             "reason": reason or "거부 (사유 미상)",
         }
 
+    async def _fill_unit_input(self, container: str) -> bool:
+        """Unit Number 입력란에 값 주입.
+
+        Playwright fill 의 visibility 판정이 Element UI 의 wrapping 으로 실패하는
+        케이스(`element is not visible`)가 관찰됨. 다음 순서로 시도:
+          1) scroll_into_view + 짧은 timeout fill
+          2) 실패 시 JS 직접 value setter + input/change 이벤트 dispatch
+             (Vue v-model 동기화용 — 호환성 위해 native setter 사용)
+        """
+        sel = 'input[placeholder="Unit Number"]'
+        loc = self.page.locator(sel).first
+        if await loc.count() == 0:
+            return False
+        try:
+            await loc.scroll_into_view_if_needed(timeout=3_000)
+        except Exception:
+            pass
+        try:
+            await loc.fill(container, timeout=5_000)
+            return True
+        except Exception as exc:
+            logger.info("FLOR Unit input visible-fill 실패 → JS fallback: %s", exc)
+
+        ok = await self.page.evaluate(
+            r"""(args) => {
+                const el = document.querySelector(args.sel);
+                if (!el) return false;
+                el.focus();
+                const setter = Object.getOwnPropertyDescriptor(
+                    window.HTMLInputElement.prototype, 'value').set;
+                setter.call(el, args.val);
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                return true;
+            }""",
+            {"sel": sel, "val": container},
+        )
+        return bool(ok)
+
     async def _search_one(self, container: str) -> dict:
         """Status 탭에서 컨테이너 한 개 검색 후 결과 행 파싱."""
-        unit_input = self.page.locator('input[placeholder="Unit Number"]').first
-        if await unit_input.count() == 0:
+        if not await self._fill_unit_input(container):
             return self._error_row(container, "Unit Number 입력란 없음")
-        await unit_input.fill(container)
         await asyncio.sleep(0.3)
 
         search_btn = self.page.locator("button").filter(has_text="Search").first
