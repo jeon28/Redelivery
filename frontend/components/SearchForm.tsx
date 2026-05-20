@@ -8,15 +8,21 @@ import DepotPickerModal from './DepotPickerModal'
 // 카탈로그 코드 → 베이스 코드(template key) 정규화 함수 제공
 // ─────────────────────────────────────────────────────────────
 type LessorMode = 'query' | 'email'
-type LessorEntry = { code: string; mode: LessorMode; status?: 'ready' | 'wip' }
+type LessorEntry = {
+  code: string
+  mode: LessorMode
+  status?: 'ready' | 'wip'
+  // 웹 조회가 원활하지 않아 메일 신청도 함께 정식 경로로 안내하는 임대사
+  mailFallback?: boolean
+}
 
 const LESSOR_CATALOG: Record<string, LessorEntry[]> = {
   장금상선: [
     { code: 'TEXA',       mode: 'query', status: 'ready' },
     { code: 'TRIT+TRAM',  mode: 'query', status: 'ready' },
-    { code: 'GLOD',       mode: 'query', status: 'ready' },
+    { code: 'GLOD',       mode: 'query', status: 'ready', mailFallback: true },
     { code: 'FLOR+DFIC',  mode: 'query', status: 'ready' },
-    { code: 'GESE+CROS',  mode: 'query', status: 'ready' },
+    { code: 'GESE+CROS',  mode: 'query', status: 'ready', mailFallback: true },
     { code: 'GCIC',       mode: 'query', status: 'wip' },
     { code: 'CAIC',       mode: 'email' },
     { code: 'BCON',       mode: 'email' },
@@ -26,9 +32,9 @@ const LESSOR_CATALOG: Record<string, LessorEntry[]> = {
   흥아라인: [
     { code: 'TEXA',       mode: 'query', status: 'ready' },
     { code: 'TRIT',       mode: 'query', status: 'ready' },
-    { code: 'GOLD',       mode: 'query', status: 'ready' },
+    { code: 'GOLD',       mode: 'query', status: 'ready', mailFallback: true },
     { code: 'FLOR',       mode: 'query', status: 'ready' },
-    { code: 'GESE+SGCN',  mode: 'query', status: 'ready' },
+    { code: 'GESE+SGCN',  mode: 'query', status: 'ready', mailFallback: true },
     { code: 'BCON',       mode: 'email' },
     { code: 'CARL',       mode: 'email' },
     { code: 'BLUE',       mode: 'email' },
@@ -235,6 +241,9 @@ export default function SearchForm({ office }: { office: string }) {
   const isWip = currentLessor?.status === 'wip'
   const isEmailLessor = currentLessor?.mode === 'email'
   const isQueryLessor = currentLessor?.mode === 'query'
+  const isMailFallback = !!currentLessor?.mailFallback
+  // 메일 버튼을 정식 경로로 강조하는 케이스: email 모드 또는 query+mailFallback
+  const emphasizeMailButton = isEmailLessor || isMailFallback
 
   const carrierInfo = CARRIER_CODES[company]
   const regionInfo = REGIONS.find((r) => r.value === region) ?? REGIONS[1]
@@ -377,6 +386,7 @@ export default function SearchForm({ office }: { office: string }) {
                 <option key={l.code} value={l.code}>
                   {l.code}
                   {l.mode === 'email' ? ' (메일)' : ''}
+                  {l.mailFallback ? ' (메일가능)' : ''}
                   {l.status === 'wip' ? ' [준비중]' : ''}
                 </option>
               ))}
@@ -471,12 +481,12 @@ export default function SearchForm({ office }: { office: string }) {
             className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
               containers.length === 0
                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : isEmailLessor
+                : emphasizeMailButton
                 ? 'bg-slate-800 text-white hover:bg-slate-700'
                 : 'bg-white text-slate-800 border border-slate-300 hover:bg-slate-50'
             }`}
           >
-            {isEmailLessor ? '📧 메일 보내기' : '📧 메일로 신청'}
+            {emphasizeMailButton ? '📧 메일 보내기' : '📧 메일로 신청'}
           </a>
         </div>
       </div>
