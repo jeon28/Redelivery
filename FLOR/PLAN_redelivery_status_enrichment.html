@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>FLOR 반납번호/유효기간 가시화 + 다건 입력 안내 계획</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+                 "Noto Sans KR", sans-serif;
+    line-height: 1.6;
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+    color: #222;
+    background: #fff;
+  }
+  h1 { border-bottom: 2px solid #334155; padding-bottom: .4rem; }
+  h2 { border-bottom: 1px solid #cbd5e1; padding-bottom: .3rem; margin-top: 2.2rem; }
+  h3 { margin-top: 1.6rem; color: #1e293b; }
+  code, pre {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 0.9em;
+  }
+  code { background: #f1f5f9; padding: 0.1em 0.35em; border-radius: 3px; }
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+  }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td {
+    border: 1px solid #cbd5e1;
+    padding: 0.45rem 0.7rem;
+    text-align: left;
+    vertical-align: top;
+    font-size: 0.95rem;
+  }
+  th { background: #f1f5f9; }
+  tr:nth-child(even) td { background: #fafbfc; }
+  ul, ol { padding-left: 1.4rem; }
+  li { margin: 0.25rem 0; }
+  .tag {
+    display: inline-block;
+    background: #fef3c7;
+    color: #92400e;
+    padding: 0.05rem 0.45rem;
+    border-radius: 3px;
+    font-size: 0.78em;
+    font-weight: 600;
+    margin-right: 0.3rem;
+  }
+  .tag.ok { background: #dcfce7; color: #166534; }
+  .tag.risk { background: #fee2e2; color: #991b1b; }
+  blockquote {
+    border-left: 4px solid #94a3b8;
+    margin: 1rem 0;
+    padding: 0.4rem 1rem;
+    color: #475569;
+    background: #f8fafc;
+  }
+  .warn-preview {
+    background: #fefce8;
+    border: 1px solid #fde68a;
+    color: #b45309;
+    padding: 0.6rem 0.8rem;
+    border-radius: 5px;
+    font-size: 0.92rem;
+    margin: 0.8rem 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>FLOR 반납번호/유효기간 가시화 + 다건 입력 안내 계획</h1>
+
+<blockquote>
+<strong>증상</strong>:
+<code>흥아라인 / FLOR / 부산 / KRPUS03</code> 으로
+<code>DFSU7597484</code> 조회 시 <code>✅ 가능</code> + depot 만 표시되고
+<strong>반납번호 / 유효기간 / 불가사유 컬럼은 "-"</strong>.
+FLOR 사이트의 "Unit Detail" 영역에는
+<code>Unit has been already precleared ( Redelivery number: PPR78148,
+Order Date: 2026-05-20, Depot Code: KRPUS03 )</code> 가 명확히 표시되며,
+정확한 유효기간(<code>Expiry Date 2026-07-19</code>)은 Redelivery Status 탭의
+<code>+ More</code> 펼침에서만 노출됨.
+</blockquote>
+
+<h2>1. 데이터 위치 정리</h2>
+
+<table>
+  <thead>
+    <tr><th>데이터</th><th>위치</th><th>비고</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>PPR 번호 (반납번호)</td>
+      <td>Apply Redelivery Step 3 의 Unit Detail Info 셀</td>
+      <td>이미 발급된 케이스만 노출. 신규는 Confirm 클릭 후에야 발급됨 (Phase B, 본 PR 범위 외)</td>
+    </tr>
+    <tr>
+      <td>Order Date <br><em>(승인 일자, 유효기간 아님)</em></td>
+      <td>Apply Step 3 Info 셀 / Redelivery Status 행</td>
+      <td>예: <code>2026-05-20</code></td>
+    </tr>
+    <tr>
+      <td><strong>Expiry Date (유효기간)</strong></td>
+      <td>Redelivery Status 탭 → unit 검색 → + More 펼침</td>
+      <td>예: <code>2026-07-19</code>. 사용자 화면 "유효기간" 컬럼에 표시할 값</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>2. 기존 코드 자산</h2>
+
+<p>다행히 <code>flor.py</code> 에 Phase B 보조용으로 작성된 helper 가 이미 있음:</p>
+
+<table>
+  <tbody>
+    <tr><td><code>_search_one(container)</code> (~line 574)</td><td>Status 탭에서 unit 검색 + 결과 행 파싱 + 내부에서 expand 호출</td></tr>
+    <tr><td><code>_expand_and_extract(ref)</code> (~line 759)</td><td>+ More 클릭 → Expiry Date / Depot Name / Open CAP 추출</td></tr>
+  </tbody>
+</table>
+
+<p>본 작업은 이 helper들을 호출하는 진입점만 새로 짜는 것이라 신규 코드 양이 적음.</p>
+
+<h2>3. 변경 범위</h2>
+
+<table>
+  <thead><tr><th>파일</th><th>변경</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>scraper/scrapers/flor.py</code></td>
+      <td>
+        <strong>(A)</strong> <code>_parse_step3</code> 끝에 페이지 텍스트 sweep fallback 추가<br>
+        <strong>(B)</strong> 신규 <code>_navigate_to_status()</code><br>
+        <strong>(C)</strong> <code>query()</code> 끝에 enrichment 호출
+      </td>
+    </tr>
+    <tr>
+      <td><code>frontend/components/SearchForm.tsx</code></td>
+      <td><strong>(D)</strong> FLOR + 6개 이상 입력 시 노란 안내문 표시</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>4. 구체적 변경</h2>
+
+<h3>A. <code>_parse_step3</code> sweep fallback</h3>
+
+<p>
+기존 invalid/valid 테이블 분류 후, <code>booking_ref</code>가 비어 있는
+컨테이너 한정으로 페이지 전체 텍스트에서 패턴 매칭:
+</p>
+
+<pre><code># 컨테이너 번호 뒤 300자 이내에서 "Redelivery number: PPR####" 추출
+sweep = await self._sweep_precleared(list(results.keys()))
+for unit, info in sweep.items():
+    if results[unit].get("booking_ref"):
+        continue
+    results[unit].update({
+        "available": True,
+        "status": "available",
+        "booking_ref": info["ppr"],
+        "reason": None,
+        # close_date 는 Status 탭 enrichment 에서 Expiry Date 로 채움
+    })</code></pre>
+
+<p>신규 <code>_sweep_precleared(containers)</code>: <code>document.body.innerText</code>
+를 JS 로 가져와 컨테이너별 정규식 검색.</p>
+
+<h3>B. <code>_navigate_to_status()</code></h3>
+
+<p>
+Apply 탭과 같은 패턴으로 "Redelivery Status" 텍스트 클릭. 탭 없으면
+<code>REDELIV_URL</code>로 재진입 후 재시도.
+</p>
+
+<pre><code>async def _navigate_to_status(self) -> None:
+    status_tab = self.page.locator("text=Redelivery Status").first
+    if await status_tab.count() == 0:
+        await self.page.goto(REDELIV_URL, wait_until="networkidle", timeout=30_000)
+        await asyncio.sleep(2.0)
+        status_tab = self.page.locator("text=Redelivery Status").first
+    await status_tab.click(timeout=5_000)
+    try:
+        await self.page.wait_for_load_state("networkidle", timeout=10_000)
+    except Exception:
+        pass
+    await asyncio.sleep(1.5)</code></pre>
+
+<h3>C. <code>query()</code> 끝에 enrichment 호출</h3>
+
+<pre><code># 8. Step 3 파싱 (현재)
+await self._parse_step3(results, depot_str)
+
+# 9. NEW: PPR 있는 컨테이너 대상 Status 탭 enrichment
+to_enrich = [c for c, r in results.items() if r.get("booking_ref")]
+if to_enrich:
+    try:
+        await self._navigate_to_status()
+        for c in to_enrich:
+            try:
+                row = await self._search_one(c)
+                if row.get("close_date"):  row["close_date"]  # ← Expiry Date
+                if row.get("depot"):       results[c]["depot"]       = row["depot"]
+                if row.get("over_caps") is not None:
+                    results[c]["over_caps"] = row["over_caps"]
+                if row.get("close_date"):
+                    results[c]["close_date"] = row["close_date"]
+                if row.get("booking_ref"):
+                    results[c]["booking_ref"] = row["booking_ref"]
+            except Exception as exc:
+                logger.warning("FLOR %s enrich 실패: %s", c, exc)
+    except Exception as exc:
+        logger.warning("FLOR Status 탭 진입 실패 (enrichment 스킵): %s", exc)</code></pre>
+
+<p>실패해도 결과 행은 유지 (가능 + booking_ref 만 있는 상태로 표시).</p>
+
+<h3>D. Frontend 다건 입력 안내</h3>
+
+<p>
+<code>SearchForm.tsx</code> 컨테이너 textarea 아래, 기존 <code>isWip</code>
+안내문과 같은 노란색 박스 스타일:
+</p>
+
+<div class="warn-preview">
+⚠️ FLOR 6개 이상 입력 — 이미 반납번호가 발급된 컨테이너가 있을 경우
+1건당 ~6초 추가 소요됩니다.
+</div>
+
+<p>표시 조건:</p>
+<ul>
+  <li><code>templateKey(lessor) === 'FLOR'</code></li>
+  <li><code>containers.length &gt; 5</code></li>
+</ul>
+
+<p>입력 차단은 하지 않음. 조회 버튼은 그대로 활성.</p>
+
+<h2>5. 시간 영향 정리</h2>
+
+<table>
+  <thead>
+    <tr><th>케이스</th><th>변경 전</th><th>변경 후</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>PPR 없는 신규 컨테이너 N개</td><td>X초</td><td>X초 (enrichment 미발동)</td></tr>
+    <tr><td>이미 PPR 있는 컨테이너 1개</td><td>현 misclassify (반납번호/유효기간 빈칸)</td><td>X+6초, 정확한 PPR + Expiry Date</td></tr>
+    <tr><td>이미 PPR 있는 컨테이너 10개</td><td>현 misclassify</td><td>X+60~70초, 정확한 정보</td></tr>
+    <tr><td>신규 5 + 기존 5 혼합</td><td>기존 5 misclassify</td><td>X+30~35초 (기존 5건만 enrichment)</td></tr>
+  </tbody>
+</table>
+
+<p>속도 최적화 (Status 탭 batch 파싱 등) 는 본 PR 범위 외. 알림 UX 로 대응.</p>
+
+<h2>6. 비변경</h2>
+<ul>
+  <li>다른 임대사 (TEXA / TRIT / GOLD / GESE) — 무관</li>
+  <li><code>_classify_reject</code> §5-3/5-4 분기 그대로</li>
+  <li><code>_search_one</code> / <code>_expand_and_extract</code> 본체 — 호출만 추가</li>
+  <li>Phase A 정책 유지: Confirm 미클릭, 신규 PPR 발급 X</li>
+  <li>세션 재사용 / 슬라이더 캡차 — 그대로</li>
+</ul>
+
+<h2>7. 검증</h2>
+<ol>
+  <li><strong>DFSU7597484</strong> 1건 조회 → 반납번호 <code>PPR78148</code>, 유효기간 <code>2026-07-19</code> 표시</li>
+  <li>PPR 없는 신규 컨테이너 1건 조회 → ✅ 가능 / 반납번호 "-" (enrichment 미발동, 회귀 없음)</li>
+  <li>일반 invalid 케이스 (over caps 등) → §5-3 분기 정상</li>
+  <li>FLOR 으로 컨테이너 6개 이상 입력 → textarea 아래 노란 안내문 노출</li>
+  <li>TEXA / GOLD 등 다른 임대사 6개 이상 입력 → 안내문 미노출</li>
+</ol>
+
+<h2>8. 작업 순서</h2>
+<ol>
+  <li>본 계획 사용자 승인</li>
+  <li><code>flor.py</code> 수정 (A·B·C)</li>
+  <li><code>SearchForm.tsx</code> 수정 (D)</li>
+  <li>로컬 검증 (위 4 / 5 항목 — UI 안내문 노출 여부)</li>
+  <li>커밋 → 푸시 → Railway 배포 후 DFSU7597484 재조회로 1·2·3 검증</li>
+</ol>
+
+</body>
+</html>

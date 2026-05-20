@@ -308,7 +308,29 @@ class FlorScraper(BaseScraper):
             # 8. Step 3 파싱 (거부/유효 분리)
             await self._parse_step3(results, depot_str)
 
-            # Phase B (예정): Confirm Redelivery Order 클릭 → PPR 캡처 + Status enrichment
+            # 9. 이미 PPR 발급된 컨테이너 대상 Status 탭에서 Expiry Date / Depot / Open CAP 보강.
+            #    신규(booking_ref None) 컨테이너는 enrichment 미발동 → 시간 비용 없음.
+            to_enrich = [c for c, r in results.items() if r.get("booking_ref")]
+            if to_enrich:
+                try:
+                    await self._navigate_to_status()
+                    for c in to_enrich:
+                        try:
+                            row = await self._search_one(c)
+                            if row.get("close_date"):
+                                results[c]["close_date"] = row["close_date"]
+                            if row.get("depot"):
+                                results[c]["depot"] = row["depot"]
+                            if row.get("over_caps") is not None:
+                                results[c]["over_caps"] = row["over_caps"]
+                            if row.get("booking_ref"):
+                                results[c]["booking_ref"] = row["booking_ref"]
+                        except Exception as exc:
+                            logger.warning("FLOR %s enrich 실패: %s", c, exc)
+                except Exception as exc:
+                    logger.warning("FLOR Status 탭 진입 실패 (enrichment 스킵): %s", exc)
+
+            # Phase B (예정): Confirm Redelivery Order 클릭 → 신규 PPR 캡처
 
         except Exception as exc:
             logger.error("FLOR query error: %s\n%s", exc, traceback.format_exc())
@@ -360,6 +382,20 @@ class FlorScraper(BaseScraper):
                 await asyncio.sleep(0.8)
             except Exception:
                 pass  # 이미 활성이면 클릭 실패해도 무방
+
+    async def _navigate_to_status(self) -> None:
+        """Redelivery Status 탭으로 전환. 탭이 안 보이면 REDELIV_URL 재진입 후 재시도."""
+        status_tab = self.page.locator("text=Redelivery Status").first
+        if await status_tab.count() == 0:
+            await self.page.goto(REDELIV_URL, wait_until="networkidle", timeout=30_000)
+            await asyncio.sleep(2.0)
+            status_tab = self.page.locator("text=Redelivery Status").first
+        await status_tab.click(timeout=5_000)
+        try:
+            await self.page.wait_for_load_state("networkidle", timeout=10_000)
+        except Exception:
+            pass
+        await asyncio.sleep(1.5)
 
     async def _select_customer_id(self, cust_id: str) -> None:
         """Step1 Customer ID 라디오.
@@ -558,6 +594,47 @@ class FlorScraper(BaseScraper):
                 "close_date": None,
                 "reason": None,
             })
+
+        # Sweep fallback — 테이블 파싱이 못 잡은 already precleared 케이스
+        # (Element UI el-table 가 비표준 구조로 렌더되어 JS table 스캔이 누락한 경우).
+        # 페이지 본문 텍스트에서 컨테이너별로 "Redelivery number: PPR####" 직접 추출.
+        try:
+            sweep = await self._sweep_precleared(list(results.keys()))
+        except Exception as exc:
+            logger.warning("FLOR Step3 sweep 실패: %s", exc)
+            sweep = {}
+        for unit, info in sweep.items():
+            if results.get(unit, {}).get("booking_ref"):
+                continue  # 이미 §5-3 으로 추출돼 있음
+            logger.info("FLOR %s: sweep 으로 PPR 감지 → %s", unit, info["ppr"])
+            results[unit].update({
+                "available": True,
+                "status": "available",
+                "completed_date": None,
+                "depot": depot_str,
+                "booking_ref": info["ppr"],
+                "reason": None,
+                # close_date 는 후속 Status 탭 enrichment 에서 Expiry Date 로 채움
+            })
+
+    async def _sweep_precleared(self, containers: list[str]) -> dict[str, dict]:
+        """페이지 본문 텍스트에서 컨테이너별 'Redelivery number: PPR####' 추출.
+
+        Apply Step 3 의 Unit Detail 영역에 텍스트가 있는데 el-table 구조 때문에
+        표 단위 파싱이 못 잡는 경우의 안전망. 한 컨테이너 번호 뒤 300자 이내에
+        PPR 패턴이 있으면 매칭.
+        """
+        page_text = await self.page.evaluate("() => document.body.innerText || ''")
+        out: dict[str, dict] = {}
+        for c in containers:
+            m = re.search(
+                rf"{re.escape(c)}.{{0,300}}?Redelivery\s+number:\s*(PP[RF]\d+)",
+                page_text,
+                re.DOTALL,
+            )
+            if m:
+                out[c] = {"ppr": m.group(1)}
+        return out
 
     def _classify_reject(self, unit: str, reason: str) -> dict:
         """거부 reason 텍스트를 분류 (§5-3 / §5-4 / 일반).

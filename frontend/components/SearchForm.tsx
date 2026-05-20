@@ -453,6 +453,13 @@ export default function SearchForm({ office }: { office: string }) {
 
         {error && <p className="text-red-500 text-sm">{error}</p>}
 
+        {isFlor && containers.length > 5 && (
+          <p className="text-amber-600 text-sm bg-amber-50 border border-amber-200 rounded px-3 py-2">
+            ⚠️ FLOR 6개 이상 입력 — 이미 반납번호가 발급된 컨테이너가 있을 경우 1건당
+            ~6초 추가 소요됩니다.
+          </p>
+        )}
+
         {isWip && (
           <p className="text-amber-600 text-sm bg-amber-50 border border-amber-200 rounded px-3 py-2">
             ⚠️ 이 임대사 웹 조회는 아직 준비중입니다. 메일로 보내기는 가능합니다.
