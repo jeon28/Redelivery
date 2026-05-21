@@ -9,6 +9,8 @@ export interface QueryResult {
   over_caps: number | null
   close_date: string | null
   reason: string | null
+  status?: string | null
+  completed_date?: string | null
 }
 
 interface CancelApiResult {
@@ -331,7 +333,10 @@ export default function ResultTable({
               const checkable = selectableKeys.has(r.container_no)
               const checked = validSelected.has(r.container_no)
               const precleared = isPrecleared(r)
-              const rowBg = precleared
+              const completed = r.status === 'completed'
+              const rowBg = completed
+                ? 'bg-gray-100'
+                : precleared
                 ? 'bg-blue-50'
                 : r.available
                 ? 'bg-green-50'
@@ -358,7 +363,9 @@ export default function ResultTable({
                     {r.container_no}
                   </td>
                   <td className="px-4 py-3">
-                    {precleared ? (
+                    {completed ? (
+                      <span className="text-gray-700 font-medium">🏁 반납완료</span>
+                    ) : precleared ? (
                       <span className="text-blue-700 font-medium">🟢 완료</span>
                     ) : r.available ? (
                       <span className="text-green-700 font-medium">✅ 가능</span>
@@ -372,7 +379,9 @@ export default function ResultTable({
                   </td>
                   <td className="px-4 py-3 text-gray-600">{r.over_caps ?? '-'}</td>
                   <td className="px-4 py-3 text-gray-600">{r.close_date ?? '-'}</td>
-                  <td className={`px-4 py-3 text-xs ${r.available ? 'text-gray-600' : 'text-red-600'}`}>
+                  <td className={`px-4 py-3 text-xs ${
+                    r.available || completed ? 'text-gray-600' : 'text-red-600'
+                  }`}>
                     {r.reason ?? '-'}
                   </td>
                 </tr>

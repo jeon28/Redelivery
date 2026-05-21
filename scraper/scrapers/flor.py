@@ -90,7 +90,7 @@ class FlorScraper(BaseScraper):
     async def start(self, headless: bool = True):
         """저장된 storage_state 가 있으면 복원해 브라우저 컨텍스트를 만든다."""
         # Deploy marker — Railway 활성 commit 검증용. 이 로그가 보이면 새 코드 실행 중.
-        logger.info("FLOR scraper start [marker=phase-b-confirm-v1]")
+        logger.info("FLOR scraper start [marker=closed-display-v1]")
         browsers_path = os.getenv("PLAYWRIGHT_BROWSERS_PATH")
         if browsers_path:
             os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browsers_path
@@ -312,6 +312,8 @@ class FlorScraper(BaseScraper):
                         results[c].update({
                             "container_no": c,
                             "available": row.get("available", False),
+                            "status": row.get("status"),
+                            "completed_date": row.get("completed_date"),
                             "depot": row.get("depot"),
                             "booking_ref": row.get("booking_ref"),
                             "over_caps": row.get("over_caps"),
@@ -319,8 +321,8 @@ class FlorScraper(BaseScraper):
                             "reason": row.get("reason"),
                         })
                         logger.info(
-                            "FLOR %s: Status 채택 (booking_ref=%s, reason=%s)",
-                            c, row.get("booking_ref"), row.get("reason"),
+                            "FLOR %s: Status 채택 (status=%s booking_ref=%s reason=%s)",
+                            c, row.get("status"), row.get("booking_ref"), row.get("reason"),
                         )
 
             # ── Phase 2: 신규 후보 Apply 흐름 ────────────────────────────
@@ -1257,24 +1259,39 @@ class FlorScraper(BaseScraper):
             except Exception as exc:
                 logger.warning("FLOR %s expand 실패: %s", container, exc)
 
-        depot    = details.get("depot_name") or None
-        expiry   = details.get("expiry_date") or None
-        open_cap = details.get("open_cap")  # Contracts 테이블의 Open CAP (잔여 캡)
+        depot_full = details.get("depot_name") or None
+        expiry     = details.get("expiry_date") or None
+        open_cap   = details.get("open_cap")  # Contracts 테이블의 Open CAP (잔여 캡)
+        off_hire   = details.get("off_hire_date") or None
+
+        # depot 표시는 코드만: "(KRINC04) SeungJin ..." → "KRINC04"
+        depot: str | None = None
+        if depot_full:
+            m = re.search(r"\(([A-Z0-9]+)\)", depot_full)
+            depot = m.group(1) if m else depot_full
 
         try:
             over_caps = int(open_cap) if open_cap and str(open_cap).isdigit() else None
         except (ValueError, TypeError):
             over_caps = None
 
-        # 가용 판정: Status가 Open 이면 반납 가능
+        # 가용 판정 / 상태 분기
         is_open = "open" in status.lower()
+        is_closed = "closed" in status.lower()
+        is_void = "void" in status.lower() or "cancel" in status.lower()
         available = is_open
+        status_val = "available" if is_open else ("completed" if is_closed else "unavailable")
 
         reason: str | None = None
         if not available:
-            if "closed" in status.lower():
-                reason = "이미 반납됨 (Closed)"
-            elif "void" in status.lower() or "cancel" in status.lower():
+            if is_closed:
+                # 사용자 요청 2026-05-21: 반납완료 행의 조회 결과는
+                # "OFF HIRE DATE YYYY-MM-DD" 포맷으로 통일.
+                reason = (
+                    f"OFF HIRE DATE {off_hire}" if off_hire
+                    else "이미 반납됨 (Closed)"
+                )
+            elif is_void:
                 reason = "취소된 예약 (VOID)"
             else:
                 reason = f"발급 상태: {status or '미상'}"
@@ -1285,6 +1302,8 @@ class FlorScraper(BaseScraper):
         return {
             "container_no": container,
             "available": available,
+            "status": status_val,
+            "completed_date": _to_mmdd(off_hire) if is_closed and off_hire else None,
             "depot": depot,
             "booking_ref": ref or None,
             "over_caps": over_caps,
@@ -1387,10 +1406,30 @@ class FlorScraper(BaseScraper):
                 }
             }
 
+            // per-unit 서브테이블에서 Off Hire Date 추출
+            // 컬럼: #, Unit Number, Equip. Type, Move Date, Off Hire Date, Actions
+            let offHireDate = null;
+            for (const tbl of document.querySelectorAll('table')) {
+                const headers = Array.from(tbl.querySelectorAll('thead th, thead td'))
+                    .map(th => (th.innerText || '').trim());
+                const idx = headers.findIndex(h => /^off\s*hire\s*date$/i.test(h));
+                if (idx >= 0) {
+                    const firstRow = tbl.querySelector('tbody tr');
+                    if (firstRow) {
+                        const cells = firstRow.querySelectorAll('td');
+                        if (idx < cells.length) {
+                            offHireDate = (cells[idx].innerText || '').trim();
+                        }
+                    }
+                    break;
+                }
+            }
+
             return {
                 expiry_date: valueByLabel('Expiry Date', 'EXPIRY DATE', 'Expiry'),
                 depot_name: valueByLabel('Depot Name', 'DEPOT NAME', 'Depot'),
                 open_cap: openCap,
+                off_hire_date: offHireDate,
             };
         }""")
 
