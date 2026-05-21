@@ -36,7 +36,17 @@ export default function ResultTable({
   const available = results.filter((r) => r.available).length
   const unavailable = results.length - available
 
-  // 취소 가능 행 = available && booking_ref 있음
+  // precleared 판정 — reason 에 'precleared' 포함된 가능 행.
+  // 이 행은 booking_ref 가 비어있지만 사이트에 PPR 이 이미 존재. UI 에서 "완료" 표시.
+  function isPrecleared(r: QueryResult): boolean {
+    return (
+      r.available &&
+      !!r.reason &&
+      r.reason.toLowerCase().includes('precleared')
+    )
+  }
+
+  // 취소 가능 행 = available && booking_ref 있음 (precleared 는 booking_ref 없어서 제외)
   const cancellableKeys = useMemo(
     () =>
       new Set(
@@ -47,28 +57,49 @@ export default function ResultTable({
     [results]
   )
 
+  // 체크박스 활성 행 = available 인 모든 행 (precleared 포함, Status 조회·취소 공용 선택).
+  const selectableKeys = useMemo(
+    () =>
+      new Set(
+        results.filter((r) => r.available).map((r) => r.container_no)
+      ),
+    [results]
+  )
+
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [confirming, setConfirming] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [cancelError, setCancelError] = useState('')
+  const [statusLoading, setStatusLoading] = useState(false)
+  const [statusError, setStatusError] = useState('')
 
   const canCancel = Boolean(
     company && lessor && region && onResultsChange
   )
+  const canStatusLookup = Boolean(company && lessor && onResultsChange)
 
   // results 가 새로 들어오면 선택 초기화 (key가 더 이상 유효하지 않은 경우)
   const validSelected = useMemo(() => {
     const s = new Set<string>()
     for (const k of selected) {
+      if (selectableKeys.has(k)) s.add(k)
+    }
+    return s
+  }, [selected, selectableKeys])
+
+  // 취소 대상 = 선택된 행 중 cancellableKeys 에 속한 것
+  const cancellableSelected = useMemo(() => {
+    const s = new Set<string>()
+    for (const k of validSelected) {
       if (cancellableKeys.has(k)) s.add(k)
     }
     return s
-  }, [selected, cancellableKeys])
+  }, [validSelected, cancellableKeys])
 
   const allChecked =
-    cancellableKeys.size > 0 && validSelected.size === cancellableKeys.size
+    selectableKeys.size > 0 && validSelected.size === selectableKeys.size
   const someChecked =
-    validSelected.size > 0 && validSelected.size < cancellableKeys.size
+    validSelected.size > 0 && validSelected.size < selectableKeys.size
 
   function toggleOne(container_no: string) {
     setSelected((prev) => {
@@ -83,12 +114,12 @@ export default function ResultTable({
     if (allChecked) {
       setSelected(new Set())
     } else {
-      setSelected(new Set(cancellableKeys))
+      setSelected(new Set(selectableKeys))
     }
   }
 
   function openConfirm() {
-    if (validSelected.size === 0) return
+    if (cancellableSelected.size === 0) return
     setCancelError('')
     setConfirming(true)
   }
@@ -101,7 +132,7 @@ export default function ResultTable({
   // 모달 문구 생성
   const confirmMessage = useMemo(() => {
     const items = results
-      .filter((r) => validSelected.has(r.container_no) && r.booking_ref)
+      .filter((r) => cancellableSelected.has(r.container_no) && r.booking_ref)
       .map((r) => ({ container_no: r.container_no, booking_ref: r.booking_ref! }))
     const refs = Array.from(new Set(items.map((i) => i.booking_ref)))
     if (items.length === 0) return ''
@@ -112,12 +143,12 @@ export default function ResultTable({
       return `승인번호 ${refs[0]} 의 컨테이너 ${items.length}개를 취소합니다. 진행할까요?`
     }
     return `승인번호 ${refs[0]} 외 ${refs.length - 1}건의 컨테이너 ${items.length}개를 취소합니다. 진행할까요?`
-  }, [results, validSelected])
+  }, [results, cancellableSelected])
 
   async function confirmCancel() {
     if (!canCancel) return
     const items = results
-      .filter((r) => validSelected.has(r.container_no) && r.booking_ref)
+      .filter((r) => cancellableSelected.has(r.container_no) && r.booking_ref)
       .map((r) => ({ container_no: r.container_no, booking_ref: r.booking_ref! }))
     if (items.length === 0) return
 
@@ -171,6 +202,52 @@ export default function ResultTable({
     onResultsChange(next)
   }
 
+  // 선택된 행만 Status 탭으로 단독 조회 (Stage 1 S2 안정화 적용 후 정상 동작).
+  // precleared 행의 Expiry Date / Depot Name 등 enrichment 용도.
+  async function runStatusLookup() {
+    if (!canStatusLookup || validSelected.size === 0) return
+    const containers = Array.from(validSelected)
+    setStatusLoading(true)
+    setStatusError('')
+    try {
+      const res = await fetch('/api/status-detail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company, lessor, containers }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.detail || data.error || 'Status 조회 실패')
+      }
+      const sd = (data.results ?? []) as QueryResult[]
+      if (onResultsChange) {
+        const byContainer = new Map<string, QueryResult>()
+        for (const r of sd) byContainer.set(r.container_no, r)
+        const next = results.map((r) => {
+          const updated = byContainer.get(r.container_no)
+          if (!updated) return r
+          // booking_ref / depot / close_date / reason 갱신. 빈 값은 기존 유지.
+          return {
+            ...r,
+            booking_ref: updated.booking_ref ?? r.booking_ref,
+            depot: updated.depot ?? r.depot,
+            over_caps: updated.over_caps ?? r.over_caps,
+            close_date: updated.close_date ?? r.close_date,
+            reason: updated.reason ?? r.reason,
+            available: updated.available,
+          }
+        })
+        onResultsChange(next)
+      }
+    } catch (err: unknown) {
+      setStatusError(
+        err instanceof Error ? err.message : 'Status 조회 중 오류가 발생했습니다.'
+      )
+    } finally {
+      setStatusLoading(false)
+    }
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between gap-3">
@@ -190,21 +267,35 @@ export default function ResultTable({
             )}
           </span>
         </div>
-        {canCancel && cancellableKeys.size > 0 && (
-          <button
-            type="button"
-            onClick={openConfirm}
-            disabled={validSelected.size === 0 || cancelling}
-            className="bg-red-600 text-white px-4 py-1.5 rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            선택 항목 취소
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {canStatusLookup && selectableKeys.size > 0 && (
+            <button
+              type="button"
+              onClick={runStatusLookup}
+              disabled={validSelected.size === 0 || statusLoading}
+              className="bg-slate-700 text-white px-4 py-1.5 rounded-md text-sm font-medium hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              title="선택된 행만 Status 탭으로 별도 조회"
+            >
+              {statusLoading ? '조회 중...' : '선택 항목 Status 조회'}
+            </button>
+          )}
+          {canCancel && cancellableKeys.size > 0 && (
+            <button
+              type="button"
+              onClick={openConfirm}
+              disabled={cancellableSelected.size === 0 || cancelling}
+              className="bg-red-600 text-white px-4 py-1.5 rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              title={cancellableSelected.size === 0 ? '취소 가능한 행을 선택하세요 (반납번호 있는 행)' : undefined}
+            >
+              선택 항목 취소
+            </button>
+          )}
+        </div>
       </div>
 
-      {cancelError && (
+      {(cancelError || statusError) && (
         <div className="px-6 py-2 text-sm text-red-600 bg-red-50 border-b border-red-100">
-          {cancelError}
+          {cancelError || statusError}
         </div>
       )}
 
@@ -222,7 +313,7 @@ export default function ResultTable({
                       if (el) el.indeterminate = someChecked
                     }}
                     onChange={toggleAll}
-                    disabled={cancellableKeys.size === 0}
+                    disabled={selectableKeys.size === 0}
                   />
                 </th>
               )}
@@ -237,13 +328,16 @@ export default function ResultTable({
           </thead>
           <tbody className="divide-y divide-gray-100">
             {results.map((r) => {
-              const checkable = cancellableKeys.has(r.container_no)
+              const checkable = selectableKeys.has(r.container_no)
               const checked = validSelected.has(r.container_no)
+              const precleared = isPrecleared(r)
+              const rowBg = precleared
+                ? 'bg-blue-50'
+                : r.available
+                ? 'bg-green-50'
+                : 'bg-red-50'
               return (
-                <tr
-                  key={r.container_no}
-                  className={r.available ? 'bg-green-50' : 'bg-red-50'}
-                >
+                <tr key={r.container_no} className={rowBg}>
                   {canCancel && (
                     <td className="px-3 py-3 w-10">
                       <input
@@ -254,8 +348,8 @@ export default function ResultTable({
                         onChange={() => toggleOne(r.container_no)}
                         title={
                           checkable
-                            ? '취소 대상 선택'
-                            : '취소 가능한 행이 아닙니다'
+                            ? '선택 (Status 조회 또는 취소)'
+                            : '선택할 수 없는 행입니다'
                         }
                       />
                     </td>
@@ -264,7 +358,9 @@ export default function ResultTable({
                     {r.container_no}
                   </td>
                   <td className="px-4 py-3">
-                    {r.available ? (
+                    {precleared ? (
+                      <span className="text-blue-700 font-medium">🟢 완료</span>
+                    ) : r.available ? (
                       <span className="text-green-700 font-medium">✅ 가능</span>
                     ) : (
                       <span className="text-red-600 font-medium">❌ 불가</span>

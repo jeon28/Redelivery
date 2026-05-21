@@ -673,6 +673,51 @@ class FlorScraper(BaseScraper):
         await ta.fill("\n".join(containers))
         await asyncio.sleep(0.5)
 
+    async def status_detail(self, containers: list[str]) -> list[dict]:
+        """Status 탭 단독 조회 (사용자 요청 2026-05-21).
+
+        체크박스 선택된 precleared 행 등에 대해 Status 탭 search 만 별도 호출.
+        결과 schema 는 query() 와 동일.
+
+        주의: Status 탭 search 자체에 알려진 rows=0 버그가 있어 S2 패치 적용 전엔
+        대부분 빈 결과("발급된 반납번호 없음 (신청 필요)") 반환 가능.
+        """
+        out: list[dict] = []
+        deduped: list[str] = []
+        seen: set[str] = set()
+        for c in containers:
+            k = (c or "").strip().upper()
+            if not k or k in seen:
+                continue
+            seen.add(k)
+            deduped.append(k)
+
+        try:
+            await self._navigate_to_status()
+        except Exception as exc:
+            logger.error("FLOR status_detail navigate 실패: %s", exc)
+            return [self._error_row(c, f"Status 탭 진입 실패: {exc}") for c in deduped]
+
+        for c in deduped:
+            try:
+                row = await self._search_one(c)
+                available = bool(row.get("available"))
+                out.append({
+                    "container_no": c,
+                    "available": available,
+                    "depot": row.get("depot"),
+                    "booking_ref": row.get("booking_ref"),
+                    "over_caps": row.get("over_caps"),
+                    "close_date": row.get("close_date"),
+                    "reason": row.get("reason"),
+                    "status": "available" if available else "unavailable",
+                    "completed_date": None,
+                })
+            except Exception as exc:
+                logger.warning("FLOR status_detail %s 실패: %s", c, exc)
+                out.append(self._error_row(c, f"Status 조회 실패: {exc}"))
+        return out
+
     async def _confirm_redelivery_order(self, valid_units: list[str]) -> dict[str, str]:
         """Step3 의 Confirm Redelivery Order 클릭 → 신규 PPR 발급.
 

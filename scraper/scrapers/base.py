@@ -57,6 +57,10 @@ class BaseScraper(ABC):
         # 미지원 임대사는 NotImplementedError → 라우터가 501로 변환.
         raise NotImplementedError(f"{self.lessor} cancel not implemented")
 
+    async def status_detail(self, containers: list[str]) -> list[dict]:
+        # Status 탭 단독 조회 — FLOR 만 구현 (precleared 행 enrichment 등 용도).
+        raise NotImplementedError(f"{self.lessor} status_detail not implemented")
+
     async def run(
         self,
         containers: list[str],
@@ -86,6 +90,19 @@ class BaseScraper(ABC):
             if not await self.login():
                 raise RuntimeError(f"{self.lessor} 로그인 실패")
             return await self.cancel(items, region)
+        finally:
+            await self.close()
+
+    async def run_status_detail(
+        self,
+        containers: list[str],
+        headless: bool = True,
+    ) -> list[dict]:
+        try:
+            await self.start(headless=headless)
+            if not await self.login():
+                raise RuntimeError(f"{self.lessor} 로그인 실패")
+            return await self.status_detail(containers)
         finally:
             await self.close()
 
