@@ -90,7 +90,7 @@ class FlorScraper(BaseScraper):
     async def start(self, headless: bool = True):
         """저장된 storage_state 가 있으면 복원해 브라우저 컨텍스트를 만든다."""
         # Deploy marker — Railway 활성 commit 검증용. 이 로그가 보이면 새 코드 실행 중.
-        logger.info("FLOR scraper start [marker=status-dump-s1]")
+        logger.info("FLOR scraper start [marker=phase-b-confirm-v1]")
         browsers_path = os.getenv("PLAYWRIGHT_BROWSERS_PATH")
         if browsers_path:
             os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browsers_path
@@ -342,7 +342,25 @@ class FlorScraper(BaseScraper):
                 await self._step_next()
                 await self._parse_step3(results, depot_str)
 
-            # Phase B (예정): Confirm Redelivery Order 클릭 → 신규 PPR 캡처
+                # Phase B — 자동 Confirm (사용자 요청 2026-05-21).
+                # Step3 parse 후 booking_ref 없이 available=True 인 unit = 신규 발급 대상.
+                # precleared 케이스는 _classify_reject §5-3 에서 이미 PPR 채움 → 제외.
+                new_valid = [
+                    c for c in new_candidates
+                    if results.get(c, {}).get("available")
+                    and not results.get(c, {}).get("booking_ref")
+                ]
+                if new_valid:
+                    try:
+                        ppr_map = await self._confirm_redelivery_order(new_valid)
+                        for unit, ppr in ppr_map.items():
+                            if unit in results:
+                                results[unit]["booking_ref"] = ppr
+                                results[unit]["depot"] = (
+                                    results[unit].get("depot") or depot_str
+                                )
+                    except Exception as exc:
+                        logger.error("FLOR Phase B Confirm 실패: %s", exc)
 
         except Exception as exc:
             logger.error("FLOR query error: %s\n%s", exc, traceback.format_exc())
@@ -650,6 +668,132 @@ class FlorScraper(BaseScraper):
         await ta.fill("\n".join(containers))
         await asyncio.sleep(0.5)
 
+    async def _confirm_redelivery_order(self, valid_units: list[str]) -> dict[str, str]:
+        """Step3 의 Confirm Redelivery Order 클릭 → 신규 PPR 발급.
+
+        사용자 명시 요청에 따라 Step3 valid 가 있으면 자동 발급.
+        memory `project_flor_flow`: Confirm 클릭 = 즉시 실 발급 (PPR<5자리> Open).
+
+        안전장치:
+          - 버튼 not found → 스킵 (로그)
+          - is-disabled / disabled → 스킵 (로그)
+          - valid_units 비어있으면 호출자가 미리 skip
+
+        Returns:
+          {unit: ppr_number} — 매핑 못 한 unit 은 빠짐.
+        """
+        if not valid_units:
+            return {}
+
+        # 1) Confirm 버튼 찾기 (텍스트 여러 변형 시도)
+        btn = self.page.locator("button").filter(
+            has_text="Confirm Redelivery Order"
+        ).first
+        if await btn.count() == 0:
+            btn = self.page.locator("button").filter(has_text="Confirm").first
+        if await btn.count() == 0:
+            logger.warning("FLOR Confirm 버튼 미발견 — 발급 스킵")
+            return {}
+
+        # 2) disabled 체크 (Element UI: is-disabled 클래스 / 표준 disabled 속성)
+        disabled = await btn.evaluate(
+            "el => el.classList.contains('is-disabled') || el.disabled"
+        )
+        if disabled:
+            logger.warning("FLOR Confirm 버튼 disabled — 발급 스킵 (사전 검증 실패 추정)")
+            return {}
+
+        # 3) 클릭 전 페이지 상태 스냅샷 (발급 전 PPR 셋트)
+        text_before = await self.page.evaluate(
+            "() => document.body.innerText || ''"
+        )
+        pprs_before = set(re.findall(r"PP[RF]\d+", text_before))
+
+        # 4) 클릭
+        logger.info(
+            "FLOR Confirm Redelivery Order 클릭 (대상 %d units: %s)",
+            len(valid_units), valid_units,
+        )
+        try:
+            await btn.click(timeout=10_000)
+        except Exception as exc:
+            logger.error("FLOR Confirm 클릭 실패: %s", exc)
+            return {}
+
+        # 발급 후 화면 변화 대기 — 새 PPR 텍스트 등장 또는 네트워크 안정
+        try:
+            await self.page.wait_for_load_state("networkidle", timeout=20_000)
+        except Exception:
+            pass
+        await asyncio.sleep(3.0)
+
+        # 컴펌 다이얼로그 자동 닫기 (있으면)
+        try:
+            ok_btn = self.page.locator("button").filter(
+                has_text=re.compile(r"^(OK|Confirm|Yes|확인)$", re.IGNORECASE)
+            ).first
+            if await ok_btn.count() > 0 and await ok_btn.is_visible():
+                await ok_btn.click(timeout=3_000)
+                await asyncio.sleep(2.0)
+        except Exception:
+            pass
+
+        # 5) 응답 페이지에서 신규 PPR 추출
+        text_after = await self.page.evaluate(
+            "() => document.body.innerText || ''"
+        )
+        all_pprs_after = re.findall(r"PP[RF]\d+", text_after)
+        # 중복 제거 + 순서 보존
+        seen: set[str] = set()
+        ordered_after: list[str] = []
+        for p in all_pprs_after:
+            if p not in seen:
+                seen.add(p)
+                ordered_after.append(p)
+        new_pprs = [p for p in ordered_after if p not in pprs_before]
+
+        logger.info(
+            "FLOR Confirm 후 PPR 발견: 이전=%d 이후=%d 신규=%s",
+            len(pprs_before), len(ordered_after), new_pprs,
+        )
+
+        # 6) unit → PPR 매핑
+        # 페이지 텍스트에서 unit 번호 근처의 PPR 우선 시도 → 못 찾으면 순서 매핑.
+        mapping: dict[str, str] = {}
+        for unit in valid_units:
+            idx = text_after.find(unit)
+            if idx < 0:
+                continue
+            window = text_after[max(0, idx - 200): idx + 400]
+            m = re.search(r"PP[RF]\d+", window)
+            if m and m.group(0) in new_pprs:
+                mapping[unit] = m.group(0)
+
+        unmapped = [u for u in valid_units if u not in mapping]
+        remaining_pprs = [p for p in new_pprs if p not in mapping.values()]
+        if unmapped and remaining_pprs:
+            # 잔여 PPR 을 unmapped 순서대로 1:1 할당 (best effort)
+            for unit, ppr in zip(unmapped, remaining_pprs):
+                mapping[unit] = ppr
+
+        if unmapped and not remaining_pprs and new_pprs:
+            # 신규 PPR 한 개를 여러 unit 이 공유하는 케이스 (같은 PPR 묶음)
+            fallback = new_pprs[0]
+            for unit in unmapped:
+                mapping[unit] = fallback
+                logger.info("FLOR %s: 잔여 PPR 없음 → 공유 PPR %s 할당", unit, fallback)
+
+        if not mapping:
+            # 매핑 실패 시 향후 분석 위해 화면 텍스트 일부 dump
+            logger.warning(
+                "FLOR Confirm 후 unit↔PPR 매핑 실패. text_after 앞 500자: %s",
+                text_after[:500],
+            )
+
+        for unit, ppr in mapping.items():
+            logger.info("FLOR %s: 신규 PPR 발급 → %s", unit, ppr)
+        return mapping
+
     async def _parse_step3(self, results: dict, depot_str: str) -> None:
         """Step3 사전 검증 결과 파싱.
 
@@ -685,9 +829,16 @@ class FlorScraper(BaseScraper):
                 const UNIT_RE = /^[A-Z]{4}\d{6,7}$/;
                 const PRECLEARED_RE = /already\s+precleared|Redelivery\s+number:\s*PP[RF]\d+/i;
 
+                function isReasonCell(c, unit) {
+                    if (!c || c === unit) return false;
+                    if (UNIT_RE.test(c)) return false;
+                    if (PRECLEARED_RE.test(c)) return true;
+                    const cl = c.toLowerCase();
+                    if (c.length >= 40) return true;
+                    return REJECT_KEYWORDS.some(k => cl.includes(k));
+                }
+
                 // 모든 테이블의 모든 행을 한 스트림으로 수집 (순서 보존).
-                // fixed column 으로 행이 두 <table> 로 쪼개진 경우에도 인덱스 인접성이
-                // 시각적 동일 행을 가리킬 확률이 높음.
                 const allRows = [];
                 for (const tbl of document.querySelectorAll('table')) {
                     const rows = Array.from(tbl.querySelectorAll('tbody tr'));
@@ -699,62 +850,63 @@ class FlorScraper(BaseScraper):
                     }
                 }
 
-                const handled = new Set();  // 인덱스 — 1차 패스 처리된 row
-                // === 1차 패스: 같은 행에 unit + (reason or 그냥 valid) ===
+                // 각 행 분류: same(unit+reason 같은 행) / unit-only / reason-only
+                const sameRows = [];      // {unit, reason, cells, idx}
+                const unitOnlyRows = [];  // {unit, cells, idx}
+                const reasonOnlyRows = [];// {reason, cells, idx}
+
                 for (let i = 0; i < allRows.length; i++) {
                     const cells = allRows[i];
                     out.dump.push(cells);
                     const unit = cells.find(c => UNIT_RE.test(c)) || '';
-                    if (!unit) continue;
-                    const reasonCell = cells.find(c => {
-                        if (c === unit) return false;
-                        const cl = c.toLowerCase();
-                        if (c.length >= 40) return true;
-                        return REJECT_KEYWORDS.some(k => cl.includes(k));
-                    });
-                    if (reasonCell) {
-                        out.invalid.push({ unit, reason: reasonCell, cells });
-                    } else {
-                        out.valid.push({ unit, cells });
+                    const reason = cells.find(c => isReasonCell(c, unit));
+                    if (unit && reason) {
+                        sameRows.push({ unit, reason, cells, idx: i });
+                    } else if (unit) {
+                        unitOnlyRows.push({ unit, cells, idx: i });
+                    } else if (reason) {
+                        reasonOnlyRows.push({ reason, cells, idx: i });
                     }
-                    handled.add(i);
                 }
 
-                // === 2차 패스: reason-only 행 ↔ unit-only 행 분리행 매칭 ===
-                // Element UI fixed column 구조에서 한 시각적 행이 두 <table> 로
-                // 쪼개져 reason 과 unit 이 서로 다른 row 에 분포하는 케이스.
-                // 매칭된 unit 이 1차에서 valid 로 잘못 분류돼 있으면 invalid 로 승격.
-                for (let i = 0; i < allRows.length; i++) {
-                    const cells = allRows[i];
-                    if (cells.some(c => UNIT_RE.test(c))) continue;  // unit 가진 행은 1차 담당
-                    const reason = cells.find(c => {
-                        if (!c) return false;
-                        if (PRECLEARED_RE.test(c)) return true;
-                        const cl = c.toLowerCase();
-                        if (c.length >= 40 && REJECT_KEYWORDS.some(k => cl.includes(k))) return true;
-                        return false;
-                    });
-                    if (!reason) continue;
+                // 1차: 같은 행에 unit+reason 있는 행 → invalid
+                for (const r of sameRows) {
+                    out.invalid.push({ unit: r.unit, reason: r.reason, cells: r.cells });
+                }
 
-                    // 인접 ±3 rows 에서 unit-only 행 검색.
-                    let foundUnit = null;
-                    for (const d of [0, 1, -1, 2, -2, 3, -3]) {
-                        const j = i + d;
-                        if (j < 0 || j >= allRows.length || j === i) continue;
-                        const u = allRows[j].find(c => UNIT_RE.test(c));
-                        // unit-only 후보: unit 있고 길이 40+ cell 없음
-                        if (u && !allRows[j].some(c => c.length >= 40)) {
-                            foundUnit = u;
-                            break;
+                // 2차: 다중 컨테이너 split 매칭 — Greedy nearest-neighbor (1:1).
+                // 각 reason 을 미사용 unit-only 행 중 row index 가 가장 가까운 것과 매칭.
+                // 같은 unit 이 두 reason 과 매칭되지 않도록 used set 사용.
+                const usedUnits = new Set();
+                for (const reasonRow of reasonOnlyRows) {
+                    let best = null;
+                    let bestDist = Infinity;
+                    for (const unitRow of unitOnlyRows) {
+                        if (usedUnits.has(unitRow.idx)) continue;
+                        const dist = Math.abs(unitRow.idx - reasonRow.idx);
+                        if (dist < bestDist) {
+                            bestDist = dist;
+                            best = unitRow;
                         }
                     }
-                    if (!foundUnit) continue;
+                    if (!best) continue;
+                    usedUnits.add(best.idx);
+                    out.invalid.push({
+                        unit: best.unit,
+                        reason: reasonRow.reason,
+                        cells: best.cells,
+                    });
+                    out.matched_split.push({
+                        unit: best.unit,
+                        reason: reasonRow.reason,
+                        dist: bestDist,
+                    });
+                }
 
-                    // 이미 1차에서 valid 로 분류된 unit 이면 valid 에서 제거
-                    const vIdx = out.valid.findIndex(v => v.unit === foundUnit);
-                    if (vIdx >= 0) out.valid.splice(vIdx, 1);
-                    out.invalid.push({ unit: foundUnit, reason, cells });
-                    out.matched_split.push({ unit: foundUnit, reason });
+                // 3차: 매칭 안 된 unit-only 행 → valid (신규 발급 후보)
+                for (const unitRow of unitOnlyRows) {
+                    if (usedUnits.has(unitRow.idx)) continue;
+                    out.valid.push({ unit: unitRow.unit, cells: unitRow.cells });
                 }
 
                 return out;
