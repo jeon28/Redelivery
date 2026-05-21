@@ -90,7 +90,7 @@ class FlorScraper(BaseScraper):
     async def start(self, headless: bool = True):
         """저장된 storage_state 가 있으면 복원해 브라우저 컨텍스트를 만든다."""
         # Deploy marker — Railway 활성 commit 검증용. 이 로그가 보이면 새 코드 실행 중.
-        logger.info("FLOR scraper start [marker=visible-input-fix-v4]")
+        logger.info("FLOR scraper start [marker=search-by-unit-no-v5]")
         browsers_path = os.getenv("PLAYWRIGHT_BROWSERS_PATH")
         if browsers_path:
             os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browsers_path
@@ -440,6 +440,71 @@ class FlorScraper(BaseScraper):
             )
         except Exception as exc:
             logger.warning("FLOR Status 탭: Unit Number input attach 대기 실패: %s", exc)
+
+        # Search By 모드를 'Unit No.' 로 강제. 기본값이 'Redelivery No.' 일 경우
+        # Unit Number 입력란이 0×0 hidden 상태로 머물러 검색이 안 됨.
+        try:
+            await self._select_search_by_unit_no()
+        except Exception as exc:
+            logger.warning("FLOR Status 'Unit No.' 모드 선택 실패: %s", exc)
+
+    async def _select_search_by_unit_no(self) -> None:
+        """Status 탭의 Search By 모드를 'Unit No.' 로 설정.
+
+        진단 결과 (2026-05-21 09:50 로그): input[placeholder="Unit Number"] 가
+        count=1, visible=False, w=0, h=0 인 hidden 상태로 나옴. Search By 가
+        기본 'Redelivery No.' 모드일 때 Unit No. 입력란이 렌더링은 되지만 hidden.
+        → Search 가 빈 Redelivery No. 로 검색해 rows=0.
+
+        Element UI 라디오/탭 텍스트가 'Unit No.' 또는 'Unit Number' 인 후보를
+        찾아 클릭. 이미 선택돼 있으면 skip.
+        """
+        result = await self.page.evaluate(
+            r"""() => {
+                const candidates = Array.from(document.querySelectorAll(
+                    'label.el-radio, label.el-radio-button, .el-tabs__item, ' +
+                    '[role="radio"], [role="tab"], .el-radio, .el-radio-button'
+                ));
+                const target = candidates.find(el => {
+                    if (el.offsetParent === null) return false;
+                    const text = (el.innerText || '').trim();
+                    return /^unit\s*(no\.?|number)$/i.test(text);
+                });
+                if (!target) {
+                    // 라벨 매칭이 더 느슨한 폴백
+                    const fallback = candidates.find(el => {
+                        if (el.offsetParent === null) return false;
+                        const text = (el.innerText || '').trim().toLowerCase();
+                        return text.includes('unit no') || text.includes('unit number');
+                    });
+                    if (!fallback) return { ok: false, reason: 'no_unit_no_option' };
+                    const checked = fallback.classList.contains('is-checked')
+                        || fallback.classList.contains('is-active')
+                        || fallback.getAttribute('aria-selected') === 'true';
+                    if (!checked) {
+                        fallback.scrollIntoView({ block: 'center' });
+                        fallback.click();
+                    }
+                    return {
+                        ok: true, already: checked, via: 'fallback',
+                        text: (fallback.innerText || '').trim(),
+                    };
+                }
+                const checked = target.classList.contains('is-checked')
+                    || target.classList.contains('is-active')
+                    || target.getAttribute('aria-selected') === 'true';
+                if (!checked) {
+                    target.scrollIntoView({ block: 'center' });
+                    target.click();
+                }
+                return {
+                    ok: true, already: checked,
+                    text: (target.innerText || '').trim(),
+                };
+            }"""
+        )
+        logger.info("FLOR Status 'Unit No.' 모드 선택: %s", result)
+        await asyncio.sleep(0.6)
 
     async def _dump_status_tab(self) -> None:
         """S1 진단: Status 탭 진입 직후 DOM/Vue 상태를 로그로 캡처.
