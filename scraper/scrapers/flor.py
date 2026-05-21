@@ -90,7 +90,7 @@ class FlorScraper(BaseScraper):
     async def start(self, headless: bool = True):
         """저장된 storage_state 가 있으면 복원해 브라우저 컨텍스트를 만든다."""
         # Deploy marker — Railway 활성 commit 검증용. 이 로그가 보이면 새 코드 실행 중.
-        logger.info("FLOR scraper start [marker=status-input-fix-v2]")
+        logger.info("FLOR scraper start [marker=vue-sync-fix-v3]")
         browsers_path = os.getenv("PLAYWRIGHT_BROWSERS_PATH")
         if browsers_path:
             os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browsers_path
@@ -1077,15 +1077,14 @@ class FlorScraper(BaseScraper):
         }
 
     async def _fill_unit_input(self, container: str) -> bool:
-        """Unit Number 입력란에 값 주입.
+        """Unit Number 입력란에 값 주입 + Vue v-model 동기화 보장.
 
-        Playwright fill 의 visibility 판정이 Element UI wrapping 으로 실패하는
-        케이스가 관찰됨. 또한 JS native setter 만으론 Vue v-model 동기화가
-        Search 클릭 전까지 완료되지 않아 빈 query 로 검색되는 추정.
-        다음 순서로 시도하며 각 단계 후 input_value() 로 검증:
-          1) Playwright fill (시야 보장 시 가장 안정)
-          2) JS focus + keyboard.type (OS 키 입력, Vue 가 가장 잘 인식)
-          3) JS native setter + input/change/blur 이벤트 dispatch (최후)
+        진단 결과 (2026-05-21): JS native setter 만으론 input.value 는 set 되지만
+        Vue v-model 의 query 변수가 sync 안 됨 → Search 클릭 시 빈 query 로 검색.
+
+        전략: el-input wrapper click 으로 focus 보장 → press_sequentially 로 키 단위
+        입력 (Vue 의 reactivity 가장 잘 인식) → 각 단계 input_value 검증 + Vue 인스턴스
+        진단.
         """
         sel = 'input[placeholder="Unit Number"]'
         loc = self.page.locator(sel).first
@@ -1096,49 +1095,63 @@ class FlorScraper(BaseScraper):
         except Exception:
             pass
 
-        # 1) Playwright fill
+        # 1) Playwright fill (가장 안정적, 가능하면 이것으로 끝)
         try:
             await loc.fill(container, timeout=3_000)
             await asyncio.sleep(0.4)
             actual = (await loc.input_value()).strip().upper()
             if actual == container.upper():
+                await self._verify_vue_sync(sel, container)
                 return True
-            logger.info(
-                "FLOR fill 후 값 불일치: expected=%s actual=%s — keyboard fallback",
-                container, actual,
-            )
+            logger.info("FLOR fill 후 값=%s — wrapper-click fallback", actual)
         except Exception as exc:
-            logger.info("FLOR Unit input fill 실패 → keyboard fallback: %s", exc)
+            logger.info("FLOR fill 실패 → wrapper-click fallback: %s", exc)
 
-        # 2) JS focus + keyboard.type (OS 레벨 키 입력 → Vue 가 input 이벤트 처리)
+        # 2) el-input wrapper click + press_sequentially.
+        # JS native focus 가 element-not-visible 시 무효라, wrapper(.el-input) 를
+        # 직접 click 해 focus 트리거 → press_sequentially 로 키단위 입력.
         try:
-            await self.page.evaluate(
+            wrapper_clicked = await self.page.evaluate(
                 r"""(sel) => {
-                    const el = document.querySelector(sel);
-                    if (!el) return;
-                    el.focus();
-                    el.value = '';
-                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    const inp = document.querySelector(sel);
+                    if (!inp) return false;
+                    const wrap = inp.closest('.el-input') || inp.parentElement;
+                    if (wrap && typeof wrap.click === 'function') {
+                        wrap.click();
+                    }
+                    inp.focus();
+                    // 기존 값 클리어 (Vue 가 처리할 input 이벤트와 함께)
+                    const setter = Object.getOwnPropertyDescriptor(
+                        window.HTMLInputElement.prototype, 'value').set;
+                    setter.call(inp, '');
+                    inp.dispatchEvent(new Event('input', { bubbles: true }));
+                    return true;
                 }""",
                 sel,
             )
-            await asyncio.sleep(0.2)
-            await self.page.keyboard.type(container, delay=30)
-            await asyncio.sleep(0.5)
-            try:
-                actual = (await loc.input_value()).strip().upper()
-                if actual == container.upper():
-                    return True
-                logger.info(
-                    "FLOR keyboard.type 후 값 불일치: actual=%s — JS setter fallback",
-                    actual,
-                )
-            except Exception:
-                pass
+            if wrapper_clicked:
+                await asyncio.sleep(0.3)
+                # press_sequentially: 각 키마다 keydown/keypress/input/keyup 발생 → Vue 가 인식.
+                await loc.press_sequentially(container, delay=50)
+                await asyncio.sleep(0.5)
+                # Tab 으로 blur 시뮬레이션 → Vue blur 핸들러도 트리거
+                try:
+                    await self.page.keyboard.press("Tab")
+                    await asyncio.sleep(0.3)
+                except Exception:
+                    pass
+                try:
+                    actual = (await loc.input_value()).strip().upper()
+                    if actual == container.upper():
+                        await self._verify_vue_sync(sel, container)
+                        return True
+                    logger.info("FLOR press_sequentially 후 값=%s — JS setter fallback", actual)
+                except Exception:
+                    pass
         except Exception as exc:
-            logger.info("FLOR keyboard.type 실패: %s", exc)
+            logger.info("FLOR press_sequentially 단계 실패: %s", exc)
 
-        # 3) JS native setter + blur (최후 폴백)
+        # 3) JS native setter + InputEvent(with data) + blur — 최후
         ok = await self.page.evaluate(
             r"""(args) => {
                 const el = document.querySelector(args.sel);
@@ -1147,7 +1160,15 @@ class FlorScraper(BaseScraper):
                 const setter = Object.getOwnPropertyDescriptor(
                     window.HTMLInputElement.prototype, 'value').set;
                 setter.call(el, args.val);
-                el.dispatchEvent(new Event('input', { bubbles: true }));
+                // Vue 는 'input' 이벤트의 target.value 를 보므로 그것은 set 됨.
+                // 그러나 일부 Element UI 버전은 InputEvent.data 도 참조 → 함께 전달.
+                try {
+                    el.dispatchEvent(new InputEvent('input', {
+                        bubbles: true, data: args.val, inputType: 'insertText'
+                    }));
+                } catch (e) {
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                }
                 el.dispatchEvent(new Event('change', { bubbles: true }));
                 el.blur();
                 return true;
@@ -1155,7 +1176,49 @@ class FlorScraper(BaseScraper):
             {"sel": sel, "val": container},
         )
         await asyncio.sleep(0.5)
+        await self._verify_vue_sync(sel, container)
         return bool(ok)
+
+    async def _verify_vue_sync(self, sel: str, expected: str) -> None:
+        """Vue 인스턴스의 model 값과 input.value 비교 로그. 진단 전용."""
+        try:
+            diag = await self.page.evaluate(
+                r"""(sel) => {
+                    const el = document.querySelector(sel);
+                    if (!el) return { found: false };
+                    const v2 = el.__vue__ || null;
+                    const v3 = el.__vueParentComponent || null;
+                    let v3Proxy = null;
+                    try { v3Proxy = v3?.proxy || null; } catch (e) {}
+                    let parentProxy = null;
+                    try { parentProxy = v3?.parent?.proxy || null; } catch (e) {}
+                    function pickModel(obj) {
+                        if (!obj) return null;
+                        const keys = ['value', 'currentValue', 'unitNo', 'unit_no',
+                                      'unitNumber', 'unit_number', 'query', 'keyword',
+                                      'searchValue', 'searchKey'];
+                        const out = {};
+                        for (const k of keys) {
+                            try {
+                                const v = obj[k];
+                                if (typeof v === 'string' || typeof v === 'number') out[k] = v;
+                            } catch (e) {}
+                        }
+                        return out;
+                    }
+                    return {
+                        found: true,
+                        el_value: el.value,
+                        v2_model: pickModel(v2),
+                        v3_model: pickModel(v3Proxy),
+                        parent_model: pickModel(parentProxy),
+                    };
+                }""",
+                sel,
+            )
+            logger.info("FLOR Vue sync diag (expected=%s): %s", expected, diag)
+        except Exception:
+            pass
 
     async def _search_one(self, container: str) -> dict:
         """Status 탭에서 컨테이너 한 개 검색 후 결과 행 파싱."""
@@ -1175,10 +1238,30 @@ class FlorScraper(BaseScraper):
         except Exception:
             pass
 
-        search_btn = self.page.locator("button").filter(has_text="Search").first
-        if await search_btn.count() == 0:
+        # Search 버튼 JS 클릭 + disabled 체크.
+        # locator click 보다 JS evaluate 가 visibility/race condition 에 견고.
+        click_result = await self.page.evaluate(
+            r"""() => {
+                const btns = Array.from(document.querySelectorAll('button'));
+                const target = btns.find(b =>
+                    /search/i.test((b.innerText || '').trim()) &&
+                    b.offsetParent !== null
+                );
+                if (!target) return { ok: false, reason: 'no_button' };
+                const disabled = target.disabled
+                    || target.classList.contains('is-disabled');
+                if (disabled) return { ok: false, reason: 'disabled' };
+                target.click();
+                return { ok: true };
+            }"""
+        )
+        logger.info("FLOR %s Search button click=%s", container, click_result)
+        if not click_result.get("ok"):
+            if click_result.get("reason") == "disabled":
+                # Vue v-model 미동기화 추정 — 입력값은 set 됐는데 model 이 빈 상태.
+                # 이 경우 검색 자체를 못 함 → 에러 행 반환.
+                return self._error_row(container, "Search 버튼 disabled (Vue 동기화 실패)")
             return self._error_row(container, "Search 버튼 없음")
-        await search_btn.click()
         try:
             await self.page.wait_for_load_state("networkidle", timeout=20_000)
         except Exception:
