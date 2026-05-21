@@ -185,6 +185,32 @@ function saveUIState(state: Record<string, string>) {
   } catch {}
 }
 
+// FLOR 반납CY 마지막 선택 기억 — (선사, 임대사, region) 별로 저장.
+// 사용자가 매번 같은 depot 을 다시 고르는 비효율 제거. 변경하려면 모달 클릭.
+const LS_DEPOT_KEY = 'redelivery_flor_depot_history_v1'
+
+function loadDepotHistory(): Record<string, string> {
+  if (typeof window === 'undefined') return {}
+  try {
+    return JSON.parse(localStorage.getItem(LS_DEPOT_KEY) ?? '{}')
+  } catch {
+    return {}
+  }
+}
+
+function saveDepotHistory(key: string, label: string) {
+  if (typeof window === 'undefined') return
+  if (!label) return
+  try {
+    const prev = loadDepotHistory()
+    localStorage.setItem(LS_DEPOT_KEY, JSON.stringify({ ...prev, [key]: label }))
+  } catch {}
+}
+
+function depotHistoryKey(company: string, lessor: string, region: string): string {
+  return `${company}|${lessor}|${region}`
+}
+
 // ─────────────────────────────────────────────────────────────
 // 메인 컴포넌트
 // ─────────────────────────────────────────────────────────────
@@ -250,10 +276,16 @@ export default function SearchForm({ office }: { office: string }) {
 
   // FLOR/FLOR+DFIC 임대사일 때만 Depot 선택 활성
   const isFlor = lessor ? templateKey(lessor) === 'FLOR' : false
-  // company / region / 임대사가 바뀌면 잘못된 depot 매칭 방지를 위해 초기화
+  // company / region / lessor 가 바뀌면 해당 조합의 마지막 선택을 history 에서 복원.
+  // history 에 없으면 ''로 떨어져 기존 "미선택" UI 유지.
   useEffect(() => {
-    setDepotLabel('')
-  }, [company, region, isFlor])
+    if (!isFlor) {
+      setDepotLabel('')
+      return
+    }
+    const history = loadDepotHistory()
+    setDepotLabel(history[depotHistoryKey(company, lessor, region)] ?? '')
+  }, [company, lessor, region, isFlor])
 
   // 컨테이너 파싱
   const containers = useMemo(
@@ -515,7 +547,10 @@ export default function SearchForm({ office }: { office: string }) {
         region={region}
         regionLabel={regionInfo.label}
         value={depotLabel}
-        onSelect={setDepotLabel}
+        onSelect={(label) => {
+          setDepotLabel(label)
+          saveDepotHistory(depotHistoryKey(company, lessor, region), label)
+        }}
         onClose={() => setDepotModalOpen(false)}
       />
     </div>

@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>FLOR 반납CY 마지막 선택 기억 (per company/region)</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+                 "Noto Sans KR", sans-serif;
+    line-height: 1.6;
+    max-width: 880px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+    color: #222;
+    background: #fff;
+  }
+  h1 { border-bottom: 2px solid #334155; padding-bottom: .4rem; }
+  h2 { border-bottom: 1px solid #cbd5e1; padding-bottom: .3rem; margin-top: 2rem; }
+  h3 { margin-top: 1.4rem; color: #1e293b; }
+  code, pre {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 0.9em;
+  }
+  code { background: #f1f5f9; padding: 0.1em 0.35em; border-radius: 3px; }
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+  }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td {
+    border: 1px solid #cbd5e1;
+    padding: 0.45rem 0.7rem;
+    text-align: left;
+    vertical-align: top;
+    font-size: 0.94rem;
+  }
+  th { background: #f1f5f9; }
+  blockquote {
+    border-left: 4px solid #94a3b8;
+    margin: 1rem 0;
+    padding: 0.5rem 1rem;
+    color: #475569;
+    background: #f8fafc;
+  }
+  .flow-box {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    padding: 1rem 1.2rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+  }
+  .info-box {
+    background: #faf5ff;
+    border: 1px solid #e9d5ff;
+    padding: 0.8rem 1.1rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+    color: #581c87;
+  }
+</style>
+</head>
+<body>
+
+<h1>FLOR 반납CY 마지막 선택 기억</h1>
+<p><em>2026-05-21 · 사용자별 / region 별 마지막 선택 자동 복원.</em></p>
+
+<h2>1. 목표</h2>
+<ul>
+  <li>FLOR 임대사 선택 시 매번 반납CY 를 묻지 않음.</li>
+  <li>(선사, 임대사, 반납지역) 별 마지막 선택을 자동 복원해 표시.</li>
+  <li>변경하고 싶을 때만 사용자가 버튼 클릭 → 모달 (현 동작 유지).</li>
+  <li>처음 사용 / 이력 없는 조합은 기존처럼 빨간 버튼 "미선택" 으로 안내.</li>
+</ul>
+
+<h2>2. 현재 동작 (변경 대상)</h2>
+
+<p><code>frontend/components/SearchForm.tsx:254-256</code>:</p>
+<pre><code>// company / region / 임대사가 바뀌면 잘못된 depot 매칭 방지를 위해 초기화
+useEffect(() =&gt; {
+    setDepotLabel('')
+}, [company, region, isFlor])
+</code></pre>
+
+<p>이 reset 이 매 변경마다 발동해 사용자가 매번 다시 골라야 함.</p>
+
+<h2>3. 변경 후 동작</h2>
+
+<table>
+  <thead><tr><th>시점</th><th>현재</th><th>변경 후</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>페이지 첫 로드</td>
+      <td>depot 빈 값 → 빨간 버튼 "미선택"</td>
+      <td>history 에 (선사,임대사,region) 키로 저장된 값이 있으면 자동 채움</td>
+    </tr>
+    <tr>
+      <td>선사 / 반납지역 / 임대사 변경</td>
+      <td>depot 무조건 ''로 리셋</td>
+      <td>새 조합의 history 값으로 교체 (없으면 '')</td>
+    </tr>
+    <tr>
+      <td>사용자가 모달에서 새 depot 선택</td>
+      <td>화면에만 반영, 다음 로드 때 사라짐</td>
+      <td>(선사,임대사,region) 키 아래 history 에 저장 → 다음번 자동 복원</td>
+    </tr>
+    <tr>
+      <td>history 의 depot 이 백엔드 목록에서 사라진 경우</td>
+      <td>해당 사항 없음</td>
+      <td>모달 열 때 옵션 매칭 실패 → 자동으로 ''로 폴백 + 사용자에게 재선택 요구 (현 미선택 UI 그대로)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>4. 저장 위치 결정</h2>
+
+<div class="info-box">
+<strong>localStorage (per browser)</strong> 로 갑니다 — 기존 <code>redelivery_ui_state_v1</code> 패턴과 일관.
+"사용자 별로" 가 <em>같은 브라우저를 쓰는 한 명</em>의미라면 이걸로 충분.
+서버에 사용자 단위로 동기화(여러 기기 공유)가 필요하면 별도 결정 후 backend 작업 추가.
+</div>
+
+<h2>5. 데이터 구조</h2>
+
+<pre><code>// localStorage key: 'redelivery_flor_depot_history_v1'
+// 값: { "&lt;company&gt;|&lt;lessor&gt;|&lt;region&gt;": "&lt;depotLabel&gt;" }
+
+{
+  "장금상선|FLOR+DFIC|BUSAN":  "(KRPUS03) Seyang Logistics Co.,Ltd. (KRPUS03)",
+  "장금상선|FLOR+DFIC|INCHON": "(KRINC04) SeungJin Enterprise Co., Ltd. (KRINC04)",
+  "흥아라인|FLOR|BUSAN":       "(KRPUS03) Seyang Logistics Co.,Ltd. (KRPUS03)",
+  "흥아라인|FLOR|GWANGYANG":   "..."
+}
+</code></pre>
+
+<p>구분자 <code>|</code>: company / lessor / region 모두 <code>|</code> 미포함 보장 (한글/영문 코드).
+키 명에 <code>flor_</code> prefix 둬서 향후 다른 임대사 확장 시 별도 key 사용.</p>
+
+<h2>6. 변경 위치 (단일 파일)</h2>
+
+<p><code>frontend/components/SearchForm.tsx</code> 만 수정. 라인 단위 변경:</p>
+
+<table>
+  <thead><tr><th>위치</th><th>변경 내용</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>~L169 <code>LS_KEY</code> 아래</td>
+      <td>신규 상수 <code>LS_DEPOT_KEY = 'redelivery_flor_depot_history_v1'</code> + 헬퍼 함수 <code>loadDepotHistory()</code> / <code>saveDepotHistory(key, label)</code></td>
+    </tr>
+    <tr>
+      <td>L210 <code>const [depotLabel, setDepotLabel] = useState('')</code></td>
+      <td>초기값을 history 에서 lookup 한 값으로 (SSR 안전하게 ''로 시작 후 useEffect 에서 hydrate)</td>
+    </tr>
+    <tr>
+      <td>L254-256 useEffect (depot 리셋)</td>
+      <td>'' 대입 대신 <code>setDepotLabel(loadDepotHistory()[currentKey] ?? '')</code></td>
+    </tr>
+    <tr>
+      <td>L518 <code>onSelect={setDepotLabel}</code></td>
+      <td>인라인 콜백으로 변경 — <code>setDepotLabel</code> 호출 + <code>saveDepotHistory(currentKey, label)</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>6.1 헬퍼 함수 예시</h3>
+<pre><code>const LS_DEPOT_KEY = 'redelivery_flor_depot_history_v1'
+
+function loadDepotHistory(): Record&lt;string, string&gt; {
+  if (typeof window === 'undefined') return {}
+  try {
+    return JSON.parse(localStorage.getItem(LS_DEPOT_KEY) ?? '{}')
+  } catch {
+    return {}
+  }
+}
+
+function saveDepotHistory(key: string, label: string) {
+  if (typeof window === 'undefined') return
+  if (!label) return  // 빈 값은 저장 안 함
+  try {
+    const prev = loadDepotHistory()
+    localStorage.setItem(LS_DEPOT_KEY, JSON.stringify({ ...prev, [key]: label }))
+  } catch {}
+}
+
+function depotHistoryKey(company: string, lessor: string, region: string): string {
+  return `${company}|${lessor}|${region}`
+}
+</code></pre>
+
+<h3>6.2 useEffect 교체</h3>
+<pre><code>// 변경 전:
+useEffect(() =&gt; {
+    setDepotLabel('')
+}, [company, region, isFlor])
+
+// 변경 후:
+useEffect(() =&gt; {
+    if (!isFlor) {
+        setDepotLabel('')
+        return
+    }
+    const key = depotHistoryKey(company, lessor, region)
+    const history = loadDepotHistory()
+    setDepotLabel(history[key] ?? '')
+}, [company, lessor, region, isFlor])   // ← lessor 의존성 추가
+</code></pre>
+
+<h3>6.3 모달 onSelect 콜백</h3>
+<pre><code>// 변경 전:
+&lt;DepotPickerModal
+    ...
+    onSelect={setDepotLabel}
+/&gt;
+
+// 변경 후:
+&lt;DepotPickerModal
+    ...
+    onSelect={(label) =&gt; {
+        setDepotLabel(label)
+        const key = depotHistoryKey(company, lessor, region)
+        saveDepotHistory(key, label)
+    }}
+/&gt;
+</code></pre>
+
+<h2>7. UI 표시 변화</h2>
+
+<p>버튼 자체는 현 디자인 그대로:</p>
+<ul>
+  <li>history 값 있음 → 회색 톤 + "🏭 (KRPUS03) Seyang Logistics ..." (기존 채워진 상태와 동일)</li>
+  <li>history 값 없음 → 빨강 톤 + "🏭 부산 반납CY 미선택 — 클릭하여 선택" (기존 미선택과 동일)</li>
+</ul>
+<p>즉 추가 UI 없음. 변경된 건 <strong>초기 채워짐 여부</strong>만.</p>
+
+<h2>8. 검증 케이스</h2>
+
+<table>
+  <thead><tr><th>케이스</th><th>입력</th><th>기대</th></tr></thead>
+  <tbody>
+    <tr><td>D1</td><td>처음 사용자 (history 비어있음)</td><td>현재처럼 빨간 버튼 미선택</td></tr>
+    <tr><td>D2</td><td>흥아라인+FLOR+부산 KRPUS03 1회 선택 후 페이지 새로고침</td><td>같은 조합으로 자동 채워짐</td></tr>
+    <tr><td>D3</td><td>D2 상태에서 반납지역 인천으로 변경</td><td>인천 history 없으면 빈 값, 있으면 인천 마지막 선택</td></tr>
+    <tr><td>D4</td><td>D3 상태에서 부산으로 되돌림</td><td>D2 에서 저장한 KRPUS03 다시 표시</td></tr>
+    <tr><td>D5</td><td>흥아라인 → 장금상선 으로 선사 변경</td><td>장금 history 따로 lookup. 흥아 값과 독립</td></tr>
+    <tr><td>D6</td><td>임대사 FLOR → TEXA 변경</td><td>isFlor=false 라 depot 입력 자체 비활성 (UI 안 보임)</td></tr>
+    <tr><td>D7</td><td>history 에 저장된 depot 이 백엔드 depot 리스트에서 빠진 경우</td><td>버튼엔 이전 라벨 표시되나, 조회 시 백엔드가 거부할 수 있음. 모달 열어 재선택하면 갱신. 회피책: 모달 마운트 시 현 값이 옵션에 없으면 자동 클리어 (선택사항, D7-mitigation)</td></tr>
+  </tbody>
+</table>
+
+<h2>9. 비변경 / 위험</h2>
+
+<ul>
+  <li><strong>백엔드 변경 없음</strong>.</li>
+  <li>다른 임대사 (TEXA/TRIT/GOLD/GESE) — depot 선택 자체가 없어 무관.</li>
+  <li>로그아웃 / 다른 사무소 로그인 시 — localStorage 는 브라우저 단위라 사용자 전환 시 이전 값 그대로 보임. 같은 브라우저를 여러 사용자가 공유하면 문제 가능 (서버 동기화로 해결 가능, 본 작업 범위 외).</li>
+  <li>브라우저 캐시/스토리지 삭제 시 — history 사라짐, 다음 사용 시 처음처럼 동작.</li>
+</ul>
+
+<h2>10. 작업 순서</h2>
+
+<div class="flow-box">
+<ol>
+  <li>본 계획서 사용자 승인.</li>
+  <li><code>SearchForm.tsx</code> 수정 — 헬퍼 함수 + useEffect 변경 + onSelect 콜백 변경.</li>
+  <li>로컬 <code>npm run dev</code> 로 D1~D6 케이스 수동 검증.</li>
+  <li>커밋 + 푸시 → Vercel 자동 배포.</li>
+  <li>운영 환경에서 사용자가 D2 같은 시나리오 직접 확인.</li>
+</ol>
+</div>
+
+<h2>11. 확장 옵션 (본 작업 후 별도 결정)</h2>
+
+<ul>
+  <li>서버 동기화 — 여러 기기에서 같은 사용자가 같은 마지막 값 보고 싶을 때. 백엔드에 user_preferences 테이블 + GET/PUT API.</li>
+  <li>다른 임대사로 확장 — 현재 FLOR 만 depot 선택이 있으나, 향후 다른 임대사에 비슷한 UI 필요 시 같은 패턴 재사용.</li>
+  <li>"기본값 설정" UI — 단순 마지막 사용이 아니라 사용자가 명시적으로 default 를 지정하고 싶을 때 (예: "내 사무소 부산 = 항상 KRPUS03").</li>
+</ul>
+
+</body>
+</html>
