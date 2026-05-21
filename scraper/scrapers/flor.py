@@ -90,7 +90,7 @@ class FlorScraper(BaseScraper):
     async def start(self, headless: bool = True):
         """저장된 storage_state 가 있으면 복원해 브라우저 컨텍스트를 만든다."""
         # Deploy marker — Railway 활성 commit 검증용. 이 로그가 보이면 새 코드 실행 중.
-        logger.info("FLOR scraper start [marker=closed-display-v1]")
+        logger.info("FLOR scraper start [marker=open-expiry-v1]")
         browsers_path = os.getenv("PLAYWRIGHT_BROWSERS_PATH")
         if browsers_path:
             os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browsers_path
@@ -1296,8 +1296,14 @@ class FlorScraper(BaseScraper):
             else:
                 reason = f"발급 상태: {status or '미상'}"
 
-        # 유효기간 우선순위: Expiry Date > Order Date
-        date = expiry or parsed.get("order_date", "")
+        # 유효기간(close_date) 표시:
+        #  - Open: "EXPIRY DATE YYYY-MM-DD" 포맷 (사용자 요청 2026-05-21)
+        #  - Closed/기타: 원시 Expiry Date 또는 Order Date
+        if is_open and expiry:
+            close_date_val: str | None = f"EXPIRY DATE {expiry}"
+        else:
+            raw = expiry or parsed.get("order_date", "")
+            close_date_val = raw or None
 
         return {
             "container_no": container,
@@ -1307,7 +1313,7 @@ class FlorScraper(BaseScraper):
             "depot": depot,
             "booking_ref": ref or None,
             "over_caps": over_caps,
-            "close_date": date or None,
+            "close_date": close_date_val,
             "reason": reason,
         }
 
