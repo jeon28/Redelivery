@@ -344,11 +344,12 @@ class FlorScraper(BaseScraper):
 
                 # Phase B — 자동 Confirm (사용자 요청 2026-05-21).
                 # Step3 parse 후 booking_ref 없이 available=True 인 unit = 신규 발급 대상.
-                # precleared 케이스는 _classify_reject §5-3 에서 이미 PPR 채움 → 제외.
+                # _precleared 플래그가 있으면 이미 발급된 케이스 → 재발급 방지로 제외.
                 new_valid = [
                     c for c in new_candidates
                     if results.get(c, {}).get("available")
                     and not results.get(c, {}).get("booking_ref")
+                    and not results.get(c, {}).get("_precleared")
                 ]
                 if new_valid:
                     try:
@@ -379,6 +380,10 @@ class FlorScraper(BaseScraper):
                 r.setdefault("completed_date", None)
                 if not r.get("reason"):
                     r["reason"] = "조회 실패 (사유 미상)"
+
+        # 내부 가드 플래그 정리 (응답에 노출 X)
+        for r in results.values():
+            r.pop("_precleared", None)
 
         return [
             results.get((c or "").strip().upper()) or self._error_row(c, "결과 없음")
@@ -976,26 +981,29 @@ class FlorScraper(BaseScraper):
         """
         r_lower = reason.lower()
 
-        # §5-3: 활성 PPR 추출 (이미 발급된 케이스 — precleared 포함)
+        # §5-3: 이미 발급된 케이스 (precleared 포함).
+        # 2026-05-21 사용자 요청 — PPR/Depot 추출 안 함. INFO 풀텍스트를 reason 에
+        # 그대로 보존해 UI "조회 결과" 컬럼에 노출. _precleared 플래그로 Phase B
+        # 자동 재발급 가드.
         ppr_match = re.search(r"PP[RF]\d+", reason)
         active_kw = any(k in r_lower for k in (
             "already", "active", "open redelivery", "existing redelivery", "precleared"
         ))
         if ppr_match and active_kw:
-            # Depot Code 만 추출. Order Date 는 신청일이므로 유효기간(close_date)에 매핑하지 않음.
-            depot_m = re.search(r"Depot\s+Code:\s*([A-Z0-9]+)", reason, re.IGNORECASE)
             logger.info(
-                "FLOR %s: §5-3 활성 PPR 감지 → %s (depot=%s)",
-                unit, ppr_match.group(0), depot_m.group(1) if depot_m else None,
+                "FLOR %s: §5-3 precleared 감지 — PPR/Depot 추출 X, 풀텍스트 보존. ppr=%s",
+                unit, ppr_match.group(0),
             )
             return {
                 "available": True,
                 "status": "available",
                 "completed_date": None,
-                "booking_ref": ppr_match.group(0),
-                "depot": depot_m.group(1) if depot_m else None,
-                "close_date": None,   # Apply 폴백에선 만료일 알 수 없음 (Status 경로가 채움)
-                "reason": None,
+                "booking_ref": None,    # 추출 안 함 — 풀텍스트 reason 에 포함됨
+                "depot": None,
+                "over_caps": None,
+                "close_date": None,
+                "reason": reason,       # 풀텍스트 그대로
+                "_precleared": True,    # Phase B 재발급 방지 가드
             }
 
         # §5-4: 이전 완료 (날짜 패턴 검출)

@@ -232,7 +232,7 @@ export default function ResultTable({
               <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">반납번호</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Over Caps</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">유효기간</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">불가 사유</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">조회 결과</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -276,7 +276,9 @@ export default function ResultTable({
                   </td>
                   <td className="px-4 py-3 text-gray-600">{r.over_caps ?? '-'}</td>
                   <td className="px-4 py-3 text-gray-600">{r.close_date ?? '-'}</td>
-                  <td className="px-4 py-3 text-red-600 text-xs">{r.reason ?? '-'}</td>
+                  <td className={`px-4 py-3 text-xs ${r.available ? 'text-gray-600' : 'text-red-600'}`}>
+                    {r.reason ?? '-'}
+                  </td>
                 </tr>
               )
             })}
