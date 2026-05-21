@@ -90,7 +90,7 @@ class FlorScraper(BaseScraper):
     async def start(self, headless: bool = True):
         """저장된 storage_state 가 있으면 복원해 브라우저 컨텍스트를 만든다."""
         # Deploy marker — Railway 활성 commit 검증용. 이 로그가 보이면 새 코드 실행 중.
-        logger.info("FLOR scraper start [marker=vue-sync-fix-v3]")
+        logger.info("FLOR scraper start [marker=visible-input-fix-v4]")
         browsers_path = os.getenv("PLAYWRIGHT_BROWSERS_PATH")
         if browsers_path:
             os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browsers_path
@@ -1079,15 +1079,47 @@ class FlorScraper(BaseScraper):
     async def _fill_unit_input(self, container: str) -> bool:
         """Unit Number 입력란에 값 주입 + Vue v-model 동기화 보장.
 
-        진단 결과 (2026-05-21): JS native setter 만으론 input.value 는 set 되지만
-        Vue v-model 의 query 변수가 sync 안 됨 → Search 클릭 시 빈 query 로 검색.
+        진단 결과 (2026-05-21 09:28 logs):
+        - input.value 는 set 됐으나 v2_model/v3_model/parent_model 모두 None
+        - 가설: input[placeholder="Unit Number"] 가 2개 이상 존재 (Apply 탭의
+          hidden 동명 input + Status 탭의 visible input). `.first` 가 Apply 의
+          hidden 을 잡아서 fill 하느라 Status 탭 model 은 빈 상태 유지.
 
-        전략: el-input wrapper click 으로 focus 보장 → press_sequentially 로 키 단위
-        입력 (Vue 의 reactivity 가장 잘 인식) → 각 단계 input_value 검증 + Vue 인스턴스
-        진단.
+        해결: visible 한 input 을 nth-index 로 정확히 타겟. Playwright locator
+        + JS evaluate 양쪽 모두 같은 인덱스 사용.
         """
-        sel = 'input[placeholder="Unit Number"]'
-        loc = self.page.locator(sel).first
+        sel_all = 'input[placeholder="Unit Number"]'
+
+        # 진단 + visible idx 식별
+        diag = await self.page.evaluate(
+            r"""(sel) => {
+                const all = Array.from(document.querySelectorAll(sel));
+                return {
+                    count: all.length,
+                    visible_idx: all.findIndex(el =>
+                        el.offsetParent !== null && el.offsetWidth > 0
+                    ),
+                    items: all.map((el, i) => ({
+                        idx: i,
+                        visible: el.offsetParent !== null,
+                        w: el.offsetWidth, h: el.offsetHeight,
+                        value: el.value,
+                    })),
+                };
+            }""",
+            sel_all,
+        )
+        logger.info(
+            "FLOR Unit Number inputs: count=%s visible_idx=%s items=%s",
+            diag.get("count"), diag.get("visible_idx"), diag.get("items"),
+        )
+
+        vidx = diag.get("visible_idx", -1)
+        if vidx is None or vidx < 0:
+            logger.warning("FLOR visible Unit Number input 없음 — 0번 시도")
+            vidx = 0
+
+        loc = self.page.locator(sel_all).nth(vidx)
         if await loc.count() == 0:
             return False
         try:
@@ -1095,73 +1127,64 @@ class FlorScraper(BaseScraper):
         except Exception:
             pass
 
-        # 1) Playwright fill (가장 안정적, 가능하면 이것으로 끝)
+        # 1) Playwright fill (visible input 대상)
         try:
             await loc.fill(container, timeout=3_000)
             await asyncio.sleep(0.4)
             actual = (await loc.input_value()).strip().upper()
             if actual == container.upper():
-                await self._verify_vue_sync(sel, container)
+                await self._verify_vue_sync_idx(sel_all, vidx, container)
                 return True
             logger.info("FLOR fill 후 값=%s — wrapper-click fallback", actual)
         except Exception as exc:
             logger.info("FLOR fill 실패 → wrapper-click fallback: %s", exc)
 
-        # 2) el-input wrapper click + press_sequentially.
-        # JS native focus 가 element-not-visible 시 무효라, wrapper(.el-input) 를
-        # 직접 click 해 focus 트리거 → press_sequentially 로 키단위 입력.
+        # 2) wrapper click + press_sequentially (visible idx 대상)
         try:
-            wrapper_clicked = await self.page.evaluate(
-                r"""(sel) => {
-                    const inp = document.querySelector(sel);
-                    if (!inp) return false;
+            await self.page.evaluate(
+                r"""(args) => {
+                    const all = document.querySelectorAll(args.sel);
+                    const inp = all[args.idx];
+                    if (!inp) return;
                     const wrap = inp.closest('.el-input') || inp.parentElement;
-                    if (wrap && typeof wrap.click === 'function') {
-                        wrap.click();
-                    }
+                    if (wrap && typeof wrap.click === 'function') wrap.click();
                     inp.focus();
-                    // 기존 값 클리어 (Vue 가 처리할 input 이벤트와 함께)
                     const setter = Object.getOwnPropertyDescriptor(
                         window.HTMLInputElement.prototype, 'value').set;
                     setter.call(inp, '');
                     inp.dispatchEvent(new Event('input', { bubbles: true }));
-                    return true;
                 }""",
-                sel,
+                {"sel": sel_all, "idx": vidx},
             )
-            if wrapper_clicked:
+            await asyncio.sleep(0.3)
+            await loc.press_sequentially(container, delay=50)
+            await asyncio.sleep(0.5)
+            try:
+                await self.page.keyboard.press("Tab")
                 await asyncio.sleep(0.3)
-                # press_sequentially: 각 키마다 keydown/keypress/input/keyup 발생 → Vue 가 인식.
-                await loc.press_sequentially(container, delay=50)
-                await asyncio.sleep(0.5)
-                # Tab 으로 blur 시뮬레이션 → Vue blur 핸들러도 트리거
-                try:
-                    await self.page.keyboard.press("Tab")
-                    await asyncio.sleep(0.3)
-                except Exception:
-                    pass
-                try:
-                    actual = (await loc.input_value()).strip().upper()
-                    if actual == container.upper():
-                        await self._verify_vue_sync(sel, container)
-                        return True
-                    logger.info("FLOR press_sequentially 후 값=%s — JS setter fallback", actual)
-                except Exception:
-                    pass
+            except Exception:
+                pass
+            try:
+                actual = (await loc.input_value()).strip().upper()
+                if actual == container.upper():
+                    await self._verify_vue_sync_idx(sel_all, vidx, container)
+                    return True
+                logger.info("FLOR press_sequentially 후 값=%s — JS setter fallback", actual)
+            except Exception:
+                pass
         except Exception as exc:
             logger.info("FLOR press_sequentially 단계 실패: %s", exc)
 
-        # 3) JS native setter + InputEvent(with data) + blur — 최후
+        # 3) JS native setter + InputEvent(with data) + blur — 최후 (visible idx 대상)
         ok = await self.page.evaluate(
             r"""(args) => {
-                const el = document.querySelector(args.sel);
+                const all = document.querySelectorAll(args.sel);
+                const el = all[args.idx];
                 if (!el) return false;
                 el.focus();
                 const setter = Object.getOwnPropertyDescriptor(
                     window.HTMLInputElement.prototype, 'value').set;
                 setter.call(el, args.val);
-                // Vue 는 'input' 이벤트의 target.value 를 보므로 그것은 set 됨.
-                // 그러나 일부 Element UI 버전은 InputEvent.data 도 참조 → 함께 전달.
                 try {
                     el.dispatchEvent(new InputEvent('input', {
                         bubbles: true, data: args.val, inputType: 'insertText'
@@ -1173,18 +1196,19 @@ class FlorScraper(BaseScraper):
                 el.blur();
                 return true;
             }""",
-            {"sel": sel, "val": container},
+            {"sel": sel_all, "idx": vidx, "val": container},
         )
         await asyncio.sleep(0.5)
-        await self._verify_vue_sync(sel, container)
+        await self._verify_vue_sync_idx(sel_all, vidx, container)
         return bool(ok)
 
-    async def _verify_vue_sync(self, sel: str, expected: str) -> None:
-        """Vue 인스턴스의 model 값과 input.value 비교 로그. 진단 전용."""
+    async def _verify_vue_sync_idx(self, sel: str, idx: int, expected: str) -> None:
+        """Vue 인스턴스의 model 값과 input.value 비교 로그. visible idx 기반. 진단 전용."""
         try:
             diag = await self.page.evaluate(
-                r"""(sel) => {
-                    const el = document.querySelector(sel);
+                r"""(args) => {
+                    const all = document.querySelectorAll(args.sel);
+                    const el = all[args.idx];
                     if (!el) return { found: false };
                     const v2 = el.__vue__ || null;
                     const v3 = el.__vueParentComponent || null;
@@ -1208,13 +1232,14 @@ class FlorScraper(BaseScraper):
                     }
                     return {
                         found: true,
+                        idx: args.idx,
                         el_value: el.value,
                         v2_model: pickModel(v2),
                         v3_model: pickModel(v3Proxy),
                         parent_model: pickModel(parentProxy),
                     };
                 }""",
-                sel,
+                {"sel": sel, "idx": idx},
             )
             logger.info("FLOR Vue sync diag (expected=%s): %s", expected, diag)
         except Exception:
@@ -1226,13 +1251,19 @@ class FlorScraper(BaseScraper):
             return self._error_row(container, "Unit Number 입력란 없음")
         await asyncio.sleep(0.3)
 
-        # 입력값 검증 로그 (Vue v-model 동기화 확인용)
+        # 입력값 검증 로그 — visible input 만 (Apply 탭 hidden input 회피)
         try:
-            actual_input = await self.page.locator(
-                'input[placeholder="Unit Number"]'
-            ).first.input_value()
+            actual_input = await self.page.evaluate(
+                r"""() => {
+                    const all = Array.from(document.querySelectorAll(
+                        'input[placeholder="Unit Number"]'
+                    ));
+                    const el = all.find(e => e.offsetParent !== null) || all[0];
+                    return el ? el.value : '';
+                }"""
+            )
             logger.info(
-                "FLOR %s search input 검증: actual=%r expected=%r",
+                "FLOR %s search input 검증 (visible): actual=%r expected=%r",
                 container, actual_input, container,
             )
         except Exception:
