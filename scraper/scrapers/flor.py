@@ -90,7 +90,7 @@ class FlorScraper(BaseScraper):
     async def start(self, headless: bool = True):
         """저장된 storage_state 가 있으면 복원해 브라우저 컨텍스트를 만든다."""
         # Deploy marker — Railway 활성 commit 검증용. 이 로그가 보이면 새 코드 실행 중.
-        logger.info("FLOR scraper start [marker=open-expiry-v1]")
+        logger.info("FLOR scraper start [marker=status-input-fix-v2]")
         browsers_path = os.getenv("PLAYWRIGHT_BROWSERS_PATH")
         if browsers_path:
             os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browsers_path
@@ -1079,11 +1079,13 @@ class FlorScraper(BaseScraper):
     async def _fill_unit_input(self, container: str) -> bool:
         """Unit Number 입력란에 값 주입.
 
-        Playwright fill 의 visibility 판정이 Element UI 의 wrapping 으로 실패하는
-        케이스(`element is not visible`)가 관찰됨. 다음 순서로 시도:
-          1) scroll_into_view + 짧은 timeout fill
-          2) 실패 시 JS 직접 value setter + input/change 이벤트 dispatch
-             (Vue v-model 동기화용 — 호환성 위해 native setter 사용)
+        Playwright fill 의 visibility 판정이 Element UI wrapping 으로 실패하는
+        케이스가 관찰됨. 또한 JS native setter 만으론 Vue v-model 동기화가
+        Search 클릭 전까지 완료되지 않아 빈 query 로 검색되는 추정.
+        다음 순서로 시도하며 각 단계 후 input_value() 로 검증:
+          1) Playwright fill (시야 보장 시 가장 안정)
+          2) JS focus + keyboard.type (OS 키 입력, Vue 가 가장 잘 인식)
+          3) JS native setter + input/change/blur 이벤트 dispatch (최후)
         """
         sel = 'input[placeholder="Unit Number"]'
         loc = self.page.locator(sel).first
@@ -1093,12 +1095,50 @@ class FlorScraper(BaseScraper):
             await loc.scroll_into_view_if_needed(timeout=3_000)
         except Exception:
             pass
-        try:
-            await loc.fill(container, timeout=5_000)
-            return True
-        except Exception as exc:
-            logger.info("FLOR Unit input visible-fill 실패 → JS fallback: %s", exc)
 
+        # 1) Playwright fill
+        try:
+            await loc.fill(container, timeout=3_000)
+            await asyncio.sleep(0.4)
+            actual = (await loc.input_value()).strip().upper()
+            if actual == container.upper():
+                return True
+            logger.info(
+                "FLOR fill 후 값 불일치: expected=%s actual=%s — keyboard fallback",
+                container, actual,
+            )
+        except Exception as exc:
+            logger.info("FLOR Unit input fill 실패 → keyboard fallback: %s", exc)
+
+        # 2) JS focus + keyboard.type (OS 레벨 키 입력 → Vue 가 input 이벤트 처리)
+        try:
+            await self.page.evaluate(
+                r"""(sel) => {
+                    const el = document.querySelector(sel);
+                    if (!el) return;
+                    el.focus();
+                    el.value = '';
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                }""",
+                sel,
+            )
+            await asyncio.sleep(0.2)
+            await self.page.keyboard.type(container, delay=30)
+            await asyncio.sleep(0.5)
+            try:
+                actual = (await loc.input_value()).strip().upper()
+                if actual == container.upper():
+                    return True
+                logger.info(
+                    "FLOR keyboard.type 후 값 불일치: actual=%s — JS setter fallback",
+                    actual,
+                )
+            except Exception:
+                pass
+        except Exception as exc:
+            logger.info("FLOR keyboard.type 실패: %s", exc)
+
+        # 3) JS native setter + blur (최후 폴백)
         ok = await self.page.evaluate(
             r"""(args) => {
                 const el = document.querySelector(args.sel);
@@ -1109,10 +1149,12 @@ class FlorScraper(BaseScraper):
                 setter.call(el, args.val);
                 el.dispatchEvent(new Event('input', { bubbles: true }));
                 el.dispatchEvent(new Event('change', { bubbles: true }));
+                el.blur();
                 return true;
             }""",
             {"sel": sel, "val": container},
         )
+        await asyncio.sleep(0.5)
         return bool(ok)
 
     async def _search_one(self, container: str) -> dict:
@@ -1120,6 +1162,18 @@ class FlorScraper(BaseScraper):
         if not await self._fill_unit_input(container):
             return self._error_row(container, "Unit Number 입력란 없음")
         await asyncio.sleep(0.3)
+
+        # 입력값 검증 로그 (Vue v-model 동기화 확인용)
+        try:
+            actual_input = await self.page.locator(
+                'input[placeholder="Unit Number"]'
+            ).first.input_value()
+            logger.info(
+                "FLOR %s search input 검증: actual=%r expected=%r",
+                container, actual_input, container,
+            )
+        except Exception:
+            pass
 
         search_btn = self.page.locator("button").filter(has_text="Search").first
         if await search_btn.count() == 0:
@@ -1129,7 +1183,40 @@ class FlorScraper(BaseScraper):
             await self.page.wait_for_load_state("networkidle", timeout=20_000)
         except Exception:
             pass
-        await asyncio.sleep(2.0)
+
+        # 결과 행 출현 대기 — tbody 가 채워지거나 "No data/results" 텍스트 등장까지.
+        try:
+            await self.page.wait_for_function(
+                r"""() => {
+                    const rows = document.querySelectorAll('table tbody tr');
+                    if (rows.length > 0) {
+                        for (const r of rows) {
+                            if ((r.innerText || '').trim().length > 0) return true;
+                        }
+                    }
+                    const txt = (document.body.innerText || '').toLowerCase();
+                    return /no\s*(data|results|record)/i.test(txt)
+                        || /results,?\s+(recent|none)/i.test(txt);
+                }""",
+                timeout=8_000,
+            )
+        except Exception:
+            pass
+        await asyncio.sleep(1.5)
+
+        # 진단 로그: rows=0 케이스 원인 분석용
+        try:
+            diag = await self.page.evaluate(
+                r"""() => ({
+                    url: location.href,
+                    rows: document.querySelectorAll('table tbody tr').length,
+                    first_row: (document.querySelector('table tbody tr')?.innerText || '').slice(0, 200),
+                    counter: ((document.body.innerText || '').match(/\d+\s+results?,?\s+recent\s+\d+\s+shown/i) || [''])[0],
+                })"""
+            )
+            logger.info("FLOR %s search diag: %s", container, diag)
+        except Exception:
+            pass
 
         # 결과 행 추출 + 헤더로 매핑
         # 주의: FLOR Status 테이블의 thead 에는 "Port:", "Depot:" 같은 필터 라벨이
