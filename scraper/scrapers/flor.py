@@ -66,6 +66,20 @@ PORT_OPTION_SUBSTR: dict[str, str] = {
 }
 
 
+# 컨테이너 번호 형식 검증.
+# ISO 6346 기반: 4 영문 + 6~7 숫자. FLOR (Florens) 는 DFSU / FSCU 만 발급.
+# 그 외 prefix 거나 format 불일치면 위저드 호출 전 즉시 '넘버오류' 처리.
+_CONTAINER_RE = re.compile(r"^[A-Z]{4}\d{6,7}$")
+_FLOR_PREFIXES = ("DFSU", "FSCU")
+
+
+def _is_flor_container(c: str) -> bool:
+    if not c:
+        return False
+    s = c.strip().upper()
+    return bool(_CONTAINER_RE.match(s)) and s.startswith(_FLOR_PREFIXES)
+
+
 def _to_mmdd(iso: str | None) -> str | None:
     """'2026-05-13' → '5/13'. 비/잘못된 입력은 None. 앞자리 0 없음."""
     if not iso:
@@ -90,7 +104,7 @@ class FlorScraper(BaseScraper):
     async def start(self, headless: bool = True):
         """저장된 storage_state 가 있으면 복원해 브라우저 컨텍스트를 만든다."""
         # Deploy marker — Railway 활성 commit 검증용. 이 로그가 보이면 새 코드 실행 중.
-        logger.info("FLOR scraper start [marker=search-by-unit-no-v5]")
+        logger.info("FLOR scraper start [marker=number-error-v6]")
         browsers_path = os.getenv("PLAYWRIGHT_BROWSERS_PATH")
         if browsers_path:
             os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browsers_path
@@ -266,17 +280,37 @@ class FlorScraper(BaseScraper):
         depot: str | None = None,
     ) -> list[dict]:
         # 입력 정규화 + 중복 제거 (입력 순서 보존)
+        # + 컨테이너 형식/Prefix 사전 검증: FLOR 은 DFSU/FSCU 만 발급.
+        # 그 외는 위저드 호출 건너뛰고 즉시 '넘버오류' 결과 부여.
         seen: set[str] = set()
-        deduped: list[str] = []
+        deduped: list[str] = []          # FLOR prefix 통과한 진짜 조회 대상
+        number_errors: list[str] = []    # 타사 컨테이너 또는 형식 오류
         for c in containers:
             k = (c or "").strip().upper()
             if not k or k in seen:
                 continue
             seen.add(k)
-            deduped.append(k)
+            if _is_flor_container(k):
+                deduped.append(k)
+            else:
+                number_errors.append(k)
 
-        # 기본 결과: 모두 "조회 실패"로 시작 → 단계별 갱신
+        # 기본 결과: 정상 후보는 "조회 실패"로 시작, 넘버오류는 명시 분류.
         results: dict[str, dict] = {c: self._error_row(c, "조회 실패") for c in deduped}
+        for c in number_errors:
+            results[c] = {
+                "container_no": c,
+                "available": False,
+                "status": "number_error",
+                "completed_date": None,
+                "depot": None,
+                "booking_ref": None,
+                "over_caps": None,
+                "close_date": None,
+                "reason": "타사 컨테이너 또는 번호 형식 오류 (FLOR 는 DFSU/FSCU 만 지원)",
+            }
+        if number_errors:
+            logger.info("FLOR 넘버오류 사전 분류: %s", number_errors)
 
         try:
             # ── Phase 1: Status 탭 우선 조회 ──────────────────────────────
@@ -372,7 +406,8 @@ class FlorScraper(BaseScraper):
         for c in deduped:
             results.setdefault(c, self._error_row(c, "조회 실패"))
         for r in results.values():
-            if r.get("status") == "completed":
+            # number_error / completed 는 명시적으로 분류된 상태 → 덮어쓰기 X
+            if r.get("status") in ("completed", "number_error"):
                 continue
             if r.get("available"):
                 r["status"] = "available"

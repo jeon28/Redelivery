@@ -334,8 +334,11 @@ export default function ResultTable({
               const checked = validSelected.has(r.container_no)
               const precleared = isPrecleared(r)
               const completed = r.status === 'completed'
+              const numberError = r.status === 'number_error'
               const rowBg = completed
                 ? 'bg-gray-100'
+                : numberError
+                ? 'bg-amber-50'
                 : precleared
                 ? 'bg-blue-50'
                 : r.available
@@ -365,6 +368,8 @@ export default function ResultTable({
                   <td className="px-4 py-3">
                     {completed ? (
                       <span className="text-gray-700 font-medium">🏁 반납완료</span>
+                    ) : numberError ? (
+                      <span className="text-amber-700 font-medium">🔢 넘버오류</span>
                     ) : precleared ? (
                       <span className="text-blue-700 font-medium">🟢 완료</span>
                     ) : r.available ? (
@@ -380,7 +385,11 @@ export default function ResultTable({
                   <td className="px-4 py-3 text-gray-600">{r.over_caps ?? '-'}</td>
                   <td className="px-4 py-3 text-gray-600">{r.close_date ?? '-'}</td>
                   <td className={`px-4 py-3 text-xs ${
-                    r.available || completed ? 'text-gray-600' : 'text-red-600'
+                    r.available || completed
+                      ? 'text-gray-600'
+                      : numberError
+                      ? 'text-amber-700'
+                      : 'text-red-600'
                   }`}>
                     {r.reason ?? '-'}
                   </td>
