@@ -312,8 +312,13 @@ export default function SearchForm({ office }: { office: string }) {
       date: dateStr,
       containers,
     })
-    const to = tpl.to.split(';').map((s) => s.trim()).filter(Boolean).join(',')
-    const cc = tpl.cc.split(';').map((s) => s.trim()).filter(Boolean).join(',')
+    // 저장된 To/CC 는 ';' 안내지만 ',' 로 입력된 케이스도 있어 양쪽 모두 분리.
+    // 출력은 ';' — Outlook 데스크톱이 ','를 단일 주소의 일부로 해석해 한 줄로
+    // 합치는 문제를 피하기 위함.
+    const splitAddrs = (s: string) =>
+      s.split(/[,;]/).map((x) => x.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean)
+    const to = splitAddrs(tpl.to).join(';')
+    const cc = splitAddrs(tpl.cc).join(';')
     // mailto: 는 RFC 6068 에 따라 application/x-www-form-urlencoded 가 아닌
     // 표준 percent-encoding 을 사용해야 한다. URLSearchParams 는 공백을 '+' 로
     // 인코딩하여 Outlook 등에서 '+' 가 그대로 표시되는 문제가 있으므로
