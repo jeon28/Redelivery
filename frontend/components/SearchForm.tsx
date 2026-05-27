@@ -110,13 +110,13 @@ function renderTemplate(
     containers: { container_no: string; container_type: string }[]
   }
 ): { subject: string; body: string } {
-  // 한 줄 포맷: "선사코드 1 컨테이너번호 사이즈"
-  // 예: SKR 1 ABCD1234567 45GP
+  // 한 줄 포맷: "선사코드 컨테이너번호 사이즈"
+  // 예: SKR ABCD1234567 45GP
   const containerBlock = ctx.containers
     .filter((c) => c.container_no.trim())
     .map(
       (c) =>
-        `${ctx.carrier_code} 1 ${c.container_no.trim()} ${
+        `${ctx.carrier_code} ${c.container_no.trim()} ${
           c.container_type.trim() || '45GP'
         }`
     )
