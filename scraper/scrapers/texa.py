@@ -388,8 +388,6 @@ class TexaScraper(BaseScraper):
             page_text_lower = page_text.lower()
             logger.info("Preview done. page snippet: %s", page_text[800:1200])
 
-            list_url = form_frame.url  # baseline URL to return to after detail visits
-
             # ── Case 1: cannot be redelivered ─────────────────────────
             if "cannot be redelivered" in page_text_lower:
                 preview_matched = True
@@ -427,23 +425,21 @@ class TexaScraper(BaseScraper):
                     logger.error("Cannot-redeliver parse error: %s", exc)
 
             # ── Case 2: can be booked (new booking) ───────────────────
+            # Book(실 예약) 후, success 화면은 링크 목록이 아니라 메시지+빈 폼이므로
+            # 동일 컨테이너로 재-Preview 하여 'already booked' 파서로 결과를 확정한다.
+            booked_handled = False
             if "can be booked" in page_text_lower:
                 preview_matched = True
                 logger.info("Found: can be booked")
-                checkboxes = form_frame.locator("input[type='checkbox']")
-                cb_count = await checkboxes.count()
-                for i in range(cb_count):
-                    cb = checkboxes.nth(i)
-                    if not await cb.is_checked():
-                        await cb.check()
-
-                await form_frame.get_by_role("button", name="Book").click()
-                await asyncio.sleep(5)
-
-                await self._collect_and_visit_bookings(form_frame, results, list_url)
+                await self._book_and_resolve(
+                    form_frame, results, region_info, containers
+                )
+                booked_handled = True
 
             # ── Case 3: already booked ─────────────────────────────────
-            if "are booked" in page_text_lower:
+            # Case 2 가 실행되면 재-Preview 에서 이미 booked 테이블을 파싱했으므로
+            # (그리고 form_frame 은 navigate 로 무효화됨) 중복 처리하지 않는다.
+            if "are booked" in page_text_lower and not booked_handled:
                 preview_matched = True
                 logger.info("Found: already booked")
                 await self._parse_booked_table(form_frame, results, region_info["city"])
@@ -721,6 +717,10 @@ class TexaScraper(BaseScraper):
         if not matched:
             return {cn: (False, "사이트에서 해당 컨테이너 행 미발견") for cn in containers}
 
+        # 행 체크는 __doPostBack 을 유발 → 패널이 재렌더되며 btnDelete 가 enable 된다.
+        # postback 완료를 기다린 뒤(미대기 시 btnDelete 가 disabled 라 클릭 무시됨) 삭제 클릭.
+        await asyncio.sleep(3)
+
         if not await self._click_delete_x(form_frame, panel_table):
             return {cn: (False, "삭제(X) 버튼 미발견") for cn in containers}
         await asyncio.sleep(1)
@@ -734,24 +734,35 @@ class TexaScraper(BaseScraper):
         )
 
     async def _click_delete_x(self, frame, panel_table) -> bool:
-        """패널 우하단 빨간 X(삭제) 버튼 클릭. 다양한 셀렉터를 순차 시도."""
+        """
+        패널 우하단 빨간 X(삭제) 버튼 클릭.
+
+        실제 사이트 마크업: `<input type="image" title="Delete" name="...btnDelete"
+        src="../Images/buttons/Letter-X-icon.png">`. 행 체크 전에는 disabled 이며,
+        행 체크 postback 으로 패널이 재렌더되므로 stale 한 panel_table 대신 frame 단위로
+        안정적인 셀렉터를 쓰고, enable 될 때까지 잠시 대기한 뒤 클릭한다.
+        """
         candidates = [
-            panel_table.locator("img[src*='delete' i]"),
-            panel_table.locator("img[src*='cancel' i]"),
-            panel_table.locator("img[src*='_x' i]"),
+            frame.locator("input[type='image'][title='Delete']"),
+            frame.locator("input[id$='btnDelete']"),
+            frame.locator("input[name$='btnDelete']"),
+            frame.locator("input[type='image'][src*='Letter-X-icon' i]"),
+            frame.locator("input[type='image'][src*='_x' i]"),
             panel_table.locator("input[type='image']"),
-            panel_table.locator("a[onclick*='delete' i]"),
-            panel_table.locator("a[onclick*='remove' i]"),
-            frame.locator("img[title='Delete']"),
-            frame.locator("img[alt*='Delete' i]"),
-            frame.locator("input[type='image'][src*='delete' i]"),
         ]
         for loc in candidates:
             try:
-                if await loc.count() > 0:
-                    await loc.first.click()
-                    logger.info("Cancel: X(delete) 버튼 클릭")
-                    return True
+                if await loc.count() == 0:
+                    continue
+                btn = loc.first
+                # disabled 해제(행 체크 postback 완료) 대기 — 최대 ~5초
+                for _ in range(10):
+                    if await btn.is_enabled():
+                        break
+                    await asyncio.sleep(0.5)
+                await btn.click()
+                logger.info("Cancel: X(delete) 버튼 클릭")
+                return True
             except Exception as exc:
                 logger.debug("X locator 시도 실패: %s", exc)
         return False
@@ -823,11 +834,116 @@ class TexaScraper(BaseScraper):
         logger.warning("Cancel[%s]: 결과 화면 판정 불가", bk_ref)
         return {cn: (False, "취소 결과 확인 불가") for cn in containers}
 
-    async def _collect_and_visit_bookings(
-        self, frame, results: dict, list_url: str
+    # ------------------------------------------------------------------ #
+    # Case 2 handler — Book then recover refs via re-Preview              #
+    # ------------------------------------------------------------------ #
+
+    async def _book_and_resolve(
+        self, form_frame, results: dict, region_info: dict, containers: list[str]
     ):
-        """Find all TKE booking ref links, visit each detail page, update results."""
-        bk_links = frame.locator("a").filter(has_text="TKE")
+        """
+        'can be booked' 케이스 처리.
+
+        ① 체크박스 전체 선택 → Book 클릭(실 예약 생성)
+        ② success 메시지에서 발급 Bk Ref 추출 (로그/교차검증용)
+        ③ 동일 컨테이너로 재-Preview → 'are booked' 상태에서 _parse_booked_table 로 결과 확정
+        ④ 재-Preview 가 실패하면 옛 링크-방문 경로로 폴백
+        """
+        # ① 체크박스 전체 선택 후 Book
+        checkboxes = form_frame.locator("input[type='checkbox']")
+        cb_count = await checkboxes.count()
+        for i in range(cb_count):
+            cb = checkboxes.nth(i)
+            if not await cb.is_checked():
+                await cb.check()
+
+        await form_frame.get_by_role("button", name="Book").click()
+        await asyncio.sleep(5)
+
+        # ② success 메시지에서 발급된 반납번호 추출 (Bk Ref prefix 변동 무관)
+        try:
+            post_text = await form_frame.inner_text("body")
+        except Exception:
+            post_text = ""
+        issued = re.findall(
+            r"New Booking\s*-\s*([A-Z0-9]+)\s+is created successfully",
+            post_text,
+            re.IGNORECASE,
+        )
+        if issued:
+            logger.info("New booking(s) created: %s", issued)
+        else:
+            logger.warning(
+                "Book 후 success 메시지 미검출 (booking 생성 여부 불명) snippet=%s",
+                post_text[:300],
+            )
+
+        # ③ 동일 컨테이너로 재-Preview → 검증된 'already booked' 경로 재사용
+        reparsed = await self._reopen_and_parse_booked(results, region_info, containers)
+
+        # ④ 폴백: 재-Preview 가 실패한 경우에만 옛 링크-방문 경로 시도
+        if not reparsed:
+            logger.warning("재-Preview 파싱 실패 → 링크 방문 폴백 시도")
+            try:
+                await self._collect_and_visit_bookings(form_frame, results)
+            except Exception as exc:
+                logger.error("링크 방문 폴백 실패: %s", exc)
+
+    async def _reopen_and_parse_booked(
+        self, results: dict, region_info: dict, containers: list[str]
+    ) -> bool:
+        """
+        동일 컨테이너로 Preview 재실행 → 'are booked' 패널이 노출되면
+        _parse_booked_table 로 파싱하고 True 반환. (Preview 는 조회 전용 → 중복 예약 위험 없음)
+
+        Book 직후엔 동일 Redelivery 폼이 화면에 그대로 남아있으므로(좌측 메뉴 재진입은
+        해당 화면에서 'Request Redelivery' 메뉴가 없어 실패함) **현재 폼을 그대로 재사용**한다.
+        폼 프레임을 못 찾을 때만 메뉴로 재진입을 시도한다.
+        """
+        try:
+            form_frame = await self._frame_containing("Country")
+            if form_frame is None:
+                # 폼이 화면에 없을 때만 메뉴로 재진입
+                await self._navigate_to_redelivery()
+                await asyncio.sleep(3)
+                form_frame = await self._frame_containing("Country")
+            if form_frame is None:
+                logger.error("재-Preview: 폼 프레임 미발견")
+                return False
+
+            await self._select_containing(form_frame, 0, region_info["country"])
+            await asyncio.sleep(3)
+            await self._select_containing(form_frame, 1, region_info["city"])
+            await asyncio.sleep(1)
+
+            await form_frame.locator("textarea").fill("\n".join(containers))
+            eq_radio = form_frame.get_by_label("Equipment Query")
+            if await eq_radio.count() > 0:
+                await eq_radio.check()
+
+            await form_frame.get_by_role("button", name="Preview").click()
+            await asyncio.sleep(5)
+
+            body = (await form_frame.inner_text("body")).lower()
+            if "are booked" in body:
+                await self._parse_booked_table(form_frame, results, region_info["city"])
+                return True
+
+            logger.warning(
+                "재-Preview: 'are booked' 미노출 (snippet=%s)", body[800:1100]
+            )
+            return False
+        except Exception as exc:
+            logger.error("재-Preview 오류: %s", exc)
+            return False
+
+    async def _collect_and_visit_bookings(self, frame, results: dict):
+        """
+        (폴백 경로) Book 결과 화면에 반납번호 링크가 있을 경우 각 상세를 방문해 results 갱신.
+
+        Bk Ref prefix 는 시기별로 변동(TKE→TKF…)하므로 '^TK + 영숫자' 패턴으로 매칭한다.
+        """
+        bk_links = frame.locator("a").filter(has_text=re.compile(r"TK[A-Z0-9]{4,}"))
         bk_count = await bk_links.count()
 
         # Collect ref texts only (hrefs are javascript: postbacks, unusable for goto)

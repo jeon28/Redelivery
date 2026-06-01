@@ -97,6 +97,19 @@ Assigned Containers:
 - 동일 컨테이너 중복 실행 시 중복 예약 발생 가능
 - 스크래퍼에서 중복 체크 로직 필요
 
+### 반납번호(Bk Ref) prefix 는 시기별로 변동한다
+
+- 5월분은 `TKE…`, 6월분은 `TKF…` 처럼 **세 번째 글자가 시기에 따라 굴러간다**.
+- 따라서 반납번호를 prefix 문자열(`"TKE"`)로 하드코딩 필터링하면 안 된다. 필요 시 `^TK[A-Z0-9]` 패턴으로 매칭한다.
+
+### Book 직후 반납번호 회수 흐름 (정정)
+
+- Book 클릭 직후 화면은 **링크 목록이 아니라** success 메시지 + 빈 폼이다:
+  `New Booking - {Bk Ref} is created successfully! Email has been sent ...`
+- 따라서 Book 직후 반납번호/반납지/Caps/유효기간 회수는 **동일 컨테이너로 Preview 를 한 번 더 실행**해
+  `Containers are booked` 상태로 전환한 뒤 "already booked" 파서로 추출한다. (Preview 는 조회 전용이라 중복 예약 위험 없음)
+- success 메시지의 `{Bk Ref}` 는 로그/교차검증용으로만 사용.
+
 ## 취소(Cancel) 흐름
 
 > 분석일: 2026-05-18 (HEUNGA 계정으로 `TEMU0013087` 캡처 검증)
@@ -120,7 +133,16 @@ Assigned Containers:
 | Depot | depot 코드 (예: `INC05`) |
 | (마지막 컬럼) | **행별 체크박스** + 헤더에 select-all 체크박스 |
 
-테이블 우하단에 **빨간 원형 X 버튼** (삭제 실행 버튼) 1개.
+테이블 우하단에 **빨간 X 버튼** (삭제 실행 버튼) 1개.
+
+> 실제 마크업 (2026-06-01 DOM 확인):
+> `<input type="image" title="Delete" name="...$btnDelete" src="../Images/buttons/Letter-X-icon.png" disabled>`
+> - `<img>` 가 아니라 **`<input type="image">`** 이며 src 에 `delete`/`cancel` 문자열이 없다(`Letter-X-icon.png`).
+>   → 셀렉터는 `input[type=image][title=Delete]` 또는 `input[name$=btnDelete]` 로 잡는다.
+> - **행 체크 전에는 `disabled`**. 행 체크는 `__doPostBack` 을 유발해 패널을 재렌더하며 이때 enable 된다.
+>   → 행 체크 후 postback 완료를 대기하고(미대기 시 disabled 클릭 무시), `is_enabled()` 확인 후 클릭.
+> - 행 체크 postback 으로 패널 DOM 이 교체되므로, 체크 시점에 잡아둔 `panel_table` 참조는 stale 이 된다.
+>   삭제 버튼은 frame 단위 셀렉터로 다시 찾는다.
 
 ### 취소 단계
 
