@@ -269,6 +269,41 @@ class TexaScraper(BaseScraper):
                 return
         raise RuntimeError(f"No <select>[{nth}] option containing '{text}'")
 
+    async def _select_region(self, frame, region_info: dict) -> None:
+        """
+        국가 → 도시 드롭다운을 순서대로 선택.
+
+        국가(예: KOREA) 선택은 ASP.NET postback 을 유발해 도시 <select>[1] 옵션이
+        전세계 목록(~456개)에서 해당 국가용(한국=7개)으로 재로딩된다. 고정 sleep 으로는
+        느린 postback 에서 도시 선택이 stale/미갱신 상태와 겹쳐 'No option' 예외
+        ('지역 선택 실패')가 간헐 발생하므로, 도시 옵션이 실제로 갱신될 때까지 대기한다.
+        """
+        await self._select_containing(frame, 0, region_info["country"])
+        await self._wait_city_options(frame, region_info["city"])
+        await self._select_containing(frame, 1, region_info["city"])
+        await asyncio.sleep(1)
+
+    async def _wait_city_options(self, frame, city: str, timeout_s: float = 15.0) -> bool:
+        """
+        국가 선택 postback 후 도시 <select>[1] 이 해당 국가용으로 좁혀지고(전세계 ~456개 →
+        소수) 대상 도시가 나타날 때까지 폴링 대기. 준비되면 True.
+        timeout 시 경고만 남기고 False — 호출부는 그대로 선택을 시도(best-effort).
+        """
+        steps = max(1, int(timeout_s / 0.5))
+        for _ in range(steps):
+            try:
+                opts = await frame.locator("select").nth(1).locator("option").evaluate_all(
+                    "els => els.map(e => e.textContent.trim())"
+                )
+                # 국가별로 좁혀졌고(<=60) 대상 도시가 존재하면 준비 완료
+                if len(opts) <= 60 and any(city.upper() in o.upper() for o in opts):
+                    return True
+            except Exception:
+                pass  # postback 중 detach 등 — 다음 루프에서 재확인
+            await asyncio.sleep(0.5)
+        logger.warning("도시 옵션 갱신 대기 timeout (city=%s) — 그대로 선택 시도", city)
+        return False
+
     # ------------------------------------------------------------------ #
     # Field-extraction helpers (booking detail page)                      #
     # ------------------------------------------------------------------ #
@@ -363,10 +398,7 @@ class TexaScraper(BaseScraper):
 
             # ── Fill Country / City dropdowns ──────────────────────────
             try:
-                await self._select_containing(form_frame, 0, region_info["country"])
-                await asyncio.sleep(3)   # wait for ASP.NET postback → city options
-                await self._select_containing(form_frame, 1, region_info["city"])
-                await asyncio.sleep(1)
+                await self._select_region(form_frame, region_info)
             except Exception as exc:
                 logger.error("Region dropdown select failed: %s", exc)
                 self._fill_reason(results, "지역 선택 실패 (사이트 UI 변경 가능)")
@@ -669,10 +701,7 @@ class TexaScraper(BaseScraper):
         if form_frame is None:
             return {cn: (False, "폼 화면 진입 실패") for cn in containers}
 
-        await self._select_containing(form_frame, 0, region_info["country"])
-        await asyncio.sleep(3)
-        await self._select_containing(form_frame, 1, region_info["city"])
-        await asyncio.sleep(1)
+        await self._select_region(form_frame, region_info)
 
         await form_frame.locator("textarea").fill("\n".join(containers))
 
@@ -911,10 +940,7 @@ class TexaScraper(BaseScraper):
                 logger.error("재-Preview: 폼 프레임 미발견")
                 return False
 
-            await self._select_containing(form_frame, 0, region_info["country"])
-            await asyncio.sleep(3)
-            await self._select_containing(form_frame, 1, region_info["city"])
-            await asyncio.sleep(1)
+            await self._select_region(form_frame, region_info)
 
             await form_frame.locator("textarea").fill("\n".join(containers))
             eq_radio = form_frame.get_by_label("Equipment Query")

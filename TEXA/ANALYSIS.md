@@ -97,6 +97,20 @@ Assigned Containers:
 - 동일 컨테이너 중복 실행 시 중복 예약 발생 가능
 - 스크래퍼에서 중복 체크 로직 필요
 
+### 지역(국가→도시) 드롭다운은 ASP.NET postback 으로 갱신된다
+
+- 국가(예: `KOREA`) 선택 시 postback 으로 **도시 `<select>` 옵션이 전세계 ~456개 → 해당 국가용(한국=7개)으로 재로딩**된다.
+- 고정 `sleep` 으로 기다리면 느린 postback 에서 도시 선택이 미갱신/stale 상태와 겹쳐
+  `No <select>[1] option` 예외(프론트 표기: **"지역 선택 실패 (사이트 UI 변경 가능)"**)가 **간헐 발생**한다.
+- → 도시 옵션이 실제로 좁혀지고(≤60개) 대상 도시가 나타날 때까지 폴링 대기 후 선택한다
+  (`_select_region` / `_wait_city_options`). query·cancel·재-Preview 3곳 공통 적용.
+
+### CAPS(당월 반납한도) 초과 컨테이너
+
+- 한도 초과분은 별도 'over caps' 표시가 아니라 **"Containers cannot be redelivered"** 표에
+  사유 `CONTAINERS CANNOT BE OFF HIRED IN THIS LOCATION DUE TO THE MONTHLY LIMIT AS PER LEASE COMPLETE`
+  로 분류된다. → Case 1 파서가 `불가` + 영문 원문 사유로 처리(원문 그대로 표기).
+
 ### 반납번호(Bk Ref) prefix 는 시기별로 변동한다
 
 - 5월분은 `TKE…`, 6월분은 `TKF…` 처럼 **세 번째 글자가 시기에 따라 굴러간다**.
