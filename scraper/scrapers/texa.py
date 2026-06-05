@@ -886,7 +886,9 @@ class TexaScraper(BaseScraper):
             if not await cb.is_checked():
                 await cb.check()
 
-        await form_frame.get_by_role("button", name="Book").click()
+        # exact=True: 과거 booking 이력이 있으면 "Rebook" 아이콘 버튼이 함께 떠서
+        # 부분 일치 시 strict mode violation (2 elements) 발생
+        await form_frame.get_by_role("button", name="Book", exact=True).click()
         await asyncio.sleep(5)
 
         # ② success 메시지에서 발급된 반납번호 추출 (Bk Ref prefix 변동 무관)
