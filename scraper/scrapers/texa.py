@@ -474,7 +474,14 @@ class TexaScraper(BaseScraper):
             if "are booked" in page_text_lower and not booked_handled:
                 preview_matched = True
                 logger.info("Found: already booked")
-                await self._parse_booked_table(form_frame, results, region_info["city"])
+                stale = await self._parse_booked_table(
+                    form_frame, results, region_info["city"]
+                )
+                # 과거 날짜 booking(오늘자 BkRefSearch 에 없음)은 Rebook 으로 갱신
+                if stale:
+                    await self._rebook_stale(
+                        form_frame, results, region_info, containers, stale
+                    )
 
             if not preview_matched:
                 logger.error("Preview page matched none of the 3 known cases")
@@ -498,7 +505,9 @@ class TexaScraper(BaseScraper):
     # Already-booked table parser (no navigation needed)                  #
     # ------------------------------------------------------------------ #
 
-    async def _parse_booked_table(self, frame, results: dict, city: str):
+    async def _parse_booked_table(
+        self, frame, results: dict, city: str
+    ) -> list[tuple[str, str]]:
         """
         Parse 'already booked' preview page.
 
@@ -509,7 +518,11 @@ class TexaScraper(BaseScraper):
         Step 3: Populate results.
                 If bk_ref absent from step 2 → assume available=True
                 ("Can be deleted" label implies returnable slot exists).
+
+        Returns: 오늘자 BkRefSearch 에 없는(=과거 날짜) booking 행 목록
+                 [(eqp_id, bk_ref)] — 호출측이 Rebook 트리거에 사용.
         """
+        stale: list[tuple[str, str]] = []
         try:
             # ── Step 1: container → (bk_ref, depot) from Eqp ID table ─────────
             container_rows: list[tuple[str, str, str]] = []  # (eqp_id, bk_ref, depot)
@@ -606,6 +619,7 @@ class TexaScraper(BaseScraper):
                     caps_left = None   # unknown — not in search results
                     available = True   # "Can be deleted" → slot exists
                     reason    = None
+                    stale.append((eqp_id, bk_ref))
                 close_date = bk_close.get(bk_ref, "")
                 results[eqp_id].update({
                     "available":   available,
@@ -620,6 +634,117 @@ class TexaScraper(BaseScraper):
 
         except Exception as exc:
             logger.error("_parse_booked_table: %s", exc)
+        return stale
+
+    # ------------------------------------------------------------------ #
+    # Rebook flow — 과거 날짜 booking 을 R 버튼으로 갱신                   #
+    # ------------------------------------------------------------------ #
+
+    async def _rebook_stale(
+        self,
+        form_frame,
+        results: dict,
+        region_info: dict,
+        containers: list[str],
+        stale: list[tuple[str, str]],
+    ):
+        """
+        'Containers are booked (Can be deleted or rebooked)' 패널에서
+        오늘자 BkRefSearch 에 없는 과거 booking(만료 의심) 행을 Rebook 한다.
+
+        ① 패널에서 해당 Eqp 행 체크 (postback 으로 R 버튼 enable)
+        ② R(Rebook) 버튼 클릭 → Confirm [Yes] 가 뜨면 처리
+        ③ 재-Preview → _parse_booked_table 로 새 Bk Ref/유효기간 확정
+        실패 시 기존 결과(옛 Bk Ref, available=True)를 그대로 둔다.
+        """
+        stale_eqps = {self._norm_eqp(e) for e, _ in stale}
+        logger.info("Rebook 대상(과거 booking): %s", stale)
+        try:
+            panel_heading = form_frame.locator("text=Containers are booked").first
+            panel_table = panel_heading.locator("xpath=following::table[1]")
+            if await panel_table.count() == 0:
+                logger.warning("Rebook: booked 패널 테이블 미발견")
+                return
+
+            checked = 0
+            rows = panel_table.locator("tr")
+            row_count = await rows.count()
+            for i in range(row_count):
+                cells = rows.nth(i).locator("td")
+                if await cells.count() < 2:
+                    continue
+                row_eqp = self._norm_eqp((await cells.nth(1).inner_text()).strip())
+                if not any(
+                    row_eqp.startswith(s) or s.startswith(row_eqp)
+                    for s in stale_eqps
+                ):
+                    continue
+                row_cb = rows.nth(i).locator("input[type='checkbox']")
+                if await row_cb.count() == 0:
+                    continue
+                await row_cb.first.check()
+                checked += 1
+                logger.info("Rebook: 행 체크 Eqp=%s", row_eqp)
+
+            if checked == 0:
+                logger.warning("Rebook: 체크할 행 미발견 — 기존 결과 유지")
+                return
+
+            # 행 체크는 __doPostBack 유발 → R 버튼 enable 까지 대기
+            await asyncio.sleep(3)
+
+            if not await self._click_rebook_r(form_frame):
+                logger.warning("Rebook: R 버튼 미발견 — 기존 결과 유지")
+                return
+            await asyncio.sleep(1)
+
+            # 삭제(X)와 동일하게 Confirm Box 가 뜰 수 있음 — 없으면 그냥 진행
+            await self._click_confirm_yes(form_frame)
+            await asyncio.sleep(5)
+
+            try:
+                snippet = (await form_frame.inner_text("body"))[:300]
+                logger.info("Rebook 후 화면 snippet: %s", snippet)
+            except Exception:
+                pass
+
+            # 재-Preview 로 새 Bk Ref / 유효기간 / Caps 확정
+            if not await self._reopen_and_parse_booked(
+                results, region_info, containers
+            ):
+                logger.warning("Rebook 후 재-Preview 파싱 실패 — 기존 결과 유지")
+        except Exception as exc:
+            logger.error("Rebook 처리 오류: %s", exc)
+
+    async def _click_rebook_r(self, frame) -> bool:
+        """
+        패널 우하단 R(Rebook) 버튼 클릭.
+
+        실제 사이트 마크업: `<input type="image" title="Rebook" name="...btnRebook"
+        src="../Images/buttons/Letter-R-icon.png">`. X(삭제)와 동일하게 행 체크
+        전에는 disabled 이므로 enable 될 때까지 잠시 대기한 뒤 클릭한다.
+        """
+        candidates = [
+            frame.locator("input[type='image'][title='Rebook']"),
+            frame.locator("input[id$='btnRebook']"),
+            frame.locator("input[name$='btnRebook']"),
+            frame.locator("input[type='image'][src*='Letter-R-icon' i]"),
+        ]
+        for loc in candidates:
+            try:
+                if await loc.count() == 0:
+                    continue
+                btn = loc.first
+                for _ in range(10):
+                    if await btn.is_enabled():
+                        break
+                    await asyncio.sleep(0.5)
+                await btn.click()
+                logger.info("Rebook: R 버튼 클릭")
+                return True
+            except Exception as exc:
+                logger.debug("R locator 시도 실패: %s", exc)
+        return False
 
     # ------------------------------------------------------------------ #
     # Shared booking-detail visitor (for newly-created "can be booked")   #
