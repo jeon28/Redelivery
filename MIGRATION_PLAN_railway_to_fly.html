@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>백엔드 이전 계획: Railway → Fly.io (NRT)</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+                 "Noto Sans KR", sans-serif;
+    line-height: 1.6;
+    max-width: 980px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+    color: #222;
+    background: #fff;
+  }
+  h1 { border-bottom: 2px solid #334155; padding-bottom: .4rem; }
+  h2 { border-bottom: 1px solid #cbd5e1; padding-bottom: .3rem; margin-top: 2.2rem; }
+  h3 { margin-top: 1.6rem; color: #1e293b; }
+  code, pre {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 0.9em;
+  }
+  code { background: #f1f5f9; padding: 0.1em 0.35em; border-radius: 3px; }
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+  }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td {
+    border: 1px solid #cbd5e1;
+    padding: 0.45rem 0.7rem;
+    text-align: left;
+    vertical-align: top;
+    font-size: 0.94rem;
+  }
+  th { background: #f1f5f9; }
+  tr:nth-child(even) td { background: #fafbfc; }
+  ul, ol { padding-left: 1.4rem; }
+  li { margin: 0.25rem 0; }
+  blockquote {
+    border-left: 4px solid #94a3b8;
+    margin: 1rem 0;
+    padding: 0.5rem 1rem;
+    color: #475569;
+    background: #f8fafc;
+  }
+  .flow-box {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    padding: 1rem 1.2rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+  }
+  .warn-box {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    padding: 0.8rem 1.1rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+    color: #7f1d1d;
+  }
+  .ok-box {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    padding: 0.8rem 1.1rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+    color: #166534;
+  }
+  .info-box {
+    background: #faf5ff;
+    border: 1px solid #e9d5ff;
+    padding: 0.8rem 1.1rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+    color: #581c87;
+  }
+  .tag { display: inline-block; padding: 0.05rem 0.5rem; border-radius: 3px; font-size: 0.78em; font-weight: 600; margin-right: 0.3rem; }
+  .tag.s0 { background: #e0e7ff; color: #3730a3; }
+  .tag.s1 { background: #dbeafe; color: #1e40af; }
+  .tag.s2 { background: #fef3c7; color: #92400e; }
+  .tag.s3 { background: #ede9fe; color: #5b21b6; }
+  .tag.s4 { background: #fce7f3; color: #9d174d; }
+  .tag.ok { background: #dcfce7; color: #166534; }
+  .tag.risk { background: #fee2e2; color: #991b1b; }
+</style>
+</head>
+<body>
+
+<h1>백엔드 이전 계획: Railway → Fly.io (NRT)</h1>
+<p><em>작성일 2026-05-21 · 즉시 이전 아님, 향후 결정 시 참조용.</em></p>
+
+<div class="info-box">
+<strong>이 문서의 위치:</strong> 결정 후 실행은 별도. 본 문서는 결정 직전 검토 + 작업자 체크리스트 용도.
+실 작업 시 본 문서의 절차를 따라가며 단계별 사용자 승인.
+</div>
+
+<h2>0. 결정 배경</h2>
+
+<ul>
+  <li><strong>오늘 (2026-05-20) Railway incident</strong> — free/trial/hobby plan 빌드 일시 정지 사고. 약 1시간 동안 배포 불가. Pro 는 영향 없음.</li>
+  <li>이전에도 비슷한 흔적 — 커밋 로그에 <code>chore: re-trigger after source restore</code>,
+      <code>chore: trigger Railway build with current HEAD</code> 등 수동 트리거 흔적 다수.</li>
+  <li>현재 Railway 리전 <strong>SFO</strong> — 한국 사용자 / 홍콩 Florens 까지 RTT 모두 길음.</li>
+  <li><code>railway up</code> 의 업로드 페이로드 약 777MB (frontend/node_modules + .next 가 함께 올라감) → timeout 빈발.</li>
+</ul>
+
+<h2>1. 결정 사항 — <em>백엔드만</em> 이전</h2>
+
+<table>
+  <thead><tr><th>구성</th><th>현재</th><th>이후</th></tr></thead>
+  <tbody>
+    <tr><td>프론트엔드 (Next.js)</td><td>로컬 dev + <strong>Vercel 운영</strong></td><td>그대로 — 변경 없음</td></tr>
+    <tr><td>백엔드 (FastAPI + Playwright)</td><td>Railway SFO</td><td><strong>Fly.io NRT</strong></td></tr>
+    <tr><td>볼륨 <code>/data</code> (49MB)</td><td>Railway redelivery-volume 500MB</td><td>Fly volume 1GB</td></tr>
+    <tr><td>프론트→백엔드 연결</td><td><code>RAILWAY_API_URL=https://redelivery-production.up.railway.app</code></td><td>같은 변수명, 값만 <code>https://&lt;app&gt;.fly.dev</code> 로 교체</td></tr>
+  </tbody>
+</table>
+
+<div class="ok-box">
+<strong>왜 백엔드만?</strong>
+<ul style="margin-bottom: 0;">
+  <li>프론트(Vercel) 는 안정적·빠름·무료 — 손댈 이유 없음</li>
+  <li>오늘 incident 의 영향은 백엔드(Railway) 한정</li>
+  <li>변경 범위 작음 → 롤백도 환경변수 한 줄</li>
+</ul>
+</div>
+
+<h2>2. 비용 비교</h2>
+
+<table>
+  <thead><tr><th>항목</th><th>Railway Hobby</th><th>Fly.io (pay-as-you-go)</th></tr></thead>
+  <tbody>
+    <tr><td>베이스 요금</td><td>$5/월 (사용량 $5 포함)</td><td>$0 (사용한 만큼)</td></tr>
+    <tr><td>1GB 머신 24/7</td><td>~$8~10/월 (메모리 $10/GB·월)</td><td>shared-cpu-1x · 1GB = $5.70/월</td></tr>
+    <tr><td>볼륨 1GB</td><td>$0.25/월</td><td>$0.15/월</td></tr>
+    <tr><td>아웃바운드</td><td>100GB 후 $0.10/GB</td><td>100GB 무료, 이후 NRT $0.02/GB</td></tr>
+    <tr><td><strong>실 청구 추정</strong></td><td><strong>$13~20/월</strong></td><td><strong>$6~9/월</strong></td></tr>
+  </tbody>
+</table>
+
+<blockquote>
+무료 티어 없음 — 둘 다 실 운영엔 결제 필요. 다만 Fly 는 idle 시 $0, Railway 는 베이스 $5 무조건.
+이 프로젝트는 24/7 가까이 돌아가므로 차이 ~30~50%, 절대 금액 ~월 $7 차이.
+</blockquote>
+
+<h2>3. 조회 속도 영향</h2>
+
+<table>
+  <thead><tr><th>구간</th><th>Railway SFO</th><th>Fly NRT</th></tr></thead>
+  <tbody>
+    <tr><td>사용자(한국) → Vercel 프론트</td><td>~10ms</td><td>동일</td></tr>
+    <tr><td>Vercel 함수 → 백엔드</td><td>60~80ms</td><td>50~120ms (Vercel 함수 리전 의존)</td></tr>
+    <tr><td><strong>백엔드 → Florens(홍콩) × 수십회</strong></td><td>~150ms × N</td><td>~50ms × N ⬅ 핵심 개선</td></tr>
+  </tbody>
+</table>
+
+<ul>
+  <li>Playwright 가 Florens 와 주고받는 요청이 한 조회당 수십 건 → 누적 절감 의미 있음</li>
+  <li>일반 조회 30~60초 기준 → <strong>5~15초 단축</strong> (약 15~25%)</li>
+  <li><strong>콜드 스타트 시 첫 요청 +5~10초</strong> 발생. 회피하려면 <code>min_machines_running=1</code> (추가 비용 거의 없음)</li>
+  <li>다른 임대사(TEXA/TRIT/GOLD/GESE) 의 호스팅 위치 알 수 없음 — 미국/유럽이면 NRT 가 약간 느릴 수 있으나 대부분 CDN 뒤라 큰 차이 없을 것</li>
+</ul>
+
+<h2>4. 코드/설정 변경 사항</h2>
+
+<table>
+  <thead><tr><th>#</th><th>파일</th><th>변경</th><th>리스크</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td><code>scraper/fly.toml</code> (신규)</td>
+      <td>앱 이름, 리전 NRT, Dockerfile 빌더, 볼륨 mount <code>/data</code>, 머신 사양</td>
+      <td>낮음</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><code>scraper/Dockerfile</code></td>
+      <td><strong>그대로 사용 가능.</strong> Fly 가 Dockerfile 인식. <code>PORT</code> env 우선순위 확인만</td>
+      <td>낮음</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td><code>scraper/.dockerignore</code> (신규)</td>
+      <td><code>frontend/</code>, <code>__pycache__</code>, <code>*.pyc</code>, <code>.venv/</code>, <code>FLOR/</code>, <code>TEXA/</code>, <code>TRIT/</code>, <code>GOLD/</code>, <code>GESE/</code>, <code>*.html</code>, <code>*.md</code> 제외</td>
+      <td>낮음 — 빌드 시간/이미지 크기 ↓</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td><code>scraper/railway.json</code></td>
+      <td>삭제 또는 유지(무시됨)</td>
+      <td>없음</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td><code>scraper/main.py</code> CORS</td>
+      <td>이미 Vercel 도메인 허용 중일 가능성 — 사전 점검 후 미설정 시 추가 (<code>fastapi.middleware.cors</code>)</td>
+      <td>중간 — 누락 시 프론트 호출 실패</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td><strong>프론트 코드</strong></td>
+      <td><strong>변경 없음.</strong> Vercel 환경변수 <code>RAILWAY_API_URL</code> 값만 새 도메인으로 교체</td>
+      <td>없음</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>4.1 <code>scraper/fly.toml</code> 예시</h3>
+<pre><code>app = "redelivery-scraper"          # 글로벌 고유, 가입 시 확정
+primary_region = "nrt"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  FLOR_SESSION_DIR = "/data"
+  PLAYWRIGHT_BROWSERS_PATH = "/ms-playwright"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false        # 콜드 스타트 회피
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
+
+[mounts]
+  source = "data"
+  destination = "/data"
+</code></pre>
+
+<h3>4.2 <code>scraper/.dockerignore</code> 예시</h3>
+<pre><code># 빌드와 무관한 경로 — 이미지 크기 + 빌드 시간 절감
+frontend/
+node_modules/
+.next/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.git/
+.github/
+# 임대사별 문서/규칙 (런타임 불필요)
+FLOR/
+TEXA/
+TRIT/
+GOLD/
+GESE/
+# 루트 계획서/문서
+*.html
+*.md
+# 로컬 임시
+.env
+.env.local
+tmp/
+</code></pre>
+
+<h3>4.3 CORS 확인 포인트</h3>
+<p><code>scraper/main.py</code> 에 <code>CORSMiddleware</code> 설정이 있는지 확인. 허용 origin 에 다음 포함 여부:</p>
+<ul>
+  <li>Vercel 운영 도메인 (예: <code>https://&lt;project&gt;.vercel.app</code>)</li>
+  <li>Vercel preview 도메인 (정규식 <code>https://.*-&lt;team&gt;\.vercel\.app</code>)</li>
+  <li>로컬 dev (<code>http://localhost:3000</code>)</li>
+</ul>
+<p>누락 시 추가 PR 필요 — Fly 이전 직전에 점검.</p>
+
+<h2>5. 데이터 이전 — <code>/data</code> 볼륨</h2>
+
+<p>대상 파일 (49MB):</p>
+<ul>
+  <li><code>credentials.json</code> — 자격증명 (HA_FLOR_ID 등)</li>
+  <li><code>email_templates.json</code> — 메일 양식</li>
+  <li><code>flor_session_HA.json</code>, <code>flor_session_SK.json</code> — Playwright storage_state</li>
+</ul>
+
+<h3>5.1 이전 방법 — 두 가지</h3>
+
+<table>
+  <thead><tr><th>방식</th><th>장점</th><th>단점</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>① 임시 다운로드 endpoint</td>
+      <td>한 번에 zip — 빠름. 사용자 토큰으로 보호 가능</td>
+      <td>endpoint 추가 코드 필요. 작업 후 즉시 제거</td>
+    </tr>
+    <tr>
+      <td>② Railway SSH 직접 복사</td>
+      <td>추가 코드 없음. <code>railway ssh</code> + <code>cat &gt; local</code></td>
+      <td>각 파일 개별. 인코딩 주의 (바이너리 없으니 OK)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>권장: <strong>방식 ②</strong> — 4 개 파일이라 수동 복사가 더 빠르고 깔끔.</p>
+
+<h3>5.2 Fly 볼륨에 업로드</h3>
+<pre><code>fly ssh sftp shell -a redelivery-scraper
+&gt; put credentials.json /data/credentials.json
+&gt; put email_templates.json /data/email_templates.json
+&gt; put flor_session_HA.json /data/flor_session_HA.json
+&gt; put flor_session_SK.json /data/flor_session_SK.json
+</code></pre>
+
+<blockquote>
+세션 파일 이전 실패 시 Florens 슬라이더 캡차 1회 재로그인 발생.
+서비스 중단 X, 사용자 시각엔 첫 조회만 ~10초 느림. 큰 문제 아님.
+</blockquote>
+
+<h2>6. 환경변수 이전</h2>
+
+<p>Railway 의 Variables 탭 키 목록을 그대로 Fly secrets 로 옮김:</p>
+
+<pre><code># Railway Variables 탭에서 키 목록 복사 → 한 번에:
+fly secrets set \
+  SK_FLOR_ID=xxx SK_FLOR_PW=xxx \
+  HA_FLOR_ID=xxx HA_FLOR_PW=xxx \
+  SK_TEXA_ID=xxx SK_TEXA_PW=xxx \
+  HA_TEXA_ID=xxx HA_TEXA_PW=xxx \
+  # ... TRIT/GOLD/GESE 등
+  CREDENTIALS_ENCRYPTION_KEY=xxx \
+  --app redelivery-scraper
+</code></pre>
+
+<p>주의:</p>
+<ul>
+  <li><code>FLOR_SESSION_DIR=/data</code> — fly.toml <code>[env]</code> 에 이미 있어 별도 secret 불필요</li>
+  <li><code>PLAYWRIGHT_BROWSERS_PATH</code> — Dockerfile 의 <code>playwright install</code> 기본 경로 확인 후 일치 여부 결정</li>
+  <li><code>PORT</code> — Fly 는 8080 권장</li>
+</ul>
+
+<h2>7. 절차 (전체 순서)</h2>
+
+<div class="flow-box">
+
+<h3><span class="tag s0">S0</span> 사전 점검 (15분)</h3>
+<ol>
+  <li>Fly.io 가입 / CLI 설치 — Windows: <code>iwr https://fly.io/install.ps1 | iex</code></li>
+  <li><code>fly auth login</code></li>
+  <li>현 Railway Variables 키 목록 캡처 (스크린샷 또는 export)</li>
+  <li>현 <code>scraper/main.py</code> CORS 설정 확인 → 필요 시 Vercel 도메인 추가 PR 미리</li>
+  <li>현 <code>/data</code> 파일 로컬 백업 (<code>railway ssh</code> 또는 임시 endpoint)</li>
+</ol>
+
+<h3><span class="tag s1">S1</span> Fly 앱/볼륨 생성 (20분)</h3>
+<ol>
+  <li><code>cd scraper && fly launch --no-deploy</code> — 인터랙티브로 앱 이름/리전(nrt)/머신 사양 선택</li>
+  <li>생성된 <code>fly.toml</code> 을 §4.1 예시 기준으로 수정 (mount 추가, min_machines 등)</li>
+  <li><code>fly volumes create data --size 1 --region nrt</code></li>
+  <li><code>scraper/.dockerignore</code> 신규 생성</li>
+  <li>커밋 (브랜치 <code>migrate/fly</code>)</li>
+</ol>
+
+<h3><span class="tag s2">S2</span> 시크릿 + 첫 배포 (20분)</h3>
+<ol>
+  <li><code>fly secrets set ...</code> 일괄 (Railway Variables 와 동일하게)</li>
+  <li><code>fly deploy</code> — 첫 배포</li>
+  <li><code>fly logs</code> 로 시작 확인 — <code>Application startup complete</code> 보일 때까지</li>
+  <li><code>curl https://&lt;app&gt;.fly.dev/</code> 헬스체크</li>
+</ol>
+
+<h3><span class="tag s3">S3</span> 데이터 + 검증 (20분)</h3>
+<ol>
+  <li>Railway <code>/data</code> 4개 파일 로컬 다운로드 (S0 에서 했으면 재사용)</li>
+  <li><code>fly ssh sftp shell</code> 로 <code>/data</code> 업로드</li>
+  <li><code>fly machine restart</code> — 세션 파일 재로드</li>
+  <li>Fly 도메인 직접 <code>curl -X POST /query ...</code> 로 1건 FLOR 조회 테스트</li>
+  <li>로그에서 <code>marker=...</code>, <code>storage_state 복원 시도</code>, <code>existing session valid</code> 확인</li>
+</ol>
+
+<h3><span class="tag s4">S4</span> 컷오버 (5분)</h3>
+<ol>
+  <li>Vercel 대시보드 → 프로젝트 → Settings → Environment Variables</li>
+  <li><code>RAILWAY_API_URL</code> 값을 <code>https://&lt;app&gt;.fly.dev</code> 로 교체 (이름 그대로 유지)</li>
+  <li>Vercel Redeploy 또는 다음 배포에 자동 반영</li>
+  <li>운영 도메인에서 FLOR 조회 1회 → 결과 확인</li>
+</ol>
+
+<h3><span class="tag ok">검증</span> 1주일 병행 운영</h3>
+<ol>
+  <li>Railway 백엔드 1주일 유지 (즉시 삭제 X)</li>
+  <li>매일 1회 운영 모니터링 — 콜드 스타트, 오류, Florens 응답성</li>
+  <li>1주일 후 Railway 서비스 삭제 + 볼륨 삭제</li>
+  <li><code>scraper/railway.json</code> 제거 커밋 (선택)</li>
+</ol>
+
+</div>
+
+<h2>8. 롤백 계획</h2>
+
+<p>컷오버 후 Fly 측 문제 발생 시 <strong>5분 안에 원복 가능</strong>:</p>
+<ol>
+  <li>Vercel 환경변수 <code>RAILWAY_API_URL</code> 을 <code>https://redelivery-production.up.railway.app</code> 로 되돌림</li>
+  <li>Vercel Redeploy 또는 다음 요청에 자동 반영</li>
+  <li>Railway 백엔드는 1주일 유지 중이라 즉시 응답</li>
+</ol>
+
+<p>이게 가능한 이유: 코드 변경 자체가 Fly 측 추가만(<code>fly.toml</code>, <code>.dockerignore</code>) — Railway 측 코드는 손대지 않음. 두 인프라가 같은 commit 으로 양쪽에서 동시 가동 가능.</p>
+
+<h2>9. 위험 / 통제</h2>
+
+<table>
+  <thead><tr><th>위험</th><th>가능성</th><th>완화</th></tr></thead>
+  <tbody>
+    <tr><td>CORS 누락으로 프론트 호출 실패</td><td>중</td><td>S0 에서 사전 점검. 컷오버 직전 Fly 도메인을 직접 curl 로 1회 호출 확인</td></tr>
+    <tr><td>세션 파일 이전 실패 → 슬라이더 재로그인</td><td>중</td><td>큰 문제 아님 — 첫 조회 ~10초 추가</td></tr>
+    <tr><td>NRT 리전 cold start</td><td>중</td><td><code>min_machines_running=1</code></td></tr>
+    <tr><td>예상 외 비용 폭증</td><td>저</td><td>Fly 대시보드 Usage 매일 확인. 첫 7일 모니터링</td></tr>
+    <tr><td>Florens 가 Fly IP 차단</td><td>매우 저</td><td>일반 cloud IP 차단 사례 없음. 발생 시 외부 프록시 또는 Railway 회귀</td></tr>
+    <tr><td>Playwright Chromium 메모리 부족</td><td>저</td><td>shared-cpu-1x 1GB 가 기본 — 부족 시 2GB 로 즉시 스케일업 (재배포 5분)</td></tr>
+  </tbody>
+</table>
+
+<h2>10. 비변경 / 향후</h2>
+
+<ul>
+  <li>프론트엔드 (Vercel) — 코드, 배포, 도메인 그대로</li>
+  <li>다른 임대사 (TEXA/TRIT/GOLD/GESE) 스크래퍼 — 코드 그대로 (단지 다른 리전에서 실행)</li>
+  <li>현재 진행 중인 FLOR Status 탭 회수 작업 — 본 이전과 독립. 이전 전·후 어디서든 작업 가능</li>
+  <li>향후 — 자체 도메인(<code>api.redelivery.example</code> 등) 연결은 별도 작업</li>
+</ul>
+
+</body>
+</html>

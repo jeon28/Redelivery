@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>FLOR 신규 컨테이너 조회 흐름</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+                 "Noto Sans KR", sans-serif;
+    line-height: 1.6;
+    max-width: 1000px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+    color: #222;
+    background: #fff;
+  }
+  h1 { border-bottom: 2px solid #334155; padding-bottom: .4rem; }
+  h2 { border-bottom: 1px solid #cbd5e1; padding-bottom: .3rem; margin-top: 2.2rem; }
+  h3 { margin-top: 1.6rem; color: #1e293b; }
+  h4 { margin-top: 1.2rem; color: #334155; }
+  code, pre {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 0.9em;
+  }
+  code { background: #f1f5f9; padding: 0.1em 0.35em; border-radius: 3px; }
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.85em;
+  }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td {
+    border: 1px solid #cbd5e1;
+    padding: 0.45rem 0.7rem;
+    text-align: left;
+    vertical-align: top;
+    font-size: 0.94rem;
+  }
+  th { background: #f1f5f9; }
+  tr:nth-child(even) td { background: #fafbfc; }
+  ul, ol { padding-left: 1.4rem; }
+  li { margin: 0.25rem 0; }
+  blockquote {
+    border-left: 4px solid #94a3b8;
+    margin: 1rem 0;
+    padding: 0.5rem 1rem;
+    color: #475569;
+    background: #f8fafc;
+  }
+  .stage-box {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    padding: 1rem 1.2rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+  }
+  .warn-box {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    padding: 0.8rem 1.1rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+    color: #7f1d1d;
+  }
+  .ok-box {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    padding: 0.8rem 1.1rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+    color: #166534;
+  }
+  .info-box {
+    background: #faf5ff;
+    border: 1px solid #e9d5ff;
+    padding: 0.8rem 1.1rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+    color: #581c87;
+  }
+  .tag { display: inline-block; padding: 0.05rem 0.5rem; border-radius: 3px; font-size: 0.78em; font-weight: 600; margin-right: 0.3rem; }
+  .tag.p0 { background: #e0e7ff; color: #3730a3; }
+  .tag.p1 { background: #dbeafe; color: #1e40af; }
+  .tag.p2 { background: #fef3c7; color: #92400e; }
+  .tag.pb { background: #ede9fe; color: #5b21b6; }
+  .tag.p4 { background: #fce7f3; color: #9d174d; }
+  .timing { font-size: 0.85em; color: #64748b; font-weight: normal; }
+  .ascii-flow {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    padding: 1rem;
+    border-radius: 6px;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 0.85em;
+    line-height: 1.45;
+    overflow-x: auto;
+    white-space: pre;
+  }
+</style>
+</head>
+<body>
+
+<h1>FLOR 신규 컨테이너 조회 흐름</h1>
+<p><em>2026-05-21 · 처음 보는 컨테이너 (예: DFSU9999999) 1건 조회 시 단계별 순서</em></p>
+
+<div class="info-box">
+<strong>이 문서는 무엇?</strong><br>
+"가장 단순한 케이스" — Florens 에 처음 등록되는 신규 컨테이너 1건 — 의 조회 흐름을 코드 기준으로 정리.
+precleared / Closed / VOID 같은 분기는 §부록에 별도 표기.
+</div>
+
+<h2>1. 한눈에 보는 흐름</h2>
+
+<div class="ascii-flow">[입력 검증]
+    │   _is_flor_container() — DFSU/FSCU prefix 통과해야 진행
+    ▼
+[세션 복원]                            ~5s
+    │   storage_state 로드 또는 슬라이더 로그인
+    ▼
+[Phase 1: Status 탭]                   ~10~15s
+    │   _navigate_to_status
+    │   └─ "Redelivery Status" 탭 클릭
+    │   └─ _select_search_by_unit_no — Unit No. 모드 강제
+    │   _search_one(c)
+    │   └─ _fill_unit_input (3단계 캐스케이드)
+    │   └─ Search 버튼 JS 클릭
+    │   └─ 결과 파싱
+    │       └─ rows=0  →  "발급된 반납번호 없음 (신청 필요)"
+    │   _status_row_is_new_candidate  →  True
+    │   └─ new_candidates 리스트에 추가
+    ▼
+[Phase 2: Apply 위저드]                ~15s
+    │   _navigate_to_apply
+    │   Step 1  ─  Customer ID / Port / Depot
+    │   Step 2  ─  Unit Numbers textarea
+    │   Step 3  ─  _parse_step3 (3-패스 분류)
+    │           └─ 신규 컨테이너 → 3차 pass: valid (신규 발급 후보)
+    ▼
+[Phase B: 자동 Confirm]                ~5~10s
+    │   _confirm_redelivery_order
+    │   └─ Confirm 버튼 is-disabled 체크
+    │   └─ 클릭 전 PPR 셋 스냅샷
+    │   └─ 클릭 → 컴펌 다이얼로그 닫기
+    │   └─ 클릭 후 PPR 차집합 → 신규 PPR 식별
+    │   └─ unit ↔ PPR 매핑 (윈도우 우선 → 잔여 → 공유)
+    ▼
+[최종 응답]                            ~1s
+    │   _precleared 정리 + 3상태 status 도출
+    ▼
+   UI: ✅ 가능 + 반납지 + 신규 PPR&lt;번호&gt;
+</div>
+
+<h2>2. 단계별 상세</h2>
+
+<h3><span class="tag p0">0</span> 입력 검증 + 세션 복원
+  <span class="timing">~5초</span></h3>
+
+<ol>
+  <li><strong>컨테이너 형식 검증</strong> (<code>_is_flor_container</code>)
+    <ul>
+      <li>정규식 <code>^[A-Z]{4}\d{6,7}$</code> + prefix 가 <code>DFSU</code> 또는 <code>FSCU</code> 인지</li>
+      <li>실패 시 위저드 호출 자체 건너뛰고 → <strong>🔢 넘버오류</strong></li>
+    </ul>
+  </li>
+  <li><strong>세션 복원</strong>
+    <ul>
+      <li><code>storage_state</code> 파일(<code>/data/flor_session_HA.json</code> 또는 <code>SK.json</code>) 로드 시도</li>
+      <li>유효하면 곧장 <code>/func/redelivery#/</code> 진입</li>
+      <li>만료 시 슬라이더 캡차 + Sign-in 버튼 클릭 후 새 세션 저장</li>
+    </ul>
+  </li>
+</ol>
+
+<h3><span class="tag p1">1</span> Phase 1 — Status 탭 우선 조회
+  <span class="timing">~10~15초</span></h3>
+
+<h4>1-1. 탭 진입 — <code>_navigate_to_status</code></h4>
+<ol>
+  <li>"Redelivery Status" 탭 클릭</li>
+  <li><code>wait_for_load_state('networkidle', 10s)</code> + <code>sleep(1.5)</code></li>
+  <li>Unit Number input <code>attached</code> 대기 (최대 10초)</li>
+  <li><strong><code>_select_search_by_unit_no()</code></strong> — Search By 라디오/탭 중 "Unit No." 텍스트 매칭 후 클릭. 이미 선택이면 skip.
+    <blockquote>
+      이 단계가 핵심. Status 탭 기본값이 'Redelivery No.' 모드일 때 Unit Number 입력란이 0×0 hidden 상태가 됨 →
+      이 모드 전환 없이는 검색이 빈 query 로 들어가 rows=0.
+    </blockquote>
+  </li>
+</ol>
+
+<h4>1-2. 컨테이너 검색 — <code>_search_one(container)</code></h4>
+<ol>
+  <li><strong><code>_fill_unit_input</code></strong> — 3단계 캐스케이드, 단계마다 <code>input_value()</code> 검증:
+    <ol>
+      <li>Playwright <code>fill()</code> — visible idx 의 input 대상 (가장 안정)</li>
+      <li>wrapper <code>.el-input</code> click + <code>press_sequentially(delay=50)</code> + Tab blur</li>
+      <li>JS native setter + <code>InputEvent(data, inputType)</code> + <code>blur</code> — 최후</li>
+    </ol>
+  </li>
+  <li>입력값 검증 로그 <code>search input 검증 (visible): actual=..., expected=...</code></li>
+  <li><strong>Search 버튼 JS 클릭</strong> — <code>is-disabled</code> 체크 후 evaluate 로 click
+    <ul>
+      <li>disabled 면 즉시 <code>"Search 버튼 disabled (Vue 동기화 실패)"</code> 에러 행 반환</li>
+    </ul>
+  </li>
+  <li><code>wait_for_load_state('networkidle', 20s)</code></li>
+  <li>결과 출현 대기 — <code>wait_for_function</code> 으로 tbody 행 또는 "no data/results" 텍스트까지 (최대 8초)</li>
+  <li>진단 로그 <code>search diag: {url, rows, first_row, counter}</code></li>
+  <li>결과 헤더/행 파싱 (<code>parse_cells</code> 헬퍼)</li>
+</ol>
+
+<h4>1-3. 결과 판정</h4>
+<table>
+  <thead><tr><th>케이스</th><th>처리</th></tr></thead>
+  <tbody>
+    <tr><td><strong>신규</strong> (rows=0)</td>
+        <td>reason = "발급된 반납번호 없음 (신청 필요)" → <code>_status_row_is_new_candidate</code>=True → <code>new_candidates</code> 추가</td></tr>
+    <tr><td>Open</td><td>채택 → 가능 + EXPIRY DATE</td></tr>
+    <tr><td>Closed</td><td>채택 → 🏁 반납완료 + OFF HIRE DATE</td></tr>
+    <tr><td>모두 VOID</td><td>"재신청 가능" → 신규 후보로 분류</td></tr>
+  </tbody>
+</table>
+
+<div class="stage-box">
+신규 컨테이너는 <strong>"발급된 반납번호 없음"</strong> 으로 분류 → <strong>Phase 2 로 이동</strong>.
+</div>
+
+<h3><span class="tag p2">2</span> Phase 2 — Apply 위저드 사전 검증
+  <span class="timing">~15초</span></h3>
+
+<h4>2-1. Apply 탭 진입 — <code>_navigate_to_apply</code></h4>
+<ol>
+  <li><code>page.goto(REDELIV_URL)</code> + sleep 2s</li>
+  <li>"Apply Redelivery" 탭 클릭 (이미 활성이어도 안전)</li>
+</ol>
+
+<h4>2-2. Step 1 — 설정 입력</h4>
+<ol>
+  <li><code>_select_customer_id(cust_id)</code> — <code>SINOKOR</code>(SK) / <code>HALINE</code>(HA) 라디오 클릭. 이미 선택이면 skip.</li>
+  <li><code>_select_port(port_substr)</code> — Element UI 드롭다운 클릭 → 옵션 텍스트 substring 매칭
+    <ul>
+      <li>BUSAN → <code>"PUSAN"</code> (옛 표기)</li>
+      <li>INCHON → <code>"INCHON"</code></li>
+      <li>GWANGYANG → <code>"GWANGYANG"</code></li>
+    </ul>
+  </li>
+  <li><code>_select_depot(depot_str)</code> — 두번째 드롭다운, depot 코드(<code>(KRPUS03)</code> 등) 부분일치</li>
+  <li><code>_step_next()</code> — "Next" 버튼 → networkidle + sleep 1.5s</li>
+</ol>
+
+<h4>2-3. Step 2 — 컨테이너 입력</h4>
+<ol>
+  <li><code>_step2_fill_units(new_candidates)</code> — textarea 에 <code>\n</code> 구분으로 일괄 입력</li>
+  <li><code>_step_next()</code> — "Next" 클릭</li>
+</ol>
+
+<h4>2-4. Step 3 — 사전 검증 결과 파싱 (<code>_parse_step3</code>)</h4>
+
+<p>모든 테이블 행을 수집한 뒤 <strong>3-패스 분류</strong>:</p>
+
+<table>
+  <thead><tr><th>패스</th><th>매칭</th><th>분류</th></tr></thead>
+  <tbody>
+    <tr><td>1차</td><td>같은 행 안에 unit + reason 동시 존재</td><td><strong>invalid</strong> (over caps 등 즉시 거부)</td></tr>
+    <tr><td>2차</td><td>reason-only 행 ↔ unit-only 행 — greedy nearest-neighbor 1:1 (row index 거리 최소)</td><td><strong>invalid</strong> + split_matched 로그 (precleared 등 분리행 케이스)</td></tr>
+    <tr><td>3차</td><td>1·2차 모두 매칭 안 된 unit-only 행</td><td><strong>valid</strong> (신규 발급 후보)</td></tr>
+  </tbody>
+</table>
+
+<blockquote>
+<strong>신규 컨테이너는 일반적으로 3차 valid 로 분류</strong> → Phase B 로 이동.
+</blockquote>
+
+<h3><span class="tag pb">B</span> Phase B — 자동 Confirm 실 발급
+  <span class="timing">~5~10초</span></h3>
+
+<div class="warn-box">
+<strong>주의:</strong> 이 단계 = <strong>실 PPR 발급</strong>. memory <code>project_flor_flow</code>: "Confirm 클릭 = 즉시 실 발급 (PPR&lt;5자리&gt; Open, Pending 단계 없음)".
+</div>
+
+<h4>B-1. 대상 필터링</h4>
+<pre><code>new_valid = [
+    c for c in new_candidates
+    if results[c].available             # Step3 valid
+    and not results[c].booking_ref      # 아직 미발급
+    and not results[c]._precleared      # precleared 가 아님
+]</code></pre>
+
+<h4>B-2. Confirm 실행 — <code>_confirm_redelivery_order(new_valid)</code></h4>
+<ol>
+  <li>"Confirm Redelivery Order" 버튼 찾기 (fallback "Confirm" 도 시도)</li>
+  <li><code>is-disabled</code> / <code>disabled</code> 체크 → disabled 면 안전 가드로 스킵</li>
+  <li>클릭 <strong>전</strong> 페이지 텍스트 dump → <code>pprs_before</code> 셋 저장</li>
+  <li>버튼 click → <code>networkidle</code> + sleep 3s</li>
+  <li>컴펌 다이얼로그 (OK/Confirm/Yes/확인) 자동 닫기</li>
+  <li>클릭 <strong>후</strong> 페이지 텍스트 dump → 모든 PPR 추출 → <code>pprs_before</code> 와 차집합 = <strong>신규 PPR 리스트</strong></li>
+</ol>
+
+<h4>B-3. unit → PPR 매핑 (우선순위)</h4>
+<ol>
+  <li><strong>1차</strong> — 페이지 텍스트에서 unit 번호 위치 주변 <code>±200/+400</code> 문자 윈도우 안의 PPR 사용 (가장 정확)</li>
+  <li><strong>2차</strong> — 못 찾으면 잔여 PPR 을 unmapped unit 순서대로 1:1 할당</li>
+  <li><strong>3차</strong> — 그것도 없으면 첫 신규 PPR 공유 할당 (같은 PPR 묶음 케이스)</li>
+</ol>
+
+<h4>B-4. 결과 저장</h4>
+<pre><code>results[unit].booking_ref = ppr
+results[unit].depot = depot_str</code></pre>
+
+<h3><span class="tag p4">4</span> 최종 응답 정리
+  <span class="timing">~1초</span></h3>
+
+<ol>
+  <li>누락 컨테이너 안전장치 (<code>_error_row</code>) — 어떤 경로로도 결과 못 채운 경우</li>
+  <li><strong>3상태 status 일괄 도출</strong>:
+    <ul>
+      <li><code>completed</code> / <code>number_error</code> 는 그대로 보존</li>
+      <li><code>available=True</code> → <code>status='available'</code></li>
+      <li>그 외 → <code>status='unavailable'</code> + 기본 reason 채움</li>
+    </ul>
+  </li>
+  <li>내부 가드 플래그 <code>_precleared</code> 제거 (API 응답에 노출 X)</li>
+  <li><strong>입력 순서대로 list 반환</strong> → 라우터 → 프론트</li>
+</ol>
+
+<h2>3. 시간 추정</h2>
+
+<table>
+  <thead><tr><th>구간</th><th>신규 1건</th><th>신규 5건</th><th>비고</th></tr></thead>
+  <tbody>
+    <tr><td>세션 복원 + 진입</td><td>~5초</td><td>~5초</td><td>1회 고정</td></tr>
+    <tr><td>Phase 1 Status 탭 검색</td><td>~10~15초</td><td>~30~45초</td><td><strong>1건당 ~6초 순차</strong> (병목)</td></tr>
+    <tr><td>Phase 2 Apply 위저드</td><td>~15초</td><td>~15초</td><td>배치 (개수 영향 거의 X)</td></tr>
+    <tr><td>Phase B Confirm</td><td>~5~10초</td><td>~10초</td><td>배치</td></tr>
+    <tr><td>응답 정리</td><td>~1초</td><td>~1초</td><td></td></tr>
+    <tr><td><strong>합계</strong></td><td><strong>~40~60초</strong></td><td><strong>~1분~1분20초</strong></td><td></td></tr>
+  </tbody>
+</table>
+
+<h2>4. 결과 UI 매트릭스</h2>
+
+<table>
+  <thead><tr><th>케이스</th><th>가능여부</th><th>반납지</th><th>반납번호</th><th>유효기간</th><th>조회 결과</th><th>체크박스</th></tr></thead>
+  <tbody>
+    <tr><td><strong>신규 발급 성공</strong></td><td>✅ 가능</td><td>depot_str</td><td>신규 PPR&lt;번호&gt;</td><td>-</td><td>-</td><td>✅</td></tr>
+    <tr><td>precleared (이미 사전승인)</td><td>🟢 완료</td><td>-</td><td>-</td><td>-</td><td>"Unit has been already precleared (...)" 풀텍스트</td><td>✅</td></tr>
+    <tr><td>Closed (반납 완료)</td><td>🏁 반납완료</td><td>코드만 (KRINC04)</td><td>PPR&lt;번호&gt;</td><td>(원시 Expiry)</td><td>"OFF HIRE DATE YYYY-MM-DD"</td><td>❌</td></tr>
+    <tr><td>Open (활성 PPR)</td><td>✅ 가능</td><td>코드만</td><td>PPR&lt;번호&gt;</td><td><strong>EXPIRY DATE YYYY-MM-DD</strong></td><td>-</td><td>✅</td></tr>
+    <tr><td>Over caps 등 거부</td><td>❌ 불가</td><td>-</td><td>-</td><td>-</td><td>사이트 reason 텍스트</td><td>❌</td></tr>
+    <tr><td>🔢 넘버오류 (DFSU/FSCU 아님)</td><td>🔢 넘버오류</td><td>-</td><td>-</td><td>-</td><td>"타사 컨테이너 또는 번호 형식 오류"</td><td>❌</td></tr>
+  </tbody>
+</table>
+
+<h2>5. 부록 — 분기 케이스 흐름</h2>
+
+<h3>5-1. precleared 일 때</h3>
+<ul>
+  <li>Phase 1 Status 탭: rows=0 (precleared 는 Status 탭에 안 나타남)</li>
+  <li>Phase 2 Apply Step3: 1차 또는 2차 패스에서 invalid → <code>_classify_reject §5-3</code> 분기</li>
+  <li>풀텍스트 reason 보존 + <code>_precleared=True</code> 가드</li>
+  <li><strong>Phase B 스킵</strong> (재발급 방지)</li>
+  <li>UI: 🟢 완료 + 파랑 배경 + 풀텍스트</li>
+</ul>
+
+<h3>5-2. Closed 일 때</h3>
+<ul>
+  <li>Phase 1 Status 탭: rows≥1, status="Closed" 행 발견</li>
+  <li><code>_search_one</code> 가 채택 → <code>status='completed'</code> + reason "OFF HIRE DATE …"</li>
+  <li><code>_status_row_is_new_candidate</code>=False → 신규 후보 아님 → Phase 2/B 미발동</li>
+  <li>UI: 🏁 반납완료 + 회색 배경</li>
+</ul>
+
+<h3>5-3. Open (활성 PPR 보유)</h3>
+<ul>
+  <li>Phase 1 Status 탭: rows≥1, status="Open" 행 발견 (또는 Voided 다수+Open 1)</li>
+  <li><code>_search_one</code> 가 채택 → <code>booking_ref=PPR…</code> + <code>close_date="EXPIRY DATE YYYY-MM-DD"</code></li>
+  <li>Phase 2/B 미발동</li>
+  <li>UI: ✅ 가능 + 녹색 배경 + EXPIRY DATE</li>
+</ul>
+
+<h3>5-4. 넘버오류 (타사 컨테이너 / 형식 오류)</h3>
+<ul>
+  <li><code>_is_flor_container()</code> 가 False 반환 → 위저드 호출 자체 건너뜀</li>
+  <li>즉시 <code>status='number_error'</code> + 정해진 reason 부여</li>
+  <li>다중 입력 시 정상 컨테이너는 별도로 위저드 진행 → 시간 절약</li>
+  <li>UI: 🔢 넘버오류 + amber 배경</li>
+</ul>
+
+<h2>6. 안전장치 / 가드 정리</h2>
+
+<table>
+  <thead><tr><th>가드</th><th>방어 대상</th></tr></thead>
+  <tbody>
+    <tr><td><code>_is_flor_container</code> prefix 검증</td><td>타사 컨테이너로 위저드 호출 → 위저드 단계 낭비</td></tr>
+    <tr><td><code>_select_search_by_unit_no</code> 모드 강제</td><td>Status 탭 검색이 빈 query 로 들어가는 문제</td></tr>
+    <tr><td><code>_fill_unit_input</code> 3단계 캐스케이드</td><td>Vue v-model 동기화 실패</td></tr>
+    <tr><td>Search 버튼 <code>is-disabled</code> 체크</td><td>입력 미동기화 시 발급 단계로 잘못 진입</td></tr>
+    <tr><td>Phase B <code>_precleared</code> 가드</td><td>이미 precleared 인 컨테이너 재발급</td></tr>
+    <tr><td>Confirm 버튼 <code>is-disabled</code> 체크</td><td>사이트가 검증 실패로 차단한 경우 강제 발급</td></tr>
+    <tr><td>PPR 매핑 윈도우 우선 → 잔여 → 공유</td><td>다중 발급 시 unit ↔ PPR 어긋남</td></tr>
+  </tbody>
+</table>
+
+<h2>7. 관련 파일</h2>
+
+<ul>
+  <li><code>scraper/scrapers/flor.py</code> — 본 흐름 구현</li>
+  <li><code>scraper/scrapers/base.py</code> — <code>run()</code> / <code>run_cancel()</code> / <code>run_status_detail()</code> 인터페이스</li>
+  <li><code>scraper/routers/query.py</code> — <code>POST /query</code> 라우터</li>
+  <li><code>scraper/routers/status_detail.py</code> — <code>POST /status-detail</code> (선택 행만 Status 단독 조회)</li>
+  <li><code>frontend/components/SearchForm.tsx</code> — 입력 폼 + <code>POST /api/query</code></li>
+  <li><code>frontend/components/ResultTable.tsx</code> — 결과 표시 + 체크박스 + 캔슬/Status 버튼</li>
+  <li><code>FLOR/ANALYSIS.md</code> — Florens 사이트 분석 (Status 탭 구조, 라디오 등)</li>
+  <li><code>FLOR/CLAUDE.md</code> — FLOR 개발 규칙</li>
+</ul>
+
+</body>
+</html>
