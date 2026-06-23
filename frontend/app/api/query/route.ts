@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { decrypt } from '@/lib/session'
 
+// Playwright 스크래핑은 한 조회당 30~60초까지 걸린다. Vercel 함수 기본 제한(짧음)
+// 안에 끝나지 못하면 백엔드로 가는 fetch 가 끊겨 'Railway 서버 연결 실패'로 보인다.
+// 60s = Hobby/Pro 공통 안전 상한. Pro 에서 더 필요하면 최대 300 까지 상향 가능.
+export const maxDuration = 60
+
 export async function POST(req: NextRequest) {
   const cookie = req.cookies.get('session')?.value
   const session = await decrypt(cookie)

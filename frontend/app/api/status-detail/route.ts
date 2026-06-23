@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { decrypt } from '@/lib/session'
 
+// Status 단독 조회도 Playwright 기반이라 수십 초 소요. Vercel 함수 제한 상향.
+// 60s = Hobby/Pro 공통 안전 상한.
+export const maxDuration = 60
+
 export async function POST(req: NextRequest) {
   const cookie = req.cookies.get('session')?.value
   const session = await decrypt(cookie)

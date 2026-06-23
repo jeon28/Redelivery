@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { decrypt } from '@/lib/session'
 
+// 취소도 Playwright 로 사이트를 조작해 수십 초 걸릴 수 있다. Vercel 함수 제한을 늘려
+// 백엔드 응답 전 fetch 가 끊기지 않도록 한다. 60s = Hobby/Pro 공통 안전 상한.
+export const maxDuration = 60
+
 export async function POST(req: NextRequest) {
   const cookie = req.cookies.get('session')?.value
   const session = await decrypt(cookie)
