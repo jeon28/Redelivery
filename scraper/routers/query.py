@@ -19,7 +19,8 @@ class ContainerResult(BaseModel):
     container_no: str
     available: bool
     # 3상태 분류. None이면 프론트가 available 불리언에서 추론 (하위호환).
-    status: Optional[Literal["available", "completed", "unavailable"]] = None
+    # number_error: FLOR 등에서 타사 prefix/형식 오류 컨테이너를 명시 분류 (프론트 '🔢 넘버오류' 표시).
+    status: Optional[Literal["available", "completed", "unavailable", "number_error"]] = None
     # 'M/D' (예: '5/13'). completed 행에서 사용. 그 외엔 None.
     completed_date: Optional[str] = None
     depot: Optional[str] = None
