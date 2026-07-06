@@ -67,10 +67,10 @@ PORT_OPTION_SUBSTR: dict[str, str] = {
 
 
 # 컨테이너 번호 형식 검증.
-# ISO 6346 기반: 4 영문 + 6~7 숫자. FLOR (Florens) 는 DFSU / FSCU 만 발급.
+# ISO 6346 기반: 4 영문 + 6~7 숫자. FLOR (Florens) 는 DFSU / FSCU / FCIU 발급.
 # 그 외 prefix 거나 format 불일치면 위저드 호출 전 즉시 '넘버오류' 처리.
 _CONTAINER_RE = re.compile(r"^[A-Z]{4}\d{6,7}$")
-_FLOR_PREFIXES = ("DFSU", "FSCU")
+_FLOR_PREFIXES = ("DFSU", "FSCU", "FCIU")
 
 
 def _is_flor_container(c: str) -> bool:
@@ -280,7 +280,7 @@ class FlorScraper(BaseScraper):
         depot: str | None = None,
     ) -> list[dict]:
         # 입력 정규화 + 중복 제거 (입력 순서 보존)
-        # + 컨테이너 형식/Prefix 사전 검증: FLOR 은 DFSU/FSCU 만 발급.
+        # + 컨테이너 형식/Prefix 사전 검증: FLOR 은 DFSU/FSCU/FCIU 발급.
         # 그 외는 위저드 호출 건너뛰고 즉시 '넘버오류' 결과 부여.
         seen: set[str] = set()
         deduped: list[str] = []          # FLOR prefix 통과한 진짜 조회 대상
@@ -307,7 +307,7 @@ class FlorScraper(BaseScraper):
                 "booking_ref": None,
                 "over_caps": None,
                 "close_date": None,
-                "reason": "타사 컨테이너 또는 번호 형식 오류 (FLOR 는 DFSU/FSCU 만 지원)",
+                "reason": "타사 컨테이너 또는 번호 형식 오류 (FLOR 는 DFSU/FSCU/FCIU 만 지원)",
             }
         if number_errors:
             logger.info("FLOR 넘버오류 사전 분류: %s", number_errors)
