@@ -148,7 +148,7 @@ Port: | Depot: | Redelivery No. | Status | Contract | Order Date | Equip Type | 
 
 | 항목 | 형식 | 예 |
 |------|------|-----|
-| 컨테이너 prefix (Florens owned) | `DFSU`, `FSCU`, `FCIU` | `DFSU7591613`, `FSCU5896157`, `FCIU9719973` |
+| 컨테이너 prefix (Florens owned) | `DFSU`, `FSCU`, `FCIU`, `FBLU` | `DFSU7591613`, `FSCU5896157`, `FCIU9719973`, `FBLU0011348` |
 | 반납번호 (현재 활성) | `PPR<5자리>` | `PPR70283` |
 | 반납번호 (과거 closed) | `PPF<5자리>` | `PPF50839` (2020년 발급) — 시리즈가 시기별로 다를 가능성 |
 | Contract (HA, 신규) | `LT-HALINE-<번호>` | `LT-HALINE-02` |
