@@ -1,0 +1,89 @@
+<meta charset="utf-8">
+<title>TEXA Pending Booking 조회 수정 계획</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, "Malgun Gothic", sans-serif;
+         max-width: 900px; margin: 32px auto; padding: 0 20px; line-height: 1.6; }
+  h1 { border-bottom: 3px solid #2563eb; padding-bottom: 8px; }
+  h2 { margin-top: 32px; color: #1d4ed8; }
+  code { background: rgba(127,127,127,.18); padding: 1px 5px; border-radius: 4px; font-size: .92em; }
+  pre { background: rgba(127,127,127,.12); padding: 12px 14px; border-radius: 8px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+  th, td { border: 1px solid rgba(127,127,127,.4); padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { background: rgba(37,99,235,.12); }
+  .bad { color: #dc2626; font-weight: 600; }
+  .good { color: #16a34a; font-weight: 600; }
+  .box { background: rgba(37,99,235,.08); border-left: 4px solid #2563eb; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; }
+  .warn { background: rgba(234,179,8,.12); border-left: 4px solid #eab308; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; }
+</style>
+
+<h1>TEXA — Pending Booking 컨테이너 조회 수정 계획</h1>
+<p><strong>대상 임대사:</strong> TEXA (Textainer) · <strong>사례:</strong> 장금상선 / 인천 / <code>TEMU4164610</code></p>
+
+<h2>1. 목표</h2>
+<p>이미 <strong>Pending Booking 에 배정된(=예약 완료) 컨테이너</strong>를 조회 시 <span class="good">가능</span>으로
+표시하고 반납번호·반납지·유효기간을 채운다. 현재는 상황에 따라 <span class="bad">"정보 없음"</span> 또는
+<span class="bad">"불가"</span> 로 잘못 뜬다.</p>
+
+<h2>2. 현상 (재현된 실제 로그)</h2>
+<table>
+  <tr><th>단계</th><th>사이트 상태</th><th>현재 결과</th></tr>
+  <tr>
+    <td>1차 조회</td>
+    <td><code>can be booked</code> → 자동 Book 실행 → 예약 <code>TKG6G40</code> <b>실제 생성됨</b></td>
+    <td class="bad">"임대사 시스템에 해당 컨테이너 정보 없음"</td>
+  </tr>
+  <tr>
+    <td>2차 조회(재전송)</td>
+    <td><code>cannot be redelivered</code> → <code>ASSIGNED TO PENDING BOOKING - TKG6G40 / INC / 2S / SINOK1 / 2026-JUL-23</code></td>
+    <td class="bad">"불가"</td>
+  </tr>
+</table>
+
+<h2>3. 원인 분석</h2>
+<div class="box">
+<b>버그 A — 자동 Book 성공 감지 실패.</b>
+Book 직후 성공 정규식 <code>New Booking - X is created successfully</code> 가 안 맞고,
+이어지는 재-Preview 는 방금 만든 예약 때문에 <code>are booked</code> 가 아니라
+<code>cannot be redelivered / ASSIGNED TO PENDING BOOKING</code> 로 바뀐다.
+그런데 <code>_reopen_and_parse_booked()</code> 는 <code>"are booked"</code> 만 성공으로 인정 →
+성공한 예약이 실패로 처리되어 "정보 없음" 마감.
+</div>
+<div class="box">
+<b>버그 B — Pending Booking 이 무조건 불가.</b>
+<code>cannot be redelivered</code> 표의 모든 행을 그대로 <code>reason</code> 만 채우고 <code>available=False</code> 유지.
+<code>ASSIGNED TO PENDING BOOKING</code> 사유 문자열에는 이미 반납번호·도시·계정·만료일이 들어있는데
+이를 파싱하지 않고 불가로 처리.
+</div>
+
+<h2>4. 수정안</h2>
+<p><strong>파일:</strong> <code>scraper/scrapers/texa.py</code></p>
+<ol>
+  <li><b>신규 헬퍼</b> <code>_apply_pending_booking(row, reason) -&gt; bool</code><br>
+    <code>ASSIGNED TO PENDING BOOKING - {ref} / {city} / {spec} / {account} / {expiry}</code> 매칭 시
+    <code>/</code> 로 분해 → <code>booking_ref=ref</code>, <code>depot=city</code>, <code>close_date=expiry(유효기간)</code>,
+    <code>available=True</code>, <code>reason=None</code> 세팅 후 <code>True</code> 반환. 아니면 <code>False</code>.
+    <div class="warn">유효기간에는 <b>만료일(expiry)만</b> 매핑 (신청일 매핑 금지 — 기존 규칙 준수).</div>
+  </li>
+  <li><b>Case 1 (cannot be redelivered) 표 파싱</b>을 <code>_parse_cannot_table(frame, results) -&gt; bool</code> 로 추출하고,
+    각 행에서 먼저 <code>_apply_pending_booking</code> 시도 → 실패 시에만 기존처럼 <code>reason</code> 세팅.</li>
+  <li><b>버그 A 수정</b>: <code>_reopen_and_parse_booked()</code> 에서 재-Preview 결과가
+    <code>are booked</code> 가 아니고 <code>cannot be redelivered</code> 면 <code>_parse_cannot_table</code> 을 호출.
+    Pending Booking 이 하나라도 매칭되면 <code>True</code>(성공) 반환 → "정보 없음" 오분류 제거.</li>
+  <li>(부가) Book 성공 로그 정규식에 pending 케이스 문구도 추가해 진단 정확도 향상 (동작에는 영향 없음).</li>
+</ol>
+
+<h2>5. 작업 순서</h2>
+<ol>
+  <li>헬퍼 2개 추가 + Case 1 로직 교체 (texa.py)</li>
+  <li>로컬 문법/임포트 확인</li>
+  <li>커밋 → Cloud Run 수동 배포 (<code>gcloud run deploy --source scraper</code>)</li>
+  <li><code>TEMU4164610</code> 재조회로 <span class="good">가능 + TKG6G40 + 2026-JUL-23</span> 확인</li>
+</ol>
+
+<h2>6. 리스크 / 검증</h2>
+<ul>
+  <li>이 컨은 <b>이미 예약(TKG6G40)이 생성된 상태</b>라 재조회해도 <b>중복 예약이 발생하지 않음</b> (cannot-redeliver 경로 → Book 미실행).</li>
+  <li>사유 문자열 포맷이 다른 케이스가 있을 수 있어 <code>/</code> 분해를 방어적으로(개수 가변) 처리.</li>
+  <li>다른 cannot-redeliver 사유(예: 실제 반납 불가)는 <b>기존대로 불가 유지</b> — pending 문구만 선별 처리.</li>
+</ul>

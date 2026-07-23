@@ -424,37 +424,7 @@ class TexaScraper(BaseScraper):
             if "cannot be redelivered" in page_text_lower:
                 preview_matched = True
                 logger.info("Found: cannot be redelivered")
-                try:
-                    # Find the first <table> that follows the heading text
-                    cannot_tbl = form_frame.locator(
-                        "text=cannot be redelivered"
-                    ).first.locator("xpath=following::table[1]")
-                    rows = cannot_tbl.locator("tr")
-                    row_count = await rows.count()
-                    # Log header row for diagnostics
-                    if row_count > 0:
-                        hdr = (await rows.nth(0).inner_text()).strip()
-                        logger.info("Cannot-redeliver table header: %s", hdr)
-                    for i in range(1, row_count):
-                        cells = rows.nth(i).locator("td")
-                        n = await cells.count()
-                        if n < 2:
-                            continue
-                        eqp_cell = (await cells.nth(0).inner_text()).strip()
-                        reason   = (await cells.nth(1).inner_text()).strip()
-                        # A single cell may contain multiple IDs separated by newlines.
-                        # TEXA sometimes omits the check digit (10 chars), so match
-                        # by exact OR by the result key starting with the extracted ID.
-                        for raw in eqp_cell.splitlines():
-                            eqp = self._norm_eqp(raw.strip())
-                            if not eqp:
-                                continue
-                            logger.info("Cannot-redeliver: eqp=%s reason=%s", eqp, reason)
-                            match_key = self._find_result_key(results, eqp)
-                            if match_key:
-                                results[match_key]["reason"] = reason
-                except Exception as exc:
-                    logger.error("Cannot-redeliver parse error: %s", exc)
+                await self._parse_cannot_table(form_frame, results)
 
             # ── Case 2: can be booked (new booking) ───────────────────
             # Book(실 예약) 후, success 화면은 링크 목록이 아니라 메시지+빈 폼이므로
@@ -500,6 +470,92 @@ class TexaScraper(BaseScraper):
                 r["reason"] = "임대사 시스템에 해당 컨테이너 정보 없음"
 
         return list(results.values())
+
+    # ------------------------------------------------------------------ #
+    # Cannot-redeliver table parser (+ Pending Booking 예약완료 해석)       #
+    # ------------------------------------------------------------------ #
+
+    def _apply_pending_booking(self, row: dict, reason: str) -> bool:
+        """'... ASSIGNED TO PENDING BOOKING - {ref} / {city} / {spec} / {account} / {expiry}'
+        사유는 컨테이너가 이미 유효한 예약에 배정된 '예약 완료(가능)' 상태를 뜻한다.
+
+        매칭되면 row를 available=True + 반납번호/반납지/유효기간으로 갱신하고 True 반환.
+        (유효기간에는 만료일만 매핑 — 신청일 매핑 금지 규칙 준수.)
+        해당 사유가 아니면 아무 것도 바꾸지 않고 False.
+        """
+        if not reason or "ASSIGNED TO PENDING BOOKING" not in reason.upper():
+            return False
+        idx = reason.upper().find("ASSIGNED TO PENDING BOOKING") + len(
+            "ASSIGNED TO PENDING BOOKING"
+        )
+        tail = reason[idx:].lstrip(" -\t")
+        parts = [p.strip() for p in tail.split("/") if p.strip()]
+        if not parts:
+            return False
+        bk_ref = parts[0]
+        city = parts[1] if len(parts) >= 3 else ""
+        # 마지막 필드가 날짜꼴(숫자 + '-')이면 만료일(유효기간)로 채택.
+        expiry = ""
+        if len(parts) >= 2 and re.search(r"\d", parts[-1]) and "-" in parts[-1]:
+            expiry = parts[-1]
+        row.update({
+            "available":   True,
+            "depot":       _depot_with_name(city) if city else row.get("depot"),
+            "booking_ref": bk_ref,
+            "over_caps":   None,
+            "close_date":  expiry or None,
+            "reason":      None,
+        })
+        logger.info(
+            "Pending booking → available: ref=%s city=%s expiry=%s",
+            bk_ref, city, expiry,
+        )
+        return True
+
+    async def _parse_cannot_table(self, frame, results: dict) -> bool:
+        """'cannot be redelivered' 표 파싱.
+
+        각 행의 사유가 'ASSIGNED TO PENDING BOOKING' 이면 예약 완료(가능)로,
+        그 외에는 기존대로 불가 + 사유로 기록한다.
+        우리 조회 대상 컨테이너가 하나라도 매칭되면 True (재-Preview 성공 판정용).
+        """
+        matched_any = False
+        try:
+            # Find the first <table> that follows the heading text
+            cannot_tbl = frame.locator(
+                "text=cannot be redelivered"
+            ).first.locator("xpath=following::table[1]")
+            rows = cannot_tbl.locator("tr")
+            row_count = await rows.count()
+            # Log header row for diagnostics
+            if row_count > 0:
+                hdr = (await rows.nth(0).inner_text()).strip()
+                logger.info("Cannot-redeliver table header: %s", hdr)
+            for i in range(1, row_count):
+                cells = rows.nth(i).locator("td")
+                n = await cells.count()
+                if n < 2:
+                    continue
+                eqp_cell = (await cells.nth(0).inner_text()).strip()
+                reason   = (await cells.nth(1).inner_text()).strip()
+                # A single cell may contain multiple IDs separated by newlines.
+                # TEXA sometimes omits the check digit (10 chars), so match
+                # by exact OR by the result key starting with the extracted ID.
+                for raw in eqp_cell.splitlines():
+                    eqp = self._norm_eqp(raw.strip())
+                    if not eqp:
+                        continue
+                    logger.info("Cannot-redeliver: eqp=%s reason=%s", eqp, reason)
+                    match_key = self._find_result_key(results, eqp)
+                    if not match_key:
+                        continue
+                    matched_any = True
+                    # PENDING BOOKING = 예약 완료(가능). 그 외 사유만 불가로 남긴다.
+                    if not self._apply_pending_booking(results[match_key], reason):
+                        results[match_key]["reason"] = reason
+        except Exception as exc:
+            logger.error("Cannot-redeliver parse error: %s", exc)
+        return matched_any
 
     # ------------------------------------------------------------------ #
     # Already-booked table parser (no navigation needed)                  #
@@ -1081,6 +1137,13 @@ class TexaScraper(BaseScraper):
             if "are booked" in body:
                 await self._parse_booked_table(form_frame, results, region_info["city"])
                 return True
+
+            # Book 으로 방금 생성된 예약은 재-Preview 시 'are booked' 가 아니라
+            # 'cannot be redelivered / ASSIGNED TO PENDING BOOKING' 으로 나타난다.
+            # → 예약 완료(가능)로 확정 (버그: 예전엔 이 경로를 실패로 처리해 '정보 없음').
+            if "cannot be redelivered" in body:
+                if await self._parse_cannot_table(form_frame, results):
+                    return True
 
             logger.warning(
                 "재-Preview: 'are booked' 미노출 (snippet=%s)", body[800:1100]
