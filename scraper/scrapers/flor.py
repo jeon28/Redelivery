@@ -315,8 +315,9 @@ class FlorScraper(BaseScraper):
         try:
             # ── Phase 1: Status 탭 우선 조회 ──────────────────────────────
             # 권위 있는 Redelivery Status 탭에서 컨테이너별 현 PPR 상태를 직접 확인.
-            #  Open 행 (active PPR) 또는 Closed (이미 반납됨) → 결과 채택
-            #  결과 없음 / 모두 VOID → 신규 후보로 보관 → Phase 2 에서 Apply 흐름
+            #  Open 행 (active PPR) → 결과 채택
+            #  Closed(과거 이력) / 결과 없음 / 모두 VOID → 신규 후보로 보관 → Phase 2 Apply 흐름
+            #  (Closed 는 재리스 시 재반납 가능 → Apply 흐름에서 실제 가용 여부 재확인)
             new_candidates: list[str] = []
             try:
                 await self._navigate_to_status()
@@ -1108,14 +1109,18 @@ class FlorScraper(BaseScraper):
     def _status_row_is_new_candidate(row: dict) -> bool:
         """Status 탭 search 결과가 '신규 후보' 인지 판정.
 
-        - booking_ref 있음 (active Open PPR) → False (Status 결과 채택)
-        - reason 에 '이미 반납됨' (Closed) → False (Status 결과 채택)
-        - 그 외 (결과 없음 / 모두 VOID / 알 수 없음) → True (Apply 흐름으로 검증 필요)
+        - 활성 Open PPR (booking_ref 존재 또는 status=available) → False (Status 결과 채택)
+        - 그 외 (Closed 과거 반납 이력 / 모두 VOID / 결과 없음 / 알 수 없음)
+          → True (Apply 흐름으로 실제 가용 여부 재검증)
+
+        Closed(과거 반납 이력)는 컨테이너가 재리스되면 다시 반납 가능하므로
+        '이미 반납됨' 으로 단정하지 않고, 권위 있는 Apply 흐름(Step3)에서
+        현재 상태(Over Caps / 가능 / 거부)를 재확인한다.
+        활성 Open PPR 이 있으면 그 행이 우선 채택되어 중복 예약이 발생하지 않는다.
         """
         if row.get("booking_ref"):
             return False
-        reason = row.get("reason") or ""
-        if "이미 반납됨" in reason:
+        if row.get("status") == "available":
             return False
         return True
 
