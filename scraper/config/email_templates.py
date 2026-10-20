@@ -18,7 +18,7 @@
 조회 시 office 인자를 주면 default + offices[office] 머지 결과를 반환.
 office 인자가 없거나 매칭 없으면 default만 반환.
 
-템플릿 키는 "베이스 임대사 코드" 기준 10개:
+템플릿 키는 "베이스 임대사 코드" 기준 12개:
   TEXA, TRIT, GOLD, FLOR, GESE, GCIC, CAIC, BCON, CARL, BLUE, MWSC, GVCC
 
 장금/흥아의 변형 코드 (TRIT+TRAM, FLOR+DFIC, GLOD, GESE+CROS/SGCN)는
