@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FLOR 반납번호 누락 수정</title>
+<style>
+  :root { --bg:#f8fafc; --fg:#0f172a; --muted:#475569; --card:#fff; --line:#e2e8f0; --accent:#0f766e; --warn:#b45309; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.65 -apple-system,"Segoe UI","Malgun Gothic",sans-serif; }
+  main { max-width:860px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:24px; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 28px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px 22px; margin-bottom:16px; }
+  h2 { font-size:17px; margin:0 0 10px; color:var(--accent); }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; }
+  code { background:#f1f5f9; padding:1px 5px; border-radius:4px; font-size:13px; }
+  .note { color:var(--warn); }
+  ol, ul { margin:6px 0; padding-left:22px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>FLOR 반납번호(PPR) 누락 수정 계획</h1>
+  <p class="sub">2026-10-16 · 대상: <code>scraper/scrapers/flor.py</code></p>
+
+  <section>
+    <h2>1. 증상</h2>
+    <p>FLOR 반납 생성 요청 후 결과 표에 <b>✅ 가능</b>으로 표시되지만 <b>반납번호 칸이 비어 있음(<code>-</code>)</b>. Florens 사이트에는 실제로 생성되어 있음 (번호 형식 <code>PPT12345</code> 유사).</p>
+  </section>
+
+  <section>
+    <h2>2. 원인</h2>
+    <p>반납번호 인식 정규식이 <code>PP[RF]\d+</code> — 즉 <b>PPR / PPF 접두어만</b> 인식. Florens가 <code>PPT…</code> 등 다른 접두어로 발급하면 번호를 못 찾아 <code>booking_ref</code> 가 비게 됨.</p>
+    <table>
+      <tr><th>위치</th><th>역할</th><th>영향</th></tr>
+      <tr><td><code>flor.py:863, 898, 921</code></td><td>Confirm 후 신규 번호 추출·매핑</td><td>신규 발급 번호 누락 (이번 증상)</td></tr>
+      <tr><td><code>flor.py:983</code></td><td>Step3 "Redelivery number:" (precleared) 감지</td><td>이미 발급된 건 판별 실패 → 중복 발급 위험</td></tr>
+      <tr><td><code>flor.py:1140</code></td><td>Step3 거부 사유 내 기존 번호 감지</td><td>동일</td></tr>
+      <tr><td><code>flor.py:1491</code></td><td>Status 탭 행 파싱</td><td>재조회 시에도 기존 번호를 못 읽음</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>3. 수정 내용</h2>
+    <ol>
+      <li><b>번호 패턴 일원화</b>: 모듈 상수 <code>PPR_RE = r"PP[A-Z]\d+"</code> 하나로 정의하고 위 5곳(JS 문자열 포함)을 모두 이 패턴으로 교체. PPR/PPF/PPT 및 향후 다른 접두어도 인식.</li>
+      <li><b>Status 탭 보강 조회(안전장치)</b>: Confirm 후에도 번호를 못 찾은 컨테이너만 Status 탭으로 이동해 <code>_search_one</code> 으로 재조회 → Open 행의 번호를 채움. Confirm 화면 구조가 바뀌어도 번호를 확보.</li>
+      <li>그래도 못 찾으면 조회 결과 칸에 <span class="note">"발급됨 — 반납번호 확인 필요 (Florens Status 탭 확인)"</span> 문구 표시 (지금처럼 조용히 빈칸으로 두지 않음).</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>4. 영향 범위 / 비변경</h2>
+    <ul>
+      <li>수정 파일: <code>scraper/scrapers/flor.py</code> 1개. 프론트엔드 변경 없음.</li>
+      <li>기존 PPR/PPF 번호 동작은 그대로 유지.</li>
+      <li>Confirm 클릭 횟수·조건은 변경 없음 (중복 발급 위험 증가 없음, 오히려 precleared 감지가 개선되어 감소).</li>
+      <li>보강 조회는 번호 누락 시에만 실행 → 정상 케이스 소요시간 변화 없음.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>5. 작업 순서</h2>
+    <ol>
+      <li><code>PPR_RE</code> 상수 추가 및 5곳 교체</li>
+      <li><code>query()</code> Phase B 이후 누락분 Status 재조회 로직 추가</li>
+      <li>로컬 단위 확인 (정규식 / 판정 함수) — 실 발급 테스트는 하지 않음</li>
+      <li>배포 후 실제 1건 반납 생성으로 반납번호 표시 확인 (사용자 확인)</li>
+      <li>커밋</li>
+    </ol>
+  </section>
+</main>
+</body>
+</html>

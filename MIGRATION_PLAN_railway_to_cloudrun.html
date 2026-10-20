@@ -1,0 +1,122 @@
+<style>
+  :root { color-scheme: light; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+                 "Noto Sans KR", sans-serif;
+    line-height: 1.65; max-width: 980px; margin: 2rem auto; padding: 0 1.5rem;
+    color: #222; background: #fff;
+  }
+  h1 { border-bottom: 3px solid #1d4ed8; padding-bottom: .4rem; }
+  h2 { border-bottom: 1px solid #cbd5e1; padding-bottom: .3rem; margin-top: 2.4rem; }
+  h3 { margin-top: 1.6rem; color: #1e293b; }
+  code { background: #f1f5f9; padding: 0.1em 0.35em; border-radius: 3px;
+    font-family: "SFMono-Regular", Consolas, monospace; font-size: 0.9em; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 6px;
+    overflow-x: auto; font-size: 0.88rem; }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #cbd5e1; padding: 0.5rem 0.7rem; text-align: left;
+    vertical-align: top; font-size: 0.94rem; }
+  th { background: #eff6ff; }
+  tr:nth-child(even) td { background: #fafbfc; }
+  ul, ol { padding-left: 1.4rem; } li { margin: 0.3rem 0; }
+  .ok-box { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.9rem 1.1rem;
+    border-radius: 6px; margin: 1rem 0; }
+  .warn-box { background: #fef2f2; border: 1px solid #fecaca; padding: 0.9rem 1.1rem;
+    border-radius: 6px; margin: 1rem 0; }
+  .info-box { background: #f0f9ff; border: 1px solid #bae6fd; padding: 0.9rem 1.1rem;
+    border-radius: 6px; margin: 1rem 0; }
+  .badge { display: inline-block; font-size: .78rem; font-weight: 600; padding: .1rem .5rem;
+    border-radius: 10px; }
+  .b-nochange { background:#dcfce7; color:#166534; }
+  .b-action { background:#fef9c3; color:#854d0e; }
+  .b-decide { background:#fee2e2; color:#991b1b; }
+</style>
+
+<h1>백엔드 이전 계획: Railway → Google Cloud Run</h1>
+<p>작성일 2026-07-13 · 목적: Railway 무료기간 종료로 백엔드 중단(조회·메일 전면 불가) 복구.
+<b>확정 사항</b> = 프로그램 재개발 아님, 호스팅만 이전. 호스팅 = <b>Google Cloud Run</b> (Render 유료안은 검토 후 제외).</p>
+
+<div class="ok-box">
+<b>한 줄 요약:</b> 프로그램 코드·프론트엔드는 <b>그대로</b> 두고 실행 위치만
+Railway → Cloud Run(도쿄)으로 옮긴다. <code>/data</code> 는 GCS 버킷을 마운트해
+<b>코드 수정 0줄</b>로 유지한다. 마지막에 Vercel 환경변수 한 줄만 새 주소로 교체한다.
+</div>
+
+<h2>0. 현재 상태 (진단 완료)</h2>
+<ul>
+  <li>Railway 서비스 <code>Redelivery</code> = <b>Failed</b> (삭제 아님, 무료 크레딧 소진 추정).</li>
+  <li>도메인 <code>redelivery-production.up.railway.app</code> → <code>"Application not found" 404</code> → 실행 중 앱 없음.</li>
+  <li>Vercel 프론트가 이 죽은 주소로 <code>/query</code>·<code>/email-templates</code> 호출 → <b>조회·메일 동시 실패</b>.</li>
+  <li>Railway 볼륨(49MB)에 <code>credentials.json</code> + 세션파일 존재 가능성.</li>
+</ul>
+
+<h2>1. 왜 Cloud Run (Render 대비 결정 근거)</h2>
+<table>
+  <tr><th></th><th>Cloud Run ✅ 선택</th><th>Render 유료 (제외)</th></tr>
+  <tr><td>비용</td><td>사용량 기반, idle 시 $0 → <b>거의 무료</b></td><td>$7/월 고정</td></tr>
+  <tr><td>속도</td><td>idle 후 첫 요청 콜드스타트(감수)</td><td>항상 warm</td></tr>
+  <tr><td>결정</td><td>사내 저사용 도구 → 무료 이점 큼</td><td>—</td></tr>
+</table>
+<p>콜드스타트가 업무에 걸리면 <code>min-instances=1</code>로 전환해 항상 warm(월 소액) 하게 조정 가능.</p>
+
+<h2>2. 그대로 유지되는 것 <span class="badge b-nochange">변경 없음</span></h2>
+<ul>
+  <li>프론트엔드(Next.js/Vercel) — 코드·배포 그대로.</li>
+  <li>스크래퍼 로직 전체 (TEXA·TRIT·GOLD·FLOR·GESE·이메일 템플릿).</li>
+  <li><code>scraper/Dockerfile</code> — <code>PORT</code> 존중 + chromium 설치 포함 → Cloud Run 즉시 호환.</li>
+  <li>백엔드 파일 경로 <code>/data</code> — 그대로 (3번에서 버킷을 이 경로에 마운트).</li>
+  <li>CORS <code>allow_origins=["*"]</code> — 그대로 동작.</li>
+</ul>
+
+<h2>3. 핵심 관건: <code>/data</code> 영속화 <span class="badge b-action">작업 필요</span></h2>
+<p>Cloud Run 컨테이너는 재시작 시 로컬 디스크가 날아간다. <code>/data</code> 내용:</p>
+<ul>
+  <li><code>credentials.json</code> — <b>전 임대사·선사 로그인 정보. 반드시 보존.</b></li>
+  <li><code>flor_session_*.json</code>, <code>texa_session_*.json</code> — 세션 캐시. 없으면 자동 재로그인 → <b>보존 불필요(재생성)</b>.</li>
+</ul>
+<div class="info-box">
+<b>해법: GCS 버킷을 <code>/data</code> 에 마운트.</b> 코드는 여전히 <code>/data/credentials.json</code> 을
+읽고 쓰지만 실제 저장은 버킷에 영구 보관 → <b>코드 수정 0줄, 재시작에도 데이터 유지.</b>
+</div>
+
+<h2>4. 기존 credentials.json <span class="badge b-decide">결정 필요</span></h2>
+<table>
+  <tr><th>방안</th><th>내용</th><th>비고</th></tr>
+  <tr><td><b>A. 재입력 (권장)</b></td><td>가동 후 화면에서 임대사 로그인 정보 다시 입력</td><td>Railway 안 건드림, 가장 깔끔</td></tr>
+  <tr><td>B. Railway 회수</td><td>Railway 잠시 살려 <code>credentials.json</code> 다운→버킷 업로드</td><td>기존 보존, Railway 소액 요금</td></tr>
+</table>
+
+<h2>5. Cloud Run 배포 설정</h2>
+<table>
+  <tr><th>설정</th><th>값</th></tr>
+  <tr><td>region</td><td><code>asia-northeast1</code> (도쿄)</td></tr>
+  <tr><td>memory / cpu</td><td><code>2Gi</code> / <code>2</code> (Playwright 구동)</td></tr>
+  <tr><td>timeout</td><td><code>300s</code></td></tr>
+  <tr><td>concurrency</td><td><code>4</code></td></tr>
+  <tr><td>min-instances</td><td><code>0</code> (idle $0, 콜드스타트 감수)</td></tr>
+  <tr><td>volume</td><td>GCS 버킷 → <code>/data</code></td></tr>
+  <tr><td>env</td><td>기존 Railway 환경변수(<code>SCRAPER_API_KEY</code> 등) 이전</td></tr>
+  <tr><td>max-instances</td><td>상한 설정 + 예산 알림 (요금 폭증 방어)</td></tr>
+</table>
+
+<h2>6. 작업 순서 (단계별 승인)</h2>
+<ol>
+  <li><b>gcloud CLI 설치</b> (Windows) → <code>gcloud init</code> 로그인.</li>
+  <li><b>GCP 프로젝트 생성 + 결제 연결</b> (콘솔). API 활성화: Cloud Run, Cloud Build, Cloud Storage.</li>
+  <li><b>GCS 버킷 생성</b> (도쿄) — <code>/data</code> 용.</li>
+  <li><b>[4번 결정]</b> credentials 재입력(A) / 회수(B).</li>
+  <li><b>Cloud Run 배포</b> — <code>gcloud run deploy</code> (소스 <code>scraper/</code>) + 5번 설정 + 버킷 마운트.</li>
+  <li><b>배포 검증</b> — <code>*.run.app/</code> 헬스체크 200 + 테스트 조회 1건.</li>
+  <li><b>Vercel 환경변수 교체</b> — <code>RAILWAY_API_URL</code> → 새 주소. 재배포.</li>
+  <li><b>운영 확인</b> — <code>redelivery-pi.vercel.app</code> 조회·메일 정상.</li>
+  <li><b>정리</b> — Railway 서비스 삭제(선택), 문서 갱신.</li>
+</ol>
+
+<h2>7. 롤백</h2>
+<p>Vercel 환경변수만 되돌리면 즉시 이전 상태로. 코드 변경 없음 → 리스크 낮음.</p>
+
+<div class="warn-box">
+<b>지금 필요한 것:</b> (1) Google Cloud 계정+결제 준비, (2) <b>4번 credentials A/B 결정.</b>
+각 단계는 성현님 계정 작업(gcloud 로그인·결제·콘솔)이 포함되므로 단계마다 함께 진행합니다.
+</div>
