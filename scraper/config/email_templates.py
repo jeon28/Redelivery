@@ -19,7 +19,7 @@
 office 인자가 없거나 매칭 없으면 default만 반환.
 
 템플릿 키는 "베이스 임대사 코드" 기준 10개:
-  TEXA, TRIT, GOLD, FLOR, GESE, GCIC, CAIC, BCON, CARL, BLUE
+  TEXA, TRIT, GOLD, FLOR, GESE, GCIC, CAIC, BCON, CARL, BLUE, MWSC, GVCC
 
 장금/흥아의 변형 코드 (TRIT+TRAM, FLOR+DFIC, GLOD, GESE+CROS/SGCN)는
 프론트에서 베이스 코드로 정규화해서 동일 템플릿을 사용한다.
@@ -130,6 +130,14 @@ DEFAULT_TEMPLATES_FLAT: dict = {
         "language": "en",
         "to": "lilian.qin@bsiu.com; icoral@bsiu.com; sjent_cy@sjcon.kr",
         "cc": f"{INTERNAL_CC}; movements@bsiu.com",
+        "subject": "[{carrier_alt}] {first_container} {first_type} OFF-HIRE / - {region_en}, KOREA. {date}",
+        "body": _BODY_EN,
+    },
+    "GVCC": {
+        "name": "UES Leasing (GVCC, 흥아 전용)",
+        "language": "en",
+        "to": "Rena.Dai@uesleasing.com; harry.gu@uesleasing.com; eric.lu@uesleasing.com",
+        "cc": INTERNAL_CC,
         "subject": "[{carrier_alt}] {first_container} {first_type} OFF-HIRE / - {region_en}, KOREA. {date}",
         "body": _BODY_EN,
     },

@@ -15,7 +15,7 @@ export default function EmailSettingTabs({ office }: { office: string }) {
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
             tab === 'rules'
               ? 'bg-slate-800 text-white'
-              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              : 'bg-white text-gray-800 border border-gray-300 hover:bg-gray-50'
           }`}
         >
           Recipient Rules
@@ -26,7 +26,7 @@ export default function EmailSettingTabs({ office }: { office: string }) {
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
             tab === 'template'
               ? 'bg-slate-800 text-white'
-              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              : 'bg-white text-gray-800 border border-gray-300 hover:bg-gray-50'
           }`}
         >
           Email Template

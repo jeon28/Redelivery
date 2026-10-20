@@ -255,7 +255,7 @@ export default function ResultTable({
       <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h2 className="font-semibold text-gray-800">조회 결과</h2>
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-700">
             총 {results.length}개 ·{' '}
             <span className="text-green-600">가능 {available}개</span> ·{' '}
             <span className="text-red-500">불가 {unavailable}개</span>
@@ -319,13 +319,13 @@ export default function ResultTable({
                   />
                 </th>
               )}
-              <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">컨테이너 번호</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">가능여부</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">반납지(데포)</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">반납번호</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Over Caps</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">유효기간</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">조회 결과</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-700 whitespace-nowrap">컨테이너 번호</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-700 whitespace-nowrap">가능여부</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-700 whitespace-nowrap">반납지(데포)</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-700 whitespace-nowrap">반납번호</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-700 whitespace-nowrap">Over Caps</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-700 whitespace-nowrap">유효기간</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-700 whitespace-nowrap">조회 결과</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -367,7 +367,7 @@ export default function ResultTable({
                   </td>
                   <td className="px-4 py-3">
                     {completed ? (
-                      <span className="text-gray-700 font-medium">🏁 반납완료</span>
+                      <span className="text-gray-800 font-medium">🏁 반납완료</span>
                     ) : numberError ? (
                       <span className="text-amber-700 font-medium">🔢 넘버오류</span>
                     ) : precleared ? (
@@ -378,15 +378,15 @@ export default function ResultTable({
                       <span className="text-red-600 font-medium">❌ 불가</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-700">{r.depot ?? '-'}</td>
+                  <td className="px-4 py-3 text-gray-800">{r.depot ?? '-'}</td>
                   <td className="px-4 py-3 font-mono text-blue-700 font-medium">
                     {r.booking_ref ?? '-'}
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{r.over_caps ?? '-'}</td>
-                  <td className="px-4 py-3 text-gray-600">{r.close_date ?? '-'}</td>
+                  <td className="px-4 py-3 text-gray-700">{r.over_caps ?? '-'}</td>
+                  <td className="px-4 py-3 text-gray-700">{r.close_date ?? '-'}</td>
                   <td className={`px-4 py-3 text-xs ${
                     r.available || completed
-                      ? 'text-gray-600'
+                      ? 'text-gray-700'
                       : numberError
                       ? 'text-amber-700'
                       : 'text-red-600'
@@ -414,7 +414,7 @@ export default function ResultTable({
             <h3 className="text-base font-semibold text-gray-900 mb-3">
               반납 취소 확인
             </h3>
-            <p className="text-sm text-gray-700 whitespace-pre-line">
+            <p className="text-sm text-gray-800 whitespace-pre-line">
               {confirmMessage}
             </p>
             <div className="mt-5 flex justify-end gap-2">
@@ -422,7 +422,7 @@ export default function ResultTable({
                 type="button"
                 onClick={closeConfirm}
                 disabled={cancelling}
-                className="px-4 py-1.5 rounded-md text-sm border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="px-4 py-1.5 rounded-md text-sm border border-gray-300 text-gray-800 hover:bg-gray-50 disabled:opacity-50"
               >
                 취소
               </button>

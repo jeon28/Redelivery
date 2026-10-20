@@ -21,13 +21,13 @@ export default async function CredentialsUnlockPage() {
           <nav className="flex items-center gap-4 text-sm">
             <Link
               href="/dashboard"
-              className="text-slate-300 hover:text-white transition-colors"
+              className="text-slate-100 hover:text-white transition-colors"
             >
               조회
             </Link>
             <Link
               href="/dashboard/email-setting"
-              className="text-slate-300 hover:text-white transition-colors"
+              className="text-slate-100 hover:text-white transition-colors"
             >
               Email Setting
             </Link>
@@ -44,7 +44,7 @@ export default async function CredentialsUnlockPage() {
           <form action={logout}>
             <button
               type="submit"
-              className="text-sm text-slate-300 hover:text-white transition-colors"
+              className="text-sm text-slate-100 hover:text-white transition-colors"
             >
               로그아웃
             </button>

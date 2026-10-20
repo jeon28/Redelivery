@@ -21,13 +21,13 @@ export default async function CredentialsPage() {
           <nav className="flex items-center gap-4 text-sm">
             <Link
               href="/dashboard"
-              className="text-slate-300 hover:text-white transition-colors"
+              className="text-slate-100 hover:text-white transition-colors"
             >
               조회
             </Link>
             <Link
               href="/dashboard/email-setting"
-              className="text-slate-300 hover:text-white transition-colors"
+              className="text-slate-100 hover:text-white transition-colors"
             >
               Email Setting
             </Link>
@@ -44,7 +44,7 @@ export default async function CredentialsPage() {
           <form action={lockCredentials}>
             <button
               type="submit"
-              className="text-sm text-slate-300 hover:text-white transition-colors"
+              className="text-sm text-slate-100 hover:text-white transition-colors"
             >
               🔒 잠금
             </button>
@@ -52,7 +52,7 @@ export default async function CredentialsPage() {
           <form action={logout}>
             <button
               type="submit"
-              className="text-sm text-slate-300 hover:text-white transition-colors"
+              className="text-sm text-slate-100 hover:text-white transition-colors"
             >
               로그아웃
             </button>
@@ -62,7 +62,7 @@ export default async function CredentialsPage() {
       <main className="max-w-5xl mx-auto px-6 py-8">
         <div className="mb-4">
           <h2 className="text-xl font-semibold text-gray-800">비밀번호 관리</h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-700 mt-1">
             임대사 계정의 아이디/비밀번호를 변경하면 즉시 시스템 전체에
             반영됩니다.
           </p>

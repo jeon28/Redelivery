@@ -7,7 +7,7 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold text-center text-gray-800 mb-1">
           반납컨테이너 조회 시스템
         </h1>
-        <p className="text-center text-gray-400 text-sm mb-8">장금상선 · 흥아라인</p>
+        <p className="text-center text-gray-600 text-sm mb-8">장금상선 · 흥아라인</p>
         <LoginForm />
       </div>
     </div>

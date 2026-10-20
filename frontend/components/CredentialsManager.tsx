@@ -68,7 +68,7 @@ export default function CredentialsManager() {
   }
 
   if (loading) {
-    return <div className="text-gray-500 text-sm">로딩 중...</div>
+    return <div className="text-gray-700 text-sm">로딩 중...</div>
   }
 
   return (
@@ -85,13 +85,13 @@ export default function CredentialsManager() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600 w-32">
+                  <th className="text-left px-4 py-3 font-medium text-gray-700 w-32">
                     임대사
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                  <th className="text-left px-4 py-3 font-medium text-gray-700">
                     아이디
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                  <th className="text-left px-4 py-3 font-medium text-gray-700">
                     비밀번호
                   </th>
                 </tr>

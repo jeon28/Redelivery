@@ -15,7 +15,7 @@ export default async function EmailSettingPage() {
           <nav className="flex items-center gap-4 text-sm">
             <Link
               href="/dashboard"
-              className="text-slate-300 hover:text-white transition-colors"
+              className="text-slate-100 hover:text-white transition-colors"
             >
               조회
             </Link>
@@ -27,7 +27,7 @@ export default async function EmailSettingPage() {
             </Link>
             <Link
               href="/dashboard/credentials"
-              className="text-slate-300 hover:text-white transition-colors"
+              className="text-slate-100 hover:text-white transition-colors"
             >
               비밀번호 관리
             </Link>
@@ -38,7 +38,7 @@ export default async function EmailSettingPage() {
           <form action={logout}>
             <button
               type="submit"
-              className="text-sm text-slate-300 hover:text-white transition-colors"
+              className="text-sm text-slate-100 hover:text-white transition-colors"
             >
               로그아웃
             </button>
@@ -48,7 +48,7 @@ export default async function EmailSettingPage() {
       <main className="max-w-6xl mx-auto px-6 py-8">
         <div className="mb-4">
           <h2 className="text-xl font-semibold text-gray-800">Email Setting</h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-700 mt-1">
             현재 편집 중: <span className="font-semibold">{office} 사무소</span>
             {' · '}수정 사항은 이 사무소 계정에만 적용됩니다.
           </p>

@@ -12,11 +12,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* 화면 대부분이 흰 카드(bg-white) 기반이라 휴대폰 다크 모드에서 글자가
+   밝은색으로 바뀌면 거의 보이지 않는다 → 항상 라이트 모드로 고정. */
+:root {
+  color-scheme: light;
 }
 
 body {

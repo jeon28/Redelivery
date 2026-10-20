@@ -128,9 +128,9 @@ export default function EmailTemplateTab({ office }: { office: string }) {
   }
 
   if (loading)
-    return <div className="text-gray-500 text-sm">로딩 중...</div>
+    return <div className="text-gray-700 text-sm">로딩 중...</div>
 
-  if (!draft) return <div className="text-gray-500 text-sm">템플릿 없음</div>
+  if (!draft) return <div className="text-gray-700 text-sm">템플릿 없음</div>
 
   return (
     <div className="space-y-4">
@@ -144,7 +144,7 @@ export default function EmailTemplateTab({ office }: { office: string }) {
             className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
               code === selected
                 ? 'bg-slate-800 text-white border-slate-800'
-                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                : 'bg-white text-gray-800 border-gray-300 hover:bg-gray-50'
             }`}
           >
             {code}
@@ -159,13 +159,13 @@ export default function EmailTemplateTab({ office }: { office: string }) {
             <h3 className="font-semibold text-gray-800">
               {draft.name || selected}
             </h3>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-gray-700">
               언어: {draft.language === 'ko' ? '한글' : '영문'}
             </span>
           </div>
 
           <label className="block text-sm">
-            <span className="text-gray-600 mb-1 block">Subject Line</span>
+            <span className="text-gray-700 mb-1 block">Subject Line</span>
             <input
               type="text"
               value={draft.subject}
@@ -175,7 +175,7 @@ export default function EmailTemplateTab({ office }: { office: string }) {
           </label>
 
           <label className="block text-sm">
-            <span className="text-gray-600 mb-1 block">Email Body</span>
+            <span className="text-gray-700 mb-1 block">Email Body</span>
             <textarea
               value={draft.body}
               onChange={(e) => updateField('body', e.target.value)}

@@ -8,7 +8,7 @@ export default function LoginForm() {
   return (
     <form action={action} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-800 mb-1">
           아이디
         </label>
         <input
@@ -20,7 +20,7 @@ export default function LoginForm() {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-800 mb-1">
           비밀번호
         </label>
         <input

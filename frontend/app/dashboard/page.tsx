@@ -21,13 +21,13 @@ export default async function DashboardPage() {
             </Link>
             <Link
               href="/dashboard/email-setting"
-              className="text-slate-300 hover:text-white transition-colors"
+              className="text-slate-100 hover:text-white transition-colors"
             >
               Email Setting
             </Link>
             <Link
               href="/dashboard/credentials"
-              className="text-slate-300 hover:text-white transition-colors"
+              className="text-slate-100 hover:text-white transition-colors"
             >
               비밀번호 관리
             </Link>
@@ -38,7 +38,7 @@ export default async function DashboardPage() {
           <form action={logout}>
             <button
               type="submit"
-              className="text-sm text-slate-300 hover:text-white transition-colors"
+              className="text-sm text-slate-100 hover:text-white transition-colors"
             >
               로그아웃
             </button>

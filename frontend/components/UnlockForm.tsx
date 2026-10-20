@@ -23,7 +23,7 @@ export default function UnlockForm() {
           </svg>
         </div>
         <h3 className="font-semibold text-gray-800">관리자 PIN 입력</h3>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-gray-700 mt-1">
           비밀번호 관리 페이지는 별도의 PIN이 필요합니다.
         </p>
       </div>
@@ -49,7 +49,7 @@ export default function UnlockForm() {
         </button>
       </form>
 
-      <p className="text-xs text-gray-400 text-center mt-4">
+      <p className="text-xs text-gray-600 text-center mt-4">
         잠금 해제 후 10분 동안 유효합니다.
       </p>
     </div>

@@ -39,6 +39,7 @@ const LESSOR_CATALOG: Record<string, LessorEntry[]> = {
     { code: 'CARL',       mode: 'email' },
     { code: 'BLUE',       mode: 'email' },
     { code: 'MWSC+CALT',  mode: 'email' },
+    { code: 'GVCC',       mode: 'email' },
   ],
 }
 
@@ -300,6 +301,14 @@ export default function SearchForm({ office }: { office: string }) {
   const tplKey = lessor ? templateKey(lessor) : ''
   const tpl = templates[tplKey]
 
+  // 모바일 Outlook(iOS/Android)은 RFC 6068 대로 ',' 만 구분자로 인식하고 ';' 를
+  // 주소 일부로 취급해 한 줄로 합쳐 오류가 난다. SSR hydration 불일치를 피하려고
+  // 마운트 후에 판별.
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    setIsMobile(/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent))
+  }, [])
+
   const mailto = useMemo(() => {
     if (!tpl || !tpl.subject || !tpl.body || containers.length === 0) return ''
     const { subject, body } = renderTemplate(tpl, {
@@ -313,12 +322,13 @@ export default function SearchForm({ office }: { office: string }) {
       containers,
     })
     // 저장된 To/CC 는 ';' 안내지만 ',' 로 입력된 케이스도 있어 양쪽 모두 분리.
-    // 출력은 ';' — Outlook 데스크톱이 ','를 단일 주소의 일부로 해석해 한 줄로
-    // 합치는 문제를 피하기 위함.
+    // 출력은 데스크톱 ';' (Outlook 데스크톱이 ','를 단일 주소의 일부로 해석해
+    // 한 줄로 합치는 문제 회피), 모바일 ',' (모바일 Outlook 은 반대).
+    const sep = isMobile ? ',' : ';'
     const splitAddrs = (s: string) =>
       s.split(/[,;]/).map((x) => x.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean)
-    const to = splitAddrs(tpl.to).join(';')
-    const cc = splitAddrs(tpl.cc).join(';')
+    const to = splitAddrs(tpl.to).join(sep)
+    const cc = splitAddrs(tpl.cc).join(sep)
     // mailto: 는 RFC 6068 에 따라 application/x-www-form-urlencoded 가 아닌
     // 표준 percent-encoding 을 사용해야 한다. URLSearchParams 는 공백을 '+' 로
     // 인코딩하여 Outlook 등에서 '+' 가 그대로 표시되는 문제가 있으므로
@@ -328,7 +338,7 @@ export default function SearchForm({ office }: { office: string }) {
     parts.push(`subject=${encodeURIComponent(subject)}`)
     parts.push(`body=${encodeURIComponent(body)}`)
     return `mailto:${to}?${parts.join('&')}`
-  }, [tpl, containers, company, carrierInfo, office, regionInfo, dateStr])
+  }, [tpl, containers, company, carrierInfo, office, regionInfo, dateStr, isMobile])
 
   // 조회 처리
   async function handleQuery() {
@@ -382,7 +392,7 @@ export default function SearchForm({ office }: { office: string }) {
         <div className="grid grid-cols-3 gap-4">
           {/* 선사 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-800 mb-1">
               선사
             </label>
             <select
@@ -400,14 +410,14 @@ export default function SearchForm({ office }: { office: string }) {
 
           {/* 임대사 */}
           <div>
-            <label className="flex items-center justify-between text-sm font-medium text-gray-700 mb-1">
+            <label className="flex items-center justify-between text-sm font-medium text-gray-800 mb-1">
               <span>임대사</span>
               {homepageFor(lessor) && (
                 <a
                   href={homepageFor(lessor) as string}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-gray-300 hover:underline font-bold"
+                  className="text-xs text-gray-500 hover:underline font-bold"
                   title={`${lessor} 홈페이지로 이동`}
                 >
                   🌐 홈페이지
@@ -432,7 +442,7 @@ export default function SearchForm({ office }: { office: string }) {
 
           {/* 반납지역 (사무소는 헤더에서 선택 → 자동 동기화) */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-800 mb-1">
               반납지역
             </label>
             <select
@@ -452,7 +462,7 @@ export default function SearchForm({ office }: { office: string }) {
         {/* FLOR 전용 반납CY 선택 (모달) */}
         {isFlor && (
           <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-gray-800">
               반납CY
             </label>
             <button
@@ -473,9 +483,9 @@ export default function SearchForm({ office }: { office: string }) {
 
         {/* 컨테이너 입력 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-800 mb-1">
             컨테이너{' '}
-            <span className="text-gray-300 font-normal">
+            <span className="text-gray-500 font-normal">
               (수량 동시 조회 가능)
             </span>
           </label>
@@ -484,7 +494,7 @@ export default function SearchForm({ office }: { office: string }) {
             onChange={(e) => setContainerText(e.target.value)}
             placeholder={'SKLU1234567 45GP\n메일 발송시 형식 입니다.'}
             rows={6}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-slate-500 resize-y"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-slate-500 resize-y"
           />
         </div>
 
@@ -524,7 +534,7 @@ export default function SearchForm({ office }: { office: string }) {
             onClick={handleMail}
             className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
               containers.length === 0
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                ? 'bg-gray-200 text-gray-600 cursor-not-allowed'
                 : emphasizeMailButton
                 ? 'bg-slate-800 text-white hover:bg-slate-700'
                 : 'bg-white text-slate-800 border border-slate-300 hover:bg-slate-50'

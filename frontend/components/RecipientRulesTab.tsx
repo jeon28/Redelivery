@@ -81,13 +81,13 @@ export default function RecipientRulesTab({ office }: { office: string }) {
     }
   }
 
-  if (loading) return <div className="text-gray-500 text-sm">로딩 중...</div>
+  if (loading) return <div className="text-gray-700 text-sm">로딩 중...</div>
 
   const lessors = Object.keys(templates)
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-gray-700">
         임대사별 To/Cc 수신자를 설정합니다. 저장 시{' '}
         <span className="font-semibold">{office} 사무소</span>에만 적용되며,
         빈 항목은 공용 기본값을 그대로 사용합니다.
@@ -109,13 +109,13 @@ export default function RecipientRulesTab({ office }: { office: string }) {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600 w-28">
+              <th className="text-left px-4 py-3 font-medium text-gray-700 w-28">
                 Lessor
               </th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">
+              <th className="text-left px-4 py-3 font-medium text-gray-700">
                 Recipients
               </th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600 w-32">
+              <th className="text-right px-4 py-3 font-medium text-gray-700 w-32">
                 Action
               </th>
             </tr>
@@ -139,7 +139,7 @@ export default function RecipientRulesTab({ office }: { office: string }) {
                             <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700">
                               TO
                             </span>
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-gray-600">
                               세미콜론(;)으로 구분
                             </span>
                           </div>
@@ -171,9 +171,9 @@ export default function RecipientRulesTab({ office }: { office: string }) {
                           <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700 shrink-0 mt-0.5">
                             TO
                           </span>
-                          <div className="text-xs text-gray-600 font-mono break-all">
+                          <div className="text-xs text-gray-700 font-mono break-all">
                             {t.to || (
-                              <span className="text-gray-400 italic">(비어있음)</span>
+                              <span className="text-gray-600 italic">(비어있음)</span>
                             )}
                           </div>
                         </div>
@@ -181,9 +181,9 @@ export default function RecipientRulesTab({ office }: { office: string }) {
                           <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700 shrink-0 mt-0.5">
                             CC
                           </span>
-                          <div className="text-xs text-gray-600 font-mono break-all">
+                          <div className="text-xs text-gray-700 font-mono break-all">
                             {t.cc || (
-                              <span className="text-gray-400 italic">(비어있음)</span>
+                              <span className="text-gray-600 italic">(비어있음)</span>
                             )}
                           </div>
                         </div>
