@@ -72,6 +72,12 @@ PORT_OPTION_SUBSTR: dict[str, str] = {
 _CONTAINER_RE = re.compile(r"^[A-Z]{4}\d{6,7}$")
 _FLOR_PREFIXES = ("DFSU", "FSCU", "FCIU", "FBLU")
 
+# 반납번호(Redelivery number) 패턴. PPR / PPF / PPT 등 "PP + 영문 1자 + 숫자".
+# 접두어를 특정 문자로 고정하면 신규 접두어(PPT 등) 발급 시 번호 누락됨.
+_PPR_PATTERN = r"PP[A-Z]\d+"
+_PPR_RE = re.compile(_PPR_PATTERN)
+_PPR_FULL_RE = re.compile(rf"^{_PPR_PATTERN}$")
+
 
 def _is_flor_container(c: str) -> bool:
     if not c:
@@ -399,6 +405,12 @@ class FlorScraper(BaseScraper):
                                 )
                     except Exception as exc:
                         logger.error("FLOR Phase B Confirm 실패: %s", exc)
+
+                    # Confirm 화면에서 번호를 못 읽은 unit → Status 탭 재조회로 보강.
+                    # (재조회는 읽기 전용 — Confirm 재클릭 없음)
+                    missing = [c for c in new_valid if not results[c].get("booking_ref")]
+                    if missing:
+                        await self._backfill_ppr_from_status(results, missing)
 
         except Exception as exc:
             logger.error("FLOR query error: %s\n%s", exc, traceback.format_exc())
@@ -821,6 +833,39 @@ class FlorScraper(BaseScraper):
                 out.append(self._error_row(c, f"Status 조회 실패: {exc}"))
         return out
 
+    async def _backfill_ppr_from_status(self, results: dict, units: list[str]) -> None:
+        """Confirm 후 반납번호 누락 unit 을 Status 탭에서 재조회해 채운다.
+
+        Open 행이 있으면 그 결과(번호/depot/유효기간)를 채택.
+        그래도 번호가 없으면 빈칸 대신 확인 필요 문구를 reason 에 남긴다.
+        (Confirm 버튼 미발견/클릭 실패도 이 경로로 오므로 '발급됨' 단정 X)
+        """
+        logger.info("FLOR Confirm 후 반납번호 누락 → Status 재조회: %s", units)
+        try:
+            await self._navigate_to_status()
+        except Exception as exc:
+            logger.warning("FLOR 보강용 Status 탭 진입 실패: %s", exc)
+        else:
+            for c in units:
+                try:
+                    row = await self._search_one(c)
+                except Exception as exc:
+                    logger.warning("FLOR %s 보강 Status 조회 실패: %s", c, exc)
+                    continue
+                if row.get("available") and row.get("booking_ref"):
+                    results[c].update({
+                        "booking_ref": row["booking_ref"],
+                        "depot": row.get("depot") or results[c].get("depot"),
+                        "over_caps": row.get("over_caps"),
+                        "close_date": row.get("close_date"),
+                    })
+                    logger.info("FLOR %s: Status 재조회로 반납번호 확보 → %s",
+                                c, row["booking_ref"])
+
+        for c in units:
+            if not results[c].get("booking_ref"):
+                results[c]["reason"] = "반납번호 미확인 — Florens Status 탭 확인 필요"
+
     async def _confirm_redelivery_order(self, valid_units: list[str]) -> dict[str, str]:
         """Step3 의 Confirm Redelivery Order 클릭 → 신규 PPR 발급.
 
@@ -860,7 +905,7 @@ class FlorScraper(BaseScraper):
         text_before = await self.page.evaluate(
             "() => document.body.innerText || ''"
         )
-        pprs_before = set(re.findall(r"PP[RF]\d+", text_before))
+        pprs_before = set(_PPR_RE.findall(text_before))
 
         # 4) 클릭
         logger.info(
@@ -895,7 +940,7 @@ class FlorScraper(BaseScraper):
         text_after = await self.page.evaluate(
             "() => document.body.innerText || ''"
         )
-        all_pprs_after = re.findall(r"PP[RF]\d+", text_after)
+        all_pprs_after = _PPR_RE.findall(text_after)
         # 중복 제거 + 순서 보존
         seen: set[str] = set()
         ordered_after: list[str] = []
@@ -918,7 +963,7 @@ class FlorScraper(BaseScraper):
             if idx < 0:
                 continue
             window = text_after[max(0, idx - 200): idx + 400]
-            m = re.search(r"PP[RF]\d+", window)
+            m = _PPR_RE.search(window)
             if m and m.group(0) in new_pprs:
                 mapping[unit] = m.group(0)
 
@@ -980,7 +1025,7 @@ class FlorScraper(BaseScraper):
                     'already', 'reject', 'invalid', 'previously', 'precleared'
                 ];
                 const UNIT_RE = /^[A-Z]{4}\d{6,7}$/;
-                const PRECLEARED_RE = /already\s+precleared|Redelivery\s+number:\s*PP[RF]\d+/i;
+                const PRECLEARED_RE = /already\s+precleared|Redelivery\s+number:\s*PP[A-Z]\d+/i;  // = _PPR_PATTERN
 
                 function isReasonCell(c, unit) {
                     if (!c || c === unit) return false;
@@ -1137,7 +1182,7 @@ class FlorScraper(BaseScraper):
         # 2026-05-21 사용자 요청 — PPR/Depot 추출 안 함. INFO 풀텍스트를 reason 에
         # 그대로 보존해 UI "조회 결과" 컬럼에 노출. _precleared 플래그로 Phase B
         # 자동 재발급 가드.
-        ppr_match = re.search(r"PP[RF]\d+", reason)
+        ppr_match = _PPR_RE.search(reason)
         active_kw = any(k in r_lower for k in (
             "already", "active", "open redelivery", "existing redelivery", "precleared"
         ))
@@ -1487,8 +1532,8 @@ class FlorScraper(BaseScraper):
                 v = (v or "").strip()
                 if not v:
                     continue
-                # PPR####### 또는 PPF#######
-                if re.match(r"^PP[RF]\d+$", v):
+                # PPR#####, PPF#####, PPT##### 등
+                if _PPR_FULL_RE.match(v):
                     out["ref"] = v
                 # 상태값: 짧은 단어로 위 목록에 포함
                 elif v.lower() in STATUS_WORDS or (
