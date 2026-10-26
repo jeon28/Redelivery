@@ -8,7 +8,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 
-from routers import query, cancel, credentials, email_templates, flor_depots, status_detail
+from routers import query, cancel, credentials, email_templates, flor_depots, status_detail, lookup
 
 app = FastAPI(title="반납컨테이너 스크래퍼 API")
 
@@ -25,6 +25,7 @@ app.include_router(credentials.router)
 app.include_router(email_templates.router)
 app.include_router(flor_depots.router)
 app.include_router(status_detail.router)
+app.include_router(lookup.router)
 
 @app.get("/")
 def health():
