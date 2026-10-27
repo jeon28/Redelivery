@@ -1154,7 +1154,7 @@ class FlorScraper(BaseScraper):
     def _status_row_is_new_candidate(row: dict) -> bool:
         """Status 탭 search 결과가 '신규 후보' 인지 판정.
 
-        - 활성 Open PPR (booking_ref 존재 또는 status=available) → False (Status 결과 채택)
+        - 활성 Open PPR (status=available) → False (Status 결과 채택)
         - 그 외 (Closed 과거 반납 이력 / 모두 VOID / 결과 없음 / 알 수 없음)
           → True (Apply 흐름으로 실제 가용 여부 재검증)
 
@@ -1162,12 +1162,11 @@ class FlorScraper(BaseScraper):
         '이미 반납됨' 으로 단정하지 않고, 권위 있는 Apply 흐름(Step3)에서
         현재 상태(Over Caps / 가능 / 거부)를 재확인한다.
         활성 Open PPR 이 있으면 그 행이 우선 채택되어 중복 예약이 발생하지 않는다.
+
+        주의: Closed 행에도 과거 PPR 이 booking_ref 로 남아 있으므로
+        booking_ref 존재 여부로 판정하면 수년 전 이력이 채택된다 → status 로만 판정.
         """
-        if row.get("booking_ref"):
-            return False
-        if row.get("status") == "available":
-            return False
-        return True
+        return row.get("status") != "available"
 
     def _classify_reject(self, unit: str, reason: str) -> dict:
         """거부 reason 텍스트를 분류 (§5-3 / §5-4 / 일반).
