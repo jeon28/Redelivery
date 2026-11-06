@@ -1537,7 +1537,6 @@ class FlorScraper(BaseScraper):
             .map(tr => (tr.innerText || '').trim()).join('|')"""
         try:
             table_before = await self.page.evaluate(_snapshot_js)
-            await self.page.evaluate("() => { window.__florLoadingSeen = false; }")
         except Exception:
             table_before = None
 
@@ -1559,6 +1558,20 @@ class FlorScraper(BaseScraper):
         except Exception:
             pass
 
+        # 검색 XHR 응답 대기자를 클릭 '전에' 등록 — 응답이 왔다는 사실 자체가
+        # 결과 도착의 결정적 신호. (빈 테이블의 "No Data" 안내 문구나 로딩 마스크
+        # 추정은 1차 배포에서 0.7초 만에 rows=0 으로 빠져나가는 오판을 냈음.)
+        def _is_search_resp(resp) -> bool:
+            try:
+                rt = resp.request.resource_type
+                return rt in ("xhr", "fetch") and "florens" in resp.url
+            except Exception:
+                return False
+
+        resp_task = asyncio.ensure_future(
+            self.page.wait_for_event("response", predicate=_is_search_resp, timeout=8_000)
+        )
+
         # Search 버튼 JS 클릭 + disabled 체크.
         # locator click 보다 JS evaluate 가 visibility/race condition 에 견고.
         click_result = await self.page.evaluate(
@@ -1578,43 +1591,37 @@ class FlorScraper(BaseScraper):
         )
         logger.info("FLOR %s Search button click=%s", container, click_result)
         if not click_result.get("ok"):
+            resp_task.cancel()
             if click_result.get("reason") == "disabled":
                 # Vue v-model 미동기화 추정 — 입력값은 set 됐는데 model 이 빈 상태.
                 # 이 경우 검색 자체를 못 함 → 에러 행 반환.
                 return self._error_row(container, "Search 버튼 disabled (Vue 동기화 실패)")
             return self._error_row(container, "Search 버튼 없음")
+
         # 결과 도착 대기 (PLAN_query_speedup.html §3-1):
-        #  1) 로딩 마스크(.el-loading-mask)가 보이는 동안은 대기
-        #  2) 결과 테이블 텍스트가 클릭 전 스냅샷과 달라지거나 "No data" 문구 출현
-        #  3) 스냅샷이 비어 있었고 여전히 비어 있으면 — 서버가 '결과 없음'을 빈
-        #     테이블로 표현하는 케이스이므로 로딩 마스크 소멸 후 통과
-        arrived = await self._wait_js(
-            r"""(before) => {
-                const loading = Array.from(document.querySelectorAll('.el-loading-mask'))
-                    .some(m => m.offsetParent !== null && getComputedStyle(m).display !== 'none');
-                if (loading) { window.__florLoadingSeen = true; return false; }
-                // 로딩 마스크가 떴다가 사라졌으면 응답 도착 (결과 유무 무관)
-                if (window.__florLoadingSeen) return true;
-                const now = Array.from(document.querySelectorAll('table tbody tr'))
-                    .filter(tr => tr.offsetParent !== null)
-                    .map(tr => (tr.innerText || '').trim()).join('|');
-                if (before !== null && now !== before) return true;
-                const txt = (document.body.innerText || '');
-                if (/no\s*(data|results|record)/i.test(txt)
-                    || /results,?\s+(recent|none)/i.test(txt)) return true;
-                return false;
-            }""",
-            6_000, f"search-result:{container}", arg=table_before,
-        )
-        if not arrived:
-            # 변화 감지 실패 — 이전과 동일한 결과(같은 컨테이너 재검색 등)일 수 있음.
-            # 로딩 마스크만 사라졌는지 짧게 확인하고 진행.
-            await self._wait_js(
-                r"""() => !Array.from(document.querySelectorAll('.el-loading-mask'))
-                    .some(m => m.offsetParent !== null && getComputedStyle(m).display !== 'none')""",
-                3_000, "search-loading-gone",
+        #  1차: 검색 XHR 응답 도착 (URL 을 로그에 남겨 향후 API 직접 호출 검토 근거로 활용)
+        #  2차(응답 미감지 시): 클릭 전 스냅샷 대비 테이블 텍스트 변화, 최대 4초
+        t_click = asyncio.get_event_loop().time()
+        try:
+            resp = await resp_task
+            logger.info(
+                "FLOR %s search XHR 응답 %.2fs: %s %s",
+                container, asyncio.get_event_loop().time() - t_click,
+                resp.status, resp.url[:160],
             )
-        # 렌더 안정화: 행 수가 0.3s 간격 2회 같아질 때까지 (최대 2s)
+        except Exception as exc:
+            logger.warning("FLOR %s search XHR 응답 미감지 — 텍스트 변화 대기로 폴백: %s",
+                           container, str(exc).splitlines()[0] if str(exc) else exc)
+            await self._wait_js(
+                r"""(before) => {
+                    const now = Array.from(document.querySelectorAll('table tbody tr'))
+                        .filter(tr => tr.offsetParent !== null)
+                        .map(tr => (tr.innerText || '').trim()).join('|');
+                    return before !== null && now !== before;
+                }""",
+                4_000, f"search-result:{container}", arg=table_before,
+            )
+        # 응답 후 렌더 안정화: 행 수가 0.3s 간격으로 같아질 때까지 (최대 2s)
         await self._wait_stable_rows(timeout_ms=2_000, label=f"search:{container}")
 
         # 진단 로그: rows=0 케이스 원인 분석용
