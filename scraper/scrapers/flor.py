@@ -524,12 +524,16 @@ class FlorScraper(BaseScraper):
             await apply_tab.click(timeout=3_000)
         except Exception:
             pass  # 이미 활성이면 클릭 실패해도 무방
-        # Step1 폼(Customer ID 라디오 + el-select) 렌더 완료까지만 대기.
+        # Step1 폼 렌더 완료까지만 대기: Port/Depot el-select 와 Next 버튼이 보임.
+        # 주의: Customer ID 라디오 영역은 옵션이 1개인 계정(HA)에서 display:none 이라
+        # 라디오 가시성을 조건에 넣으면 영원히 만족되지 않음 (2026-11-06 로그: 15s 초과).
         await self._wait_js(
             r"""() => {
-                const r = document.querySelector('label.el-radio, label.el-radio-button');
-                const s = document.querySelector('.el-select .el-input__inner');
-                return !!(r && r.offsetParent !== null && s && s.offsetParent !== null);
+                const vis = el => !!el && el.offsetParent !== null;
+                const sel = Array.from(document.querySelectorAll('.el-select .el-input__inner')).some(vis);
+                const next = Array.from(document.querySelectorAll('button'))
+                    .some(b => vis(b) && /next/i.test(b.innerText || ''));
+                return sel && next;
             }""",
             15_000, "apply-step1",
         )
