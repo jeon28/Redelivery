@@ -307,6 +307,15 @@ Port 선택 후 동적 활성. 옵션 텍스트 포맷: `(<DEPOT_CODE>) <Depot �
 
 ---
 
+## 9-1. 화면 전환 타이밍 관찰 (2026-11-06, 속도 개선 작업 시 정리)
+
+> 상세: `PLAN_query_speedup.html`
+
+- **Confirm 직후 번호 미노출**: Confirm Redelivery Order 클릭 후 화면에는 "Please confirm in N seconds" 류 문구만 보이고 PPR 번호가 없음. Status 탭도 직후 재검색하면 행 없음 → **수 분 뒤에야 `PPxNNNNN / Open` 반영**. 따라서 Confirm 직후 Status 재조회는 의미 없음 (스크래퍼는 재조회하지 않고 "발급 요청 완료" 로 응답, 번호는 [Status 조회] 버튼으로 확인).
+- **Apply 위저드 단계 식별**: Element UI steps `.el-step__title.is-process` 텍스트가 현재 단계 — `Select Depot` → `Enter Unit Numbers` → `Completed`. Step2 는 `textarea.el-textarea__inner`, Step3 는 결과 테이블 행 또는 Confirm 버튼 가시로 렌더 완료 판정.
+- **Status 탭 검색 응답**: Element UI 로딩 마스크 `.el-loading-mask` 가 떴다 사라지면 응답 도착. 이전 검색의 잔존 행이 남아 있으므로 "행 존재" 만으로는 결과 도착 판정 불가 → 클릭 전 테이블 텍스트 스냅샷과 비교.
+- **탭 DOM 잔존**: Apply / Status 두 탭 패널이 모두 DOM 에 남아 있음(비활성은 display:none). Status 탭에서 +More 로 펼친 상세표(수백~천 행)가 Apply Step3 파싱에 섞인 사례 있음 → 파싱은 `offsetParent !== null` 인 가시 행만 대상으로 하고, 펼친 행은 추출 후 다시 접음.
+
 ## 10. 후속 작업
 
 - `IMPLEMENTATION_PLAN.md` (Apply Redelivery 1차 재설계) — 작성 중

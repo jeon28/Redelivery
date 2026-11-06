@@ -110,7 +110,7 @@ class FlorScraper(BaseScraper):
     async def start(self, headless: bool = True):
         """저장된 storage_state 가 있으면 복원해 브라우저 컨텍스트를 만든다."""
         # Deploy marker — Railway 활성 commit 검증용. 이 로그가 보이면 새 코드 실행 중.
-        logger.info("FLOR scraper start [marker=number-error-v6]")
+        logger.info("FLOR scraper start [marker=speedup-v1]")
         browsers_path = os.getenv("PLAYWRIGHT_BROWSERS_PATH")
         if browsers_path:
             os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browsers_path
@@ -137,6 +137,52 @@ class FlorScraper(BaseScraper):
 
         self.context = await self.browser.new_context(storage_state=storage_arg)
         self.page = await self.context.new_page()
+
+    # ------------------------------------------------------------------ #
+    # 조건 대기 헬퍼 — 고정 sleep 대체 (PLAN_query_speedup.html §3-1)
+    # ------------------------------------------------------------------ #
+
+    async def _wait_js(
+        self, js: str, timeout_ms: int, label: str, arg=None,
+    ) -> bool:
+        """`js` (페이지 함수 소스) 가 truthy 를 반환할 때까지 대기.
+
+        timeout 초과 시 예외 대신 경고 로그만 남기고 False 반환 → 호출자는
+        기존 고정 sleep 과 같은 '그냥 진행' 의미로 처리. 조건이 이미 만족이면
+        즉시 반환되므로 평균 대기가 크게 줄어든다.
+        """
+        try:
+            await self.page.wait_for_function(js, arg=arg, timeout=timeout_ms)
+            return True
+        except Exception as exc:
+            logger.warning(
+                "FLOR wait[%s] %dms 초과 — 진행: %s", label, timeout_ms,
+                str(exc).splitlines()[0] if str(exc) else exc,
+            )
+            return False
+
+    async def _wait_stable_rows(
+        self, timeout_ms: int = 4_000, interval: float = 0.3, label: str = "rows",
+    ) -> int:
+        """화면에 보이는 `table tbody tr` 수가 interval 간격 2회 연속 같아질
+        때까지 대기. 반환값은 마지막 행 수. 지연 렌더되는 영역을 흡수하면서도
+        이미 안정된 화면은 interval 한 번(0.3s)만에 통과."""
+        js = r"""() => Array.from(document.querySelectorAll('table tbody tr'))
+                .filter(tr => tr.offsetParent !== null).length"""
+        deadline = asyncio.get_event_loop().time() + timeout_ms / 1000
+        prev = await self.page.evaluate(js)
+        same = 0
+        while True:
+            await asyncio.sleep(interval)
+            cur = await self.page.evaluate(js)
+            same = same + 1 if cur == prev else 0
+            # 행이 있으면 2회 연속 동일로 충분. 0행은 '아직 안 그려짐'일 수 있어 3회.
+            if same >= (1 if cur > 0 else 2):
+                return cur
+            if asyncio.get_event_loop().time() >= deadline:
+                logger.info("FLOR wait[%s] 행 수 미안정(%s→%s) — 진행", label, prev, cur)
+                return cur
+            prev = cur
 
     # ------------------------------------------------------------------ #
     # Login (슬라이드 캡차 + Sign-in)
@@ -184,11 +230,12 @@ class FlorScraper(BaseScraper):
                 await self.page.goto(
                     REDELIV_URL, wait_until="domcontentloaded", timeout=20_000
                 )
-                try:
-                    await self.page.wait_for_load_state("networkidle", timeout=10_000)
-                except Exception:
-                    pass
-                await asyncio.sleep(1.0)
+                # 로그인 리다이렉트 or Redelivery 탭 렌더 중 먼저 오는 쪽까지만 대기.
+                await self._wait_js(
+                    r"""() => location.href.includes('/login')
+                        || /Redelivery Status/.test(document.body.innerText || '')""",
+                    10_000, "session-check",
+                )
                 if "/login" not in self.page.url:
                     logger.info(
                         "FLOR(%s): existing session valid → skip login (%s)",
@@ -380,9 +427,9 @@ class FlorScraper(BaseScraper):
                 await self._select_customer_id(cust_id)
                 await self._select_port(port_substr)
                 await self._select_depot(depot_str)
-                await self._step_next()
+                await self._step_next(expect="step2")
                 await self._step2_fill_units(new_candidates)
-                await self._step_next()
+                await self._step_next(expect="step3")
                 await self._parse_step3(results, depot_str)
 
                 # Phase B — 자동 Confirm (사용자 요청 2026-05-21).
@@ -395,8 +442,9 @@ class FlorScraper(BaseScraper):
                     and not results.get(c, {}).get("_precleared")
                 ]
                 if new_valid:
+                    clicked = False
                     try:
-                        ppr_map = await self._confirm_redelivery_order(new_valid)
+                        ppr_map, clicked = await self._confirm_redelivery_order(new_valid)
                         for unit, ppr in ppr_map.items():
                             if unit in results:
                                 results[unit]["booking_ref"] = ppr
@@ -406,11 +454,22 @@ class FlorScraper(BaseScraper):
                     except Exception as exc:
                         logger.error("FLOR Phase B Confirm 실패: %s", exc)
 
-                    # Confirm 화면에서 번호를 못 읽은 unit → Status 탭 재조회로 보강.
-                    # (재조회는 읽기 전용 — Confirm 재클릭 없음)
+                    # Confirm 화면에서 번호를 못 읽은 unit 처리.
+                    # Florens 는 발급을 수 분 뒤에야 Status 탭에 반영하므로 (로그 실측:
+                    # 직후 재조회는 항상 실패, 6~7초 낭비) 재조회 없이 바로 응답한다.
+                    # 번호 확인은 결과표의 [Status 조회] 버튼(/status-detail) 경로.
+                    # PLAN_query_speedup.html §3-3
                     missing = [c for c in new_valid if not results[c].get("booking_ref")]
+                    for c in missing:
+                        results[c]["reason"] = (
+                            "발급 요청 완료 — 반납번호는 잠시 후 [Status 조회] 버튼으로 확인"
+                            if clicked
+                            else "반납번호 미확인 — Florens Status 탭 확인 필요"
+                        )
                     if missing:
-                        await self._backfill_ppr_from_status(results, missing)
+                        logger.info(
+                            "FLOR Confirm 후 반납번호 미표시 (clicked=%s): %s", clicked, missing
+                        )
 
         except Exception as exc:
             logger.error("FLOR query error: %s\n%s", exc, traceback.format_exc())
@@ -458,30 +517,32 @@ class FlorScraper(BaseScraper):
 
     async def _navigate_to_apply(self) -> None:
         """Redelivery 페이지 진입. Apply Redelivery 탭이 기본 활성이지만 안전을 위해 클릭."""
-        await self.page.goto(REDELIV_URL, wait_until="networkidle", timeout=30_000)
-        await asyncio.sleep(2.0)
+        await self.page.goto(REDELIV_URL, wait_until="domcontentloaded", timeout=30_000)
         apply_tab = self.page.locator("text=Apply Redelivery").first
-        if await apply_tab.count() > 0:
-            try:
-                await apply_tab.click(timeout=3_000)
-                await asyncio.sleep(0.8)
-            except Exception:
-                pass  # 이미 활성이면 클릭 실패해도 무방
+        try:
+            await apply_tab.wait_for(state="visible", timeout=15_000)
+            await apply_tab.click(timeout=3_000)
+        except Exception:
+            pass  # 이미 활성이면 클릭 실패해도 무방
+        # Step1 폼(Customer ID 라디오 + el-select) 렌더 완료까지만 대기.
+        await self._wait_js(
+            r"""() => {
+                const r = document.querySelector('label.el-radio, label.el-radio-button');
+                const s = document.querySelector('.el-select .el-input__inner');
+                return !!(r && r.offsetParent !== null && s && s.offsetParent !== null);
+            }""",
+            15_000, "apply-step1",
+        )
 
     async def _navigate_to_status(self) -> None:
         """Redelivery Status 탭으로 전환. 탭이 안 보이면 REDELIV_URL 재진입 후 재시도."""
         status_tab = self.page.locator("text=Redelivery Status").first
         if await status_tab.count() == 0:
-            await self.page.goto(REDELIV_URL, wait_until="networkidle", timeout=30_000)
-            await asyncio.sleep(2.0)
+            await self.page.goto(REDELIV_URL, wait_until="domcontentloaded", timeout=30_000)
             status_tab = self.page.locator("text=Redelivery Status").first
+            await status_tab.wait_for(state="visible", timeout=15_000)
         await status_tab.click(timeout=5_000)
-        try:
-            await self.page.wait_for_load_state("networkidle", timeout=10_000)
-        except Exception:
-            pass
-        await asyncio.sleep(1.5)
-        # Unit Number input 이 DOM 에 붙을 때까지 대기 (visible 은 _fill_unit_input 가 처리).
+        # Unit Number input 이 DOM 에 붙을 때까지 대기 (visible 은 아래 모드 선택 후 확인).
         try:
             await self.page.wait_for_selector(
                 'input[placeholder="Unit Number"]', state="attached", timeout=10_000
@@ -495,6 +556,13 @@ class FlorScraper(BaseScraper):
             await self._select_search_by_unit_no()
         except Exception as exc:
             logger.warning("FLOR Status 'Unit No.' 모드 선택 실패: %s", exc)
+
+        # 모드 전환 후 Unit Number 입력란이 실제로 보이는(0×0 아님) 시점까지 대기.
+        await self._wait_js(
+            r"""() => Array.from(document.querySelectorAll('input[placeholder="Unit Number"]'))
+                .some(el => el.offsetParent !== null && el.offsetWidth > 0)""",
+            5_000, "status-unit-input",
+        )
 
     async def _select_search_by_unit_no(self) -> None:
         """Status 탭의 Search By 모드를 'Unit No.' 로 설정.
@@ -552,7 +620,7 @@ class FlorScraper(BaseScraper):
             }"""
         )
         logger.info("FLOR Status 'Unit No.' 모드 선택: %s", result)
-        await asyncio.sleep(0.6)
+        # 가시성 대기는 호출자(_navigate_to_status)가 수행.
 
     async def _dump_status_tab(self) -> None:
         """S1 진단: Status 탭 진입 직후 DOM/Vue 상태를 로그로 캡처.
@@ -713,7 +781,13 @@ class FlorScraper(BaseScraper):
             "FLOR customer_id %r → %s (already=%s)",
             cust_id, result.get("text"), result.get("already"),
         )
-        await asyncio.sleep(0.5)
+        if not result.get("already"):
+            await self._wait_js(
+                r"""(t) => Array.from(document.querySelectorAll('label.el-radio, label.el-radio-button'))
+                    .some(l => (l.innerText || '').trim().toUpperCase().includes(t)
+                        && (l.classList.contains('is-checked') || l.classList.contains('is-active')))""",
+                3_000, "customer-checked", arg=cust_id.upper(),
+            )
 
     async def _select_port(self, port_substr: str) -> None:
         """Step1 Port Element UI 드롭다운 — 첫 번째 el-select 위젯."""
@@ -741,7 +815,12 @@ class FlorScraper(BaseScraper):
             await inner.click()
         else:
             await sel.click()
-        await asyncio.sleep(0.6)
+        # 옵션 패널의 항목이 실제로 보일 때까지만 대기.
+        await self._wait_js(
+            r"""() => Array.from(document.querySelectorAll('.el-select-dropdown__item'))
+                .some(el => el.offsetParent !== null)""",
+            5_000, f"el-select[{nth}]-open",
+        )
 
     async def _pick_el_option_substr(self, substr: str) -> None:
         """현재 열려있는 옵션 패널에서 substring 매칭하는 li 를 JS evaluate 로 클릭."""
@@ -766,27 +845,72 @@ class FlorScraper(BaseScraper):
                 f"드롭다운 옵션 '{substr}' 없음 (visible {result.get('visible')}개)"
             )
         logger.info("FLOR option picked: %r → %r", substr, result.get("text"))
-        await asyncio.sleep(0.8)
+        # 선택 텍스트가 어느 el-select 입력란에 반영되고 패널이 닫힐 때까지 대기.
+        await self._wait_js(
+            r"""(sub) => {
+                const subU = sub.toUpperCase();
+                const applied = Array.from(document.querySelectorAll('.el-select .el-input__inner'))
+                    .some(i => (i.value || '').toUpperCase().includes(subU));
+                const open = Array.from(document.querySelectorAll('.el-select-dropdown'))
+                    .some(d => d.offsetParent !== null && getComputedStyle(d).display !== 'none');
+                return applied && !open;
+            }""",
+            5_000, "option-applied", arg=substr,
+        )
 
-    async def _step_next(self) -> None:
-        """Next 버튼 클릭."""
+    # 다음 화면 식별 조건 (Next 클릭 후 이 조건이 참이 될 때까지 대기)
+    # Element UI 스텝 제목(.el-step__title.is-process)으로 현재 단계를 식별하고,
+    # 그 단계의 핵심 위젯이 보이는지까지 확인. (_inspect/apply_07_step3.html 기준
+    # 제목: Select Depot / Enter Unit Numbers / Completed)
+    _STEP_READY_JS = {
+        # Step1 → Step2: 'Enter Unit Numbers' 진행 중 + textarea 가시
+        "step2": r"""() => {
+            const cur = Array.from(document.querySelectorAll('.el-step__title.is-process'))
+                .map(e => (e.innerText || '').trim());
+            const onStep = cur.length === 0 || cur.some(t => /unit numbers/i.test(t));
+            const ta = Array.from(document.querySelectorAll('textarea.el-textarea__inner'))
+                .some(t => t.offsetParent !== null);
+            return onStep && ta;
+        }""",
+        # Step2 → Step3: 'Completed' 진행 중 + (결과 행 또는 Confirm 버튼 가시)
+        "step3": r"""() => {
+            const cur = Array.from(document.querySelectorAll('.el-step__title.is-process'))
+                .map(e => (e.innerText || '').trim());
+            const onStep = cur.length === 0 || cur.some(t => /completed/i.test(t));
+            if (!onStep) return false;
+            const rows = Array.from(document.querySelectorAll('table tbody tr'))
+                .filter(tr => tr.offsetParent !== null && (tr.innerText || '').trim());
+            if (rows.length > 0) return true;
+            return Array.from(document.querySelectorAll('button'))
+                .some(b => b.offsetParent !== null && /confirm/i.test(b.innerText || ''));
+        }""",
+    }
+
+    async def _step_next(self, expect: str | None = None) -> None:
+        """Next 버튼 클릭 후 `expect` 화면(step2/step3) 렌더까지 대기."""
         btn = self.page.locator("button").filter(has_text="Next").first
         if await btn.count() == 0:
             raise RuntimeError("Next 버튼 없음")
         await btn.click()
-        try:
-            await self.page.wait_for_load_state("networkidle", timeout=10_000)
-        except Exception:
-            pass
-        await asyncio.sleep(1.5)
+        js = self._STEP_READY_JS.get(expect or "")
+        if js:
+            await self._wait_js(js, 15_000, f"next→{expect}")
+        else:
+            try:
+                await self.page.wait_for_load_state("networkidle", timeout=10_000)
+            except Exception:
+                pass
 
     async def _step2_fill_units(self, containers: list[str]) -> None:
         """Step2 textarea 에 컨테이너 번호 \\n 구분으로 일괄 입력."""
         ta = self.page.locator("textarea.el-textarea__inner").first
         if await ta.count() == 0:
             raise RuntimeError("Unit Numbers textarea 없음")
-        await ta.fill("\n".join(containers))
-        await asyncio.sleep(0.5)
+        text = "\n".join(containers)
+        await ta.fill(text)
+        actual = (await ta.input_value()).strip()
+        if actual != text.strip():
+            logger.warning("FLOR Step2 textarea 값 불일치 (len %d vs %d)", len(actual), len(text))
 
     async def status_detail(self, containers: list[str]) -> list[dict]:
         """Status 탭 단독 조회 (사용자 요청 2026-05-21).
@@ -866,7 +990,9 @@ class FlorScraper(BaseScraper):
             if not results[c].get("booking_ref"):
                 results[c]["reason"] = "반납번호 미확인 — Florens Status 탭 확인 필요"
 
-    async def _confirm_redelivery_order(self, valid_units: list[str]) -> dict[str, str]:
+    async def _confirm_redelivery_order(
+        self, valid_units: list[str],
+    ) -> tuple[dict[str, str], bool]:
         """Step3 의 Confirm Redelivery Order 클릭 → 신규 PPR 발급.
 
         사용자 명시 요청에 따라 Step3 valid 가 있으면 자동 발급.
@@ -878,10 +1004,11 @@ class FlorScraper(BaseScraper):
           - valid_units 비어있으면 호출자가 미리 skip
 
         Returns:
-          {unit: ppr_number} — 매핑 못 한 unit 은 빠짐.
+          ({unit: ppr_number}, clicked) — 매핑 못 한 unit 은 빠짐.
+          clicked=True 면 Confirm 클릭이 실제로 수행됨 (번호 미표시여도 발급 요청은 된 상태).
         """
         if not valid_units:
-            return {}
+            return {}, False
 
         # 1) Confirm 버튼 찾기 (텍스트 여러 변형 시도)
         btn = self.page.locator("button").filter(
@@ -891,7 +1018,7 @@ class FlorScraper(BaseScraper):
             btn = self.page.locator("button").filter(has_text="Confirm").first
         if await btn.count() == 0:
             logger.warning("FLOR Confirm 버튼 미발견 — 발급 스킵")
-            return {}
+            return {}, False
 
         # 2) disabled 체크 (Element UI: is-disabled 클래스 / 표준 disabled 속성)
         disabled = await btn.evaluate(
@@ -899,7 +1026,7 @@ class FlorScraper(BaseScraper):
         )
         if disabled:
             logger.warning("FLOR Confirm 버튼 disabled — 발급 스킵 (사전 검증 실패 추정)")
-            return {}
+            return {}, False
 
         # 3) 클릭 전 페이지 상태 스냅샷 (발급 전 PPR 셋트)
         text_before = await self.page.evaluate(
@@ -916,9 +1043,10 @@ class FlorScraper(BaseScraper):
             await btn.click(timeout=10_000)
         except Exception as exc:
             logger.error("FLOR Confirm 클릭 실패: %s", exc)
-            return {}
+            return {}, False
 
         # 발급 후 화면 변화 대기 — 새 PPR 텍스트 등장 또는 네트워크 안정
+        # (실 발급 단계이므로 고정 3초 대기는 유지 — PLAN_query_speedup.html §3-1)
         try:
             await self.page.wait_for_load_state("networkidle", timeout=20_000)
         except Exception:
@@ -990,7 +1118,7 @@ class FlorScraper(BaseScraper):
 
         for unit, ppr in mapping.items():
             logger.info("FLOR %s: 신규 PPR 발급 → %s", unit, ppr)
-        return mapping
+        return mapping, True
 
     async def _parse_step3(self, results: dict, depot_str: str) -> None:
         """Step3 사전 검증 결과 파싱.
@@ -1005,17 +1133,15 @@ class FlorScraper(BaseScraper):
           - 그 외 컨테이너 패턴(`[A-Z]{4}\\d{6,7}`) 가진 행은 유효 행.
         """
         # Unit Detail (precleared) 영역은 Step 3 진입 후 가변 지연으로 그려질 수
-        # 있어 _step_next 의 sleep(1.5) 만으로 부족한 경우가 있음. 페이지에
-        # "Redelivery number:" 텍스트가 나타날 때까지 최대 4초 대기.
-        # 끝까지 안 보이면 precleared 행이 없는 정상 케이스로 간주 → 통과.
-        try:
-            await self.page.wait_for_function(
-                "() => (document.body.innerText || '').includes('Redelivery number:')",
-                timeout=4_000,
-            )
-            logger.info("FLOR Step3: precleared 'Redelivery number:' 텍스트 감지됨")
-        except Exception:
-            logger.info("FLOR Step3: precleared 텍스트 없음 (4s timeout) — 신규 케이스로 진행")
+        # 있음. 예전엔 "Redelivery number:" 문구를 최대 4초 기다려 precleared 가
+        # 없는 보통 케이스마다 4초를 다 썼음. 지금은 가시 행 수가 0.3s 간격 2회
+        # 같아지면 즉시 파싱(상한 4초). precleared 문구는 파싱 시점에 한 번 확인.
+        # PLAN_query_speedup.html §3-2
+        n_rows = await self._wait_stable_rows(timeout_ms=4_000, label="step3")
+        has_precleared = await self.page.evaluate(
+            "() => (document.body.innerText || '').includes('Redelivery number:')"
+        )
+        logger.info("FLOR Step3: 가시 행 %d개 안정, precleared 문구=%s", n_rows, has_precleared)
 
         data = await self.page.evaluate(
             r"""() => {
@@ -1036,11 +1162,16 @@ class FlorScraper(BaseScraper):
                     return REJECT_KEYWORDS.some(k => cl.includes(k));
                 }
 
-                // 모든 테이블의 모든 행을 한 스트림으로 수집 (순서 보존).
+                // 화면에 보이는 테이블 행만 한 스트림으로 수집 (순서 보존).
+                // 비활성 탭 패널(display:none)에 남은 Status 탭 테이블·펼침 상세표가
+                // 섞여 valid=1498 같은 오판이 난 사례가 있음 (2026-11-05 로그).
+                // PLAN_query_speedup.html §3-4
                 const allRows = [];
                 for (const tbl of document.querySelectorAll('table')) {
+                    if (tbl.offsetParent === null) continue;
                     const rows = Array.from(tbl.querySelectorAll('tbody tr'));
                     for (const tr of rows) {
+                        if (tr.offsetParent === null) continue;
                         const cells = Array.from(tr.querySelectorAll('td'))
                             .map(td => (td.innerText || '').trim());
                         if (cells.length === 0) continue;
@@ -1122,7 +1253,8 @@ class FlorScraper(BaseScraper):
             logger.info("FLOR Step3 split-match: unit=%s reason=%s",
                         ms.get("unit"), (ms.get("reason") or "")[:120])
         for row in (data.get("dump") or [])[:10]:
-            logger.info("FLOR Step3 row: %s", row)
+            # 셀 하나가 수 KB 인 펼침 상세표가 섞이면 logging 예외가 나므로 길이 제한
+            logger.info("FLOR Step3 row: %s", [str(c)[:120] for c in row][:12])
 
         # 거부행 처리: §5-3 (이미 활성 PPR), §5-4 (이전 완료) 패턴은 1차 reason 텍스트에서 탐지
         for r in invalid:
@@ -1279,7 +1411,6 @@ class FlorScraper(BaseScraper):
         # 1) Playwright fill (visible input 대상)
         try:
             await loc.fill(container, timeout=3_000)
-            await asyncio.sleep(0.4)
             actual = (await loc.input_value()).strip().upper()
             if actual == container.upper():
                 await self._verify_vue_sync_idx(sel_all, vidx, container)
@@ -1398,7 +1529,17 @@ class FlorScraper(BaseScraper):
         """Status 탭에서 컨테이너 한 개 검색 후 결과 행 파싱."""
         if not await self._fill_unit_input(container):
             return self._error_row(container, "Unit Number 입력란 없음")
-        await asyncio.sleep(0.3)
+
+        # 클릭 전 결과 영역 스냅샷 — 이전 컨테이너의 잔존 행이 "결과 도착"으로
+        # 오인되지 않도록, 클릭 후 이 값이 바뀌는 것을 결과 도착 조건으로 쓴다.
+        _snapshot_js = r"""() => Array.from(document.querySelectorAll('table tbody tr'))
+            .filter(tr => tr.offsetParent !== null)
+            .map(tr => (tr.innerText || '').trim()).join('|')"""
+        try:
+            table_before = await self.page.evaluate(_snapshot_js)
+            await self.page.evaluate("() => { window.__florLoadingSeen = false; }")
+        except Exception:
+            table_before = None
 
         # 입력값 검증 로그 — visible input 만 (Apply 탭 hidden input 회피)
         try:
@@ -1442,30 +1583,39 @@ class FlorScraper(BaseScraper):
                 # 이 경우 검색 자체를 못 함 → 에러 행 반환.
                 return self._error_row(container, "Search 버튼 disabled (Vue 동기화 실패)")
             return self._error_row(container, "Search 버튼 없음")
-        try:
-            await self.page.wait_for_load_state("networkidle", timeout=20_000)
-        except Exception:
-            pass
-
-        # 결과 행 출현 대기 — tbody 가 채워지거나 "No data/results" 텍스트 등장까지.
-        try:
-            await self.page.wait_for_function(
-                r"""() => {
-                    const rows = document.querySelectorAll('table tbody tr');
-                    if (rows.length > 0) {
-                        for (const r of rows) {
-                            if ((r.innerText || '').trim().length > 0) return true;
-                        }
-                    }
-                    const txt = (document.body.innerText || '').toLowerCase();
-                    return /no\s*(data|results|record)/i.test(txt)
-                        || /results,?\s+(recent|none)/i.test(txt);
-                }""",
-                timeout=8_000,
+        # 결과 도착 대기 (PLAN_query_speedup.html §3-1):
+        #  1) 로딩 마스크(.el-loading-mask)가 보이는 동안은 대기
+        #  2) 결과 테이블 텍스트가 클릭 전 스냅샷과 달라지거나 "No data" 문구 출현
+        #  3) 스냅샷이 비어 있었고 여전히 비어 있으면 — 서버가 '결과 없음'을 빈
+        #     테이블로 표현하는 케이스이므로 로딩 마스크 소멸 후 통과
+        arrived = await self._wait_js(
+            r"""(before) => {
+                const loading = Array.from(document.querySelectorAll('.el-loading-mask'))
+                    .some(m => m.offsetParent !== null && getComputedStyle(m).display !== 'none');
+                if (loading) { window.__florLoadingSeen = true; return false; }
+                // 로딩 마스크가 떴다가 사라졌으면 응답 도착 (결과 유무 무관)
+                if (window.__florLoadingSeen) return true;
+                const now = Array.from(document.querySelectorAll('table tbody tr'))
+                    .filter(tr => tr.offsetParent !== null)
+                    .map(tr => (tr.innerText || '').trim()).join('|');
+                if (before !== null && now !== before) return true;
+                const txt = (document.body.innerText || '');
+                if (/no\s*(data|results|record)/i.test(txt)
+                    || /results,?\s+(recent|none)/i.test(txt)) return true;
+                return false;
+            }""",
+            6_000, f"search-result:{container}", arg=table_before,
+        )
+        if not arrived:
+            # 변화 감지 실패 — 이전과 동일한 결과(같은 컨테이너 재검색 등)일 수 있음.
+            # 로딩 마스크만 사라졌는지 짧게 확인하고 진행.
+            await self._wait_js(
+                r"""() => !Array.from(document.querySelectorAll('.el-loading-mask'))
+                    .some(m => m.offsetParent !== null && getComputedStyle(m).display !== 'none')""",
+                3_000, "search-loading-gone",
             )
-        except Exception:
-            pass
-        await asyncio.sleep(1.5)
+        # 렌더 안정화: 행 수가 0.3s 간격 2회 같아질 때까지 (최대 2s)
+        await self._wait_stable_rows(timeout_ms=2_000, label=f"search:{container}")
 
         # 진단 로그: rows=0 케이스 원인 분석용
         try:
@@ -1716,8 +1866,40 @@ class FlorScraper(BaseScraper):
         if not clicked.get("ok"):
             return {}
 
-        await asyncio.sleep(2)
+        # 펼침 영역(.el-table__expanded-cell 또는 상세 라벨)이 그려질 때까지 대기.
+        await self._wait_js(
+            r"""() => {
+                const cells = Array.from(document.querySelectorAll('.el-table__expanded-cell'))
+                    .filter(c => c.offsetParent !== null);
+                if (cells.some(c => /expiry\s*date|depot\s*name/i.test(c.innerText || ''))) return true;
+                // 펼침 셀 클래스가 다를 경우 폴백: 라벨 텍스트가 화면 어딘가에 보임
+                return Array.from(document.querySelectorAll('th, td, span, label, strong, b, p'))
+                    .some(e => e.offsetParent !== null
+                        && /^(expiry\s*date|depot\s*name)\s*:?$/i.test((e.innerText || '').trim()));
+            }""",
+            5_000, f"expand:{ref}",
+        )
 
+        details = await self._extract_expanded_details()
+
+        # 펼친 행을 다시 접는다 — 다음 검색/Apply Step3 파싱에 상세표가 섞이지 않도록.
+        # (PLAN_query_speedup.html §3-4) 실패해도 무시: Step3 파싱은 가시 행만 읽음.
+        try:
+            await self.page.evaluate(r"""(needle) => {
+                for (const tr of document.querySelectorAll('table tbody tr')) {
+                    if (!(tr.innerText || '').includes(needle)) continue;
+                    // 펼쳐진 상태의 아이콘만 클릭 (일반 아이콘을 누르면 반대로 펼쳐짐)
+                    const icon = tr.querySelector('.el-table__expand-icon--expanded');
+                    if (icon) icon.click();
+                    return;
+                }
+            }""", ref)
+        except Exception as exc:
+            logger.info("FLOR expand 접기 실패(무시): %s", exc)
+        return details
+
+    async def _extract_expanded_details(self) -> dict:
+        """펼쳐진 상세 영역에서 Expiry Date / Depot Name / Open CAP / Off Hire Date 추출."""
         return await self.page.evaluate(r"""() => {
             function valueByLabel() {
                 const labels = Array.from(arguments);

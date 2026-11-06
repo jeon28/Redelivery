@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FLOR 조회 속도 개선</title>
+<style>
+  :root { --bg:#f8fafc; --fg:#0f172a; --muted:#475569; --card:#fff; --line:#e2e8f0; --accent:#0f766e; --warn:#b45309; --ok:#15803d; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.65 -apple-system,"Segoe UI","Malgun Gothic",sans-serif; }
+  main { max-width:920px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:24px; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 28px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px 22px; margin-bottom:16px; }
+  h2 { font-size:17px; margin:0 0 10px; color:var(--accent); }
+  h3 { font-size:15px; margin:14px 0 6px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; }
+  code { background:#f1f5f9; padding:1px 5px; border-radius:4px; font-size:13px; }
+  pre { background:#0f172a; color:#e2e8f0; padding:12px 14px; border-radius:8px; font-size:13px; overflow:auto; }
+  .note { color:var(--warn); }
+  .ok { color:var(--ok); }
+  .tag { display:inline-block; font-size:12px; padding:1px 8px; border-radius:999px; background:#e0f2f1; color:var(--accent); margin-right:6px; }
+  .tag.p2 { background:#fef3c7; color:var(--warn); }
+  ol, ul { margin:6px 0; padding-left:22px; }
+  .num { text-align:right; }
+</style>
+</head>
+<body>
+<main>
+  <h1>FLOR 반납조회 속도 개선 계획</h1>
+  <p class="sub">2026-11-06 · 대상: <code>scraper/scrapers/flor.py</code> (Phase 1) · <code>routers/query.py</code> + 프론트 2개 폼 (Phase 2)</p>
+
+  <section>
+    <h2>1. 목표</h2>
+    <ul>
+      <li><b>Phase 1 (즉시 적용)</b>: 사이트 동작은 그대로 두고, 코드에 박힌 고정 대기와 헛도는 단계를 없앤다. 신규 발급 1건 기준 <b>35초 → 15~18초</b>.</li>
+      <li><b>Phase 2 (별도 적용, 협의 후)</b>: 다중조회에만 "Apply 우선" 흐름을 적용해 컨테이너 수에 비례해 늘어나는 Status 탭 검색 횟수를 줄인다. 단건 통합조회는 현행 "Status 우선"을 유지한다.</li>
+      <li>FLOR 외 임대사, 로그인·세션 재사용, 슬라이더 캡차, Confirm 안전장치(disabled 체크, precleared 제외)는 변경하지 않는다.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>2. 현황 (Cloud Run 로그 실측, 2026-11-01 ~ 11-06)</h2>
+    <table>
+      <tr><th>구간</th><th class="num">신규 1건<br>(세션 유효)</th><th>비고</th></tr>
+      <tr><td>브라우저 기동 + 세션 확인</td><td class="num">3.5s</td><td>세션 만료 시 +11.5s (거의 매일 1회 발생)</td></tr>
+      <tr><td>Status 탭 진입 + 검색 1건</td><td class="num">8.0s</td><td>컨테이너 1건당 5~8s 직렬 추가</td></tr>
+      <tr><td>Apply 위저드 진입 → Step3 파싱</td><td class="num">14.0s</td><td>이 중 약 13.6s가 고정 sleep + 4s 타임아웃</td></tr>
+      <tr><td>Confirm 클릭 + 대기</td><td class="num">3.0s</td><td></td></tr>
+      <tr><td>Confirm 후 Status 재조회(번호 보강)</td><td class="num">6.6s</td><td>최근 4건 모두 번호 못 찾음 (Florens가 수 분 뒤 반영)</td></tr>
+      <tr><td><b>합계</b></td><td class="num"><b>35.5s</b></td><td>이미 발급된 건(Status Open 채택)은 11~13s</td></tr>
+    </table>
+    <p class="note">부가 발견: 11-05 Step3 파싱이 valid=1498건을 읽음. Status 탭에서 펼친(+More) 2012년 계약 상세표가 DOM에 남아 Step3 테이블과 함께 읽힌 것. 로그 행이 너무 커 logging 예외도 발생. 속도 문제보다 잘못된 valid 판정 위험이 있어 Phase 1에서 같이 수정.</p>
+  </section>
+
+  <section>
+    <h2>3. Phase 1 — 고정 대기 제거 + 헛도는 단계 제거 <span class="tag">즉시</span></h2>
+    <p>원칙: <code>asyncio.sleep(N)</code>을 "다음 단계가 필요로 하는 DOM 상태"를 기다리는 조건 대기로 바꾼다. 각 조건 대기에는 기존 sleep보다 긴 상한(timeout)을 두고, 상한 초과 시 예외 대신 로그만 남기고 진행한다(현행 동작과 동일한 안전망).</p>
+
+    <h3>3-1. 고정 sleep → 조건 대기</h3>
+    <table>
+      <tr><th>위치</th><th>현재</th><th>변경 후 대기 조건</th><th class="num">절감</th></tr>
+      <tr><td><code>_navigate_to_apply</code></td><td>networkidle + 2.0s + 0.8s</td><td>Step1 폼 렌더 (<code>label.el-radio</code> 가시) 까지</td><td class="num">~2.5s</td></tr>
+      <tr><td><code>_select_customer_id</code></td><td>0.5s</td><td>해당 라벨 <code>is-checked</code> 될 때까지 (이미 선택이면 즉시)</td><td class="num">~0.5s</td></tr>
+      <tr><td><code>_click_el_select</code> ×2</td><td>0.6s ×2</td><td><code>.el-select-dropdown__item</code> 가시 항목 출현까지</td><td class="num">~1.0s</td></tr>
+      <tr><td><code>_pick_el_option_substr</code> ×2</td><td>0.8s ×2</td><td>해당 el-select 입력값에 선택 텍스트 반영될 때까지</td><td class="num">~1.3s</td></tr>
+      <tr><td><code>_step_next</code> ×2</td><td>networkidle + 1.5s ×2</td><td>인자로 받은 "다음 화면 식별 셀렉터" 출현까지<br>Step1→2: <code>textarea.el-textarea__inner</code> 가시 / Step2→3: 결과 테이블 행 또는 Confirm 버튼 출현</td><td class="num">~2.5s</td></tr>
+      <tr><td><code>_step2_fill_units</code></td><td>0.5s</td><td>textarea 값이 입력 문자열과 일치 확인 (즉시)</td><td class="num">~0.5s</td></tr>
+      <tr><td><code>_navigate_to_status</code></td><td>networkidle + 1.5s + 0.6s</td><td>'Unit No.' 모드 선택 후 Unit Number input 가시(0×0 아님)까지</td><td class="num">~1.5s</td></tr>
+      <tr><td><code>_search_one</code> 결과 대기</td><td>wait(rows&gt;0) + 1.5s</td><td>클릭 전 테이블 텍스트 스냅샷 → 클릭 후 <b>텍스트가 바뀌거나</b> "No data" 출현까지. 이전 컨테이너의 잔존 행이 조건을 바로 만족시키던 문제도 함께 해결 (로딩 마스크 <code>.el-loading-mask</code> 소멸도 보조 조건)</td><td class="num">~1.0s/건</td></tr>
+      <tr><td><code>_fill_unit_input</code></td><td>0.4s (+폴백 0.3/0.5s)</td><td>fill 직후 <code>input_value</code> 비교 (즉시). 폴백 경로의 sleep은 유지</td><td class="num">~0.4s/건</td></tr>
+      <tr><td><code>_expand_and_extract</code></td><td>2.0s</td><td><code>.el-table__expanded-cell</code> 안에 "Expiry Date" 텍스트 출현까지</td><td class="num">~1.5s/건</td></tr>
+      <tr><td><code>login()</code> 세션 확인</td><td>networkidle + 1.0s</td><td>URL이 <code>/login</code>이 아니고 Redelivery 탭 텍스트가 보이면 즉시 통과</td><td class="num">~1.0s</td></tr>
+    </table>
+    <p><code>_confirm_redelivery_order</code>의 3.0s 대기는 실 발급 단계이므로 그대로 둔다.</p>
+
+    <h3>3-2. Step3 4초 타임아웃 제거</h3>
+    <p>현재: "Redelivery number:" 문구를 최대 4초 기다리고, precleared가 없는 보통 케이스는 매번 4초를 다 쓴다.<br>
+    변경: Step3 테이블 행 수를 300ms 간격으로 2회 연속 비교해 <b>안정되면 즉시</b> 파싱(상한 4초 유지). precleared 문구는 파싱 시점에 한 번만 확인. Unit Detail 영역이 늦게 그려지는 케이스는 행 수 안정화 조건이 흡수한다.</p>
+
+    <h3>3-3. Confirm 후 Status 탭 재조회 삭제</h3>
+    <p>현재: Confirm 화면에서 번호를 못 읽으면 Status 탭으로 이동해 재검색(6.6s). 로그상 항상 실패하고 결과 문구는 "반납번호 미확인 — Florens Status 탭 확인 필요".<br>
+    변경: 재조회를 하지 않고 바로 결과를 돌려준다. 문구는 두 가지로 구분한다.</p>
+    <ul>
+      <li>Confirm 클릭 성공 + 번호 미표시 → <span class="ok">"발급 요청 완료 — 반납번호는 잠시 후 [Status 조회] 버튼으로 확인"</span> (available=True, booking_ref 없음)</li>
+      <li>Confirm 버튼 없음/disabled/클릭 실패 → 현행대로 "반납번호 미확인 — Florens Status 탭 확인 필요"</li>
+    </ul>
+    <p>기존 결과표의 <b>Status 조회</b> 버튼(<code>/status-detail</code>, 11초)이 번호 확인 경로로 그대로 쓰인다. <code>_backfill_ppr_from_status</code> 함수는 삭제하지 않고 호출만 제거(향후 옵션으로 복구 가능).</p>
+
+    <h3>3-4. Step3 파싱 범위 한정 (정확성)</h3>
+    <ul>
+      <li><code>_parse_step3</code>의 <code>document.querySelectorAll('table')</code> → <b>화면에 보이는 행만</b>(<code>tr.offsetParent !== null</code>) 수집. 비활성 탭 패널(display:none)에 남은 Status 탭 상세표가 제외된다.</li>
+      <li>Status 탭에서 +More로 펼친 행은 추출 후 다시 접는다(같은 아이콘 재클릭, 실패해도 무시).</li>
+      <li>Step3 행 덤프 로그를 행당 300자로 잘라 logging 예외를 막는다.</li>
+    </ul>
+
+    <h3>3-5. Phase 1 예상 효과</h3>
+    <table>
+      <tr><th>케이스</th><th class="num">현재</th><th class="num">변경 후</th></tr>
+      <tr><td>신규 1건 (세션 유효)</td><td class="num">35s</td><td class="num">15~18s</td></tr>
+      <tr><td>이미 발급 1건 (Status Open 채택)</td><td class="num">11~13s</td><td class="num">8~9s</td></tr>
+      <tr><td>신규 1건 (세션 만료)</td><td class="num">45~55s</td><td class="num">27~30s</td></tr>
+      <tr><td>신규 5건 (세션 유효)</td><td class="num">~65s (Vercel 60s 초과 위험)</td><td class="num">~35s</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>4. Phase 2 — 조회 모드별 흐름 분리 <span class="tag p2">별도 적용 · 협의 후</span></h2>
+
+    <h3>4-1. 분리 적용 가능 여부: <span class="ok">가능</span></h3>
+    <table>
+      <tr><th>화면</th><th>호출</th><th>현재 구분 수단</th></tr>
+      <tr><td>단건 통합조회 (<code>SingleLookupForm.tsx</code>)</td><td><code>POST /api/query</code> → <code>POST /query</code>, <code>containers: [1개]</code></td><td rowspan="2">없음 (같은 엔드포인트, 같은 body)</td></tr>
+      <tr><td>다중조회 (<code>SearchForm.tsx</code>)</td><td>동일, <code>containers: [n개]</code></td></tr>
+    </table>
+    <p>백엔드 <code>QueryRequest</code>에 선택 필드 <code>flow: "status_first" | "apply_first"</code>(기본값 <code>status_first</code> = 현행)를 추가하면 두 화면을 독립적으로 제어할 수 있다. 컨테이너 개수로 추론하지 않고 <b>프론트가 명시</b>하게 해, 다중조회 화면에서 1건만 넣은 경우에도 선택한 흐름이 적용되게 한다. 다른 임대사 스크래퍼는 이 필드를 무시한다.</p>
+
+    <h3>4-2. 모드별 흐름</h3>
+    <table>
+      <tr><th></th><th>단건 통합조회</th><th>다중조회</th></tr>
+      <tr><td>흐름</td><td><b>Status 우선 (현행 유지)</b><br>Status 검색 1회 → 없으면 Apply</td><td><b>Apply 우선 (신규)</b><br>Apply Step3 1회로 전건 분류 → precleared(Open) 건만 Status 탭에서 유효기간·depot 보강</td></tr>
+      <tr><td>이미 발급 1건</td><td>8~9s</td><td>Apply 6s + Status 보강 6s ≈ 12s</td></tr>
+      <tr><td>신규 n건</td><td>—</td><td>Apply 6s + Confirm 3s ≈ <b>9s (n 무관)</b></td></tr>
+      <tr><td>발급 5 + 신규 5</td><td>—</td><td>Apply 6s + 보강 5×6s + Confirm ≈ 40s (현행 Phase 1 후 ~65s)</td></tr>
+    </table>
+
+    <h3>4-3. 다중조회 Apply 우선 시 판정 규칙</h3>
+    <table>
+      <tr><th>Step3 결과</th><th>처리</th></tr>
+      <tr><td>valid 행</td><td>신규 발급 대상 → Confirm (현행 Phase B와 동일)</td></tr>
+      <tr><td>"already precleared (Redelivery number: PPxNNNNN)"</td><td>번호는 Step3 문구에서 즉시 확보 → Status 탭에서 유효기간·depot만 보강 (보강 실패 시 번호만 표시)</td></tr>
+      <tr><td>그 외 invalid (over caps, not on hire 등)</td><td>불가 + Step3 사유 그대로. <span class="note">Status 탭 조회를 하지 않으므로 "OFF HIRE DATE …" 반납완료 표기는 다중조회에서 사라지고 Step3 사유 문구로 대체됨</span> → 이 트레이드오프가 수용 가능한지 결정 필요</td></tr>
+    </table>
+
+    <h3>4-4. 리스크</h3>
+    <ul>
+      <li>Status 우선으로 바꿨던 이유(Step3 파싱 불안정: fixed column으로 행 분리, Unit Detail 지연 렌더)가 재현될 수 있다. 당시 패치(bidirectional sweep, wait_for_function)는 현재 코드에 일부만 남아 있어 Phase 2 착수 시 Step3 파싱을 다건 케이스로 재검증해야 한다.</li>
+      <li>반대로 11-03 로그에서는 Status 탭이 "결과 없음"인데 Step3는 precleared PPT02419를 정확히 잡았다. 두 소스가 서로 보완 관계이므로 다중조회에서 Status 보강 실패 시 Step3 번호를 그대로 쓰는 폴백을 둔다.</li>
+      <li>프론트 "FLOR 6개 이상 입력" 경고문은 Phase 2 적용 후 문구 조정.</li>
+    </ul>
+    <p>Phase 2는 Phase 1 배포 후 실측을 보고 착수 여부를 결정한다. 착수 시 별도 계획서 없이 본 문서 4장을 기준으로 진행.</p>
+  </section>
+
+  <section>
+    <h2>5. 변경 파일</h2>
+    <table>
+      <tr><th>Phase</th><th>파일</th><th>변경</th></tr>
+      <tr><td>1</td><td><code>scraper/scrapers/flor.py</code></td><td>3-1~3-4 전부. 공개 인터페이스(<code>query</code>/<code>status_detail</code> 시그니처, 결과 schema) 변경 없음</td></tr>
+      <tr><td>1</td><td><code>FLOR/ANALYSIS.md</code></td><td>"Confirm 직후 번호 미노출, 수 분 뒤 반영" 관찰과 대기 조건 메모 추가</td></tr>
+      <tr><td>2</td><td><code>scraper/routers/query.py</code></td><td><code>flow</code> 선택 필드 추가, 스크래퍼에 전달</td></tr>
+      <tr><td>2</td><td><code>scraper/scrapers/base.py</code></td><td><code>run()/query()</code>에 <code>flow</code> kwargs 통과 (기본값으로 다른 임대사 무영향)</td></tr>
+      <tr><td>2</td><td><code>scraper/scrapers/flor.py</code></td><td><code>query()</code> 분기 + Apply 우선 경로</td></tr>
+      <tr><td>2</td><td><code>frontend/components/SearchForm.tsx</code></td><td>FLOR일 때 <code>flow: "apply_first"</code> 전송, 경고문 조정</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>6. 검증 (Phase 1)</h2>
+    <ol>
+      <li>로컬 <code>python -c "import scrapers.flor"</code> 임포트 검증.</li>
+      <li>Cloud Run 배포 (사용자 승인 후 <code>gcloud run deploy</code>).</li>
+      <li>이미 발급된 컨테이너 1건 조회 → Status 경로로 번호·유효기간 표시, 소요 10초 이내 확인.</li>
+      <li>신규 컨테이너 1건 조회 → Apply → Confirm → "발급 요청 완료" 문구, 소요 20초 이내 확인. 수 분 후 [Status 조회] 버튼으로 번호 확인.</li>
+      <li>신규 3건 이상 조회 → Step3 valid 수가 입력 수와 일치하는지(1498 같은 비정상 값 없음) 로그 확인.</li>
+      <li>로그에서 각 조건 대기의 timeout 경고가 반복되는 지점이 있으면 상한 조정.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>7. 작업 순서</h2>
+    <ol>
+      <li>본 계획 검토·승인</li>
+      <li>Phase 1 구현 (<code>flor.py</code>) + 임포트 검증 + 커밋</li>
+      <li>배포 승인 → Cloud Run 배포 → 6장 검증</li>
+      <li>실측 결과 보고 → Phase 2 착수 여부 결정</li>
+    </ol>
+  </section>
+</main>
+</body>
+</html>
