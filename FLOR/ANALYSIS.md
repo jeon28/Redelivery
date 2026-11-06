@@ -314,6 +314,8 @@ Port 선택 후 동적 활성. 옵션 텍스트 포맷: `(<DEPOT_CODE>) <Depot �
 - **Confirm 직후 번호 미노출**: Confirm Redelivery Order 클릭 후 화면에는 "Please confirm in N seconds" 류 문구만 보이고 PPR 번호가 없음. Status 탭도 직후 재검색하면 행 없음 → **수 분 뒤에야 `PPxNNNNN / Open` 반영**. 따라서 Confirm 직후 Status 재조회는 의미 없음 (스크래퍼는 재조회하지 않고 "발급 요청 완료" 로 응답, 번호는 [Status 조회] 버튼으로 확인).
 - **Apply 위저드 단계 식별**: Element UI steps `.el-step__title.is-process` 텍스트가 현재 단계 — `Select Depot` → `Enter Unit Numbers` → `Completed`. Step2 는 `textarea.el-textarea__inner`, Step3 는 결과 테이블 행 또는 Confirm 버튼 가시로 렌더 완료 판정.
 - **Status 탭 검색 응답**: Element UI 로딩 마스크 `.el-loading-mask` 가 떴다 사라지면 응답 도착. 이전 검색의 잔존 행이 남아 있으므로 "행 존재" 만으로는 결과 도착 판정 불가 → 클릭 전 테이블 텍스트 스냅샷과 비교.
+- **Status 검색 백엔드 API (2026-11-06 로그 캡처)**: Search 클릭 시 `GET https://www.florens.com/func/redelivery/order/list?custId=HALINE&resultCount=-1&from=&to=&status=&port=&oid=&unit=<컨테이너>&...` XHR 1회, 응답 200 (약 1.2초). 세션 쿠키 기반이므로 향후 브라우저 없이 직접 호출하는 방식(계획서 7번 장기안) 검토 시 출발점. 응답 JSON 구조는 미캡처.
+- **Customer ID 라디오 숨김**: 옵션이 1개인 계정(HA → HALINE)은 Step1 의 Customer ID form-group 이 `display:none`. 가시성 기반 대기 조건에 라디오를 넣으면 안 됨.
 - **탭 DOM 잔존**: Apply / Status 두 탭 패널이 모두 DOM 에 남아 있음(비활성은 display:none). Status 탭에서 +More 로 펼친 상세표(수백~천 행)가 Apply Step3 파싱에 섞인 사례 있음 → 파싱은 `offsetParent !== null` 인 가시 행만 대상으로 하고, 펼친 행은 추출 후 다시 접음.
 
 ## 10. 후속 작업
